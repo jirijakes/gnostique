@@ -1,0 +1,78 @@
+.text-note.central .content {
+    font-size: 1.3em;
+}
+
+.text-note .content {
+
+}
+
+.text-note .avatar {
+    margin: 8px;
+}
+
+.text-note .avatar image {
+    min-width: 64px;
+    min-height: 64px;
+}
+
+.text-note {
+    border-bottom: solid 1px alpha(grey, 0.3);
+    min-width: 500px;
+    font-family: Roboto, "Noto Sans";
+}
+
+.text-note .right-column {
+    padding-top: 8px;
+    padding-bottom: 4px;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+
+.text-note label.text {
+    padding: 10px;
+    padding-left: 0;
+}
+
+.hidden-buttons button {
+    /* border: none; */
+    /* text-shadow: none; */
+    padding: 6px;
+    /* box-shadow: none; */
+    border-radius: 0px;
+    min-height: 0px;
+    /* outline-offset: 0; */
+}
+
+.author button.author-name {
+    font-weight: bold;
+    background-image: none;
+    background-color: transparent;
+    border: none;
+    text-shadow: none;
+    padding: 0px;
+    box-shadow: none;
+    border-radius: 0px;
+    min-height: 0px;
+    outline-offset: 0;
+    font-size: 1.1em;
+}
+
+.author button.author-name:hover {
+    color: @fg_color;
+}
+
+.author label.author-pubkey {
+    font-size: 0.9em;
+    font-family: monospace;
+    opacity: 0.7;
+}
+
+.status .client {
+    opacity: 0.7;
+    font-size: 0.85em;
+}
+
+.status .time {
+    opacity: 0.6;
+    font-size: 0.7em;
+}
