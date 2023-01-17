@@ -6,11 +6,12 @@ license = "Apache-2.0 OR MIT"
 repository = "https://jirijakes.com/code/gnostique"
 description = "Native desktop Nostr client."
 keywords = ["nostr", "client", "GTK", "GUI"]
+exclude = ["doc/"]
 
 [dependencies]
 chrono = "0.4.23"
 directories = "4.0.1"
-gtk4 = { name = "gtk", version = "0.5.5", features = ["v4_6"] }
+gtk = { package = "gtk4", version = "0.5.5", features = ["v4_6"] }
 linkify = "0.9.0"
 nostr-sdk = "0.14.1"
 relm4 = "0.5.0-rc.1"

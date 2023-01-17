@@ -1,5 +1,3 @@
-mod lanes;
-
 use nostr_sdk::nostr::prelude::*;
 use nostr_sdk::nostr::{Event, Sha256Hash, Tag};
 
