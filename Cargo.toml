@@ -6,9 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-relm4 = "0.5.0-rc.1"
-nostr-sdk = { features = ["all-nips", "sqlite"], git = "https://github.com/yukibtc/nostr-rs-sdk", branch = "sqlite" }
 chrono = "0.4.23"
+directories = "4.0.1"
+gtk4 = { name = "gtk", version = "0.5.5", features = ["v4_6"] }
 linkify = "0.9.0"
-tokio = { version = "1.24.1", features = ["full"] }
+nostr-sdk = { features = ["all-nips", "sqlite"], git = "https://github.com/yukibtc/nostr-rs-sdk", branch = "sqlite" }
+relm4 = "0.5.0-rc.1"
+reqwest = "0.11.13"
 serde_json = "1.0.91"
+tokio = { version = "1.24.1", features = ["full"] }

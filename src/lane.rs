@@ -1,3 +1,6 @@
+use std::rc::Rc;
+
+use gtk::gdk;
 use nostr_sdk::nostr::secp256k1::XOnlyPublicKey;
 use nostr_sdk::nostr::Event;
 use nostr_sdk::nostr::Sha256Hash;
@@ -30,6 +33,10 @@ pub enum LaneMsg {
         metadata_json: String,
     },
     ShowDetails(Details),
+    AvatarBitmap {
+        pubkey: XOnlyPublicKey,
+        bitmap: Rc<gdk::Texture>,
+    },
 }
 
 #[derive(Debug)]
@@ -105,6 +112,17 @@ impl FactoryComponent for Lane {
                             metadata_json: metadata_json.clone(),
                         },
                     )
+                }
+            }
+            LaneMsg::AvatarBitmap { pubkey, bitmap } => {
+                for i in 0..self.text_notes.len() {
+                    self.text_notes.send(
+                        i,
+                        NoteInput::AvatarBitmap {
+                            pubkey,
+                            bitmap: bitmap.clone(),
+                        },
+                    );
                 }
             }
             LaneMsg::NewTextNote { event, profile } => {

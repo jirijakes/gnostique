@@ -1,3 +1,7 @@
+use std::path::PathBuf;
+use std::rc::Rc;
+
+use gtk::gdk;
 use gtk::prelude::*;
 use nostr_sdk::nostr::prelude::*;
 use nostr_sdk::Client;
@@ -21,6 +25,18 @@ pub struct Gnostique {
 pub enum Msg {
     Notification(RelayPoolNotification),
     ShowDetail(Details),
+    AvatarBitmap {
+        pubkey: XOnlyPublicKey,
+        file: PathBuf,
+    },
+}
+
+#[derive(Debug)]
+pub enum GnostiqueCmd {
+    AvatarBitmap {
+        pubkey: XOnlyPublicKey,
+        file: PathBuf,
+    },
 }
 
 #[relm4::component(pub async)]
@@ -28,7 +44,7 @@ impl AsyncComponent for Gnostique {
     type Init = Client;
     type Input = Msg;
     type Output = ();
-    type CommandOutput = ();
+    type CommandOutput = GnostiqueCmd;
 
     #[rustfmt::skip]
     view! {
@@ -95,10 +111,23 @@ impl AsyncComponent for Gnostique {
         AsyncComponentParts { model, widgets }
     }
 
+    async fn update_cmd(
+        &mut self,
+        msg: Self::CommandOutput,
+        sender: AsyncComponentSender<Gnostique>,
+        _root: &Self::Root,
+    ) {
+        match msg {
+            GnostiqueCmd::AvatarBitmap { pubkey, file } => {
+                sender.input(Msg::AvatarBitmap { pubkey, file })
+            }
+        }
+    }
+
     async fn update(
         &mut self,
         msg: Self::Input,
-        _sender: AsyncComponentSender<Self>,
+        sender: AsyncComponentSender<Self>,
         _root: &Self::Root,
     ) {
         match msg {
@@ -150,6 +179,12 @@ impl AsyncComponent for Gnostique {
             {
                 let json = serde_json::to_string_pretty(&ev).unwrap();
                 let m = Metadata::from_json(ev.content).unwrap();
+
+                // If the metadata contains valid URL, download it as an avatar.
+                if let Some(url) = m.picture.and_then(|p| Url::parse(&p).ok()) {
+                    sender.oneshot_command(obtain_avatar(ev.pubkey, url));
+                }
+
                 for i in 0..self.lanes.len() {
                     self.lanes.send(
                         i,
@@ -170,7 +205,40 @@ impl AsyncComponent for Gnostique {
 
             Msg::ShowDetail(details) => self.details.emit(DetailsWindowInput::Show(details)),
 
+            Msg::AvatarBitmap { pubkey, file } => {
+                let pix = Rc::new(gdk::Texture::from_filename(file).unwrap());
+                for i in 0..self.lanes.len() {
+                    self.lanes.send(
+                        i,
+                        LaneMsg::AvatarBitmap {
+                            pubkey,
+                            bitmap: pix.clone(),
+                        },
+                    );
+                }
+            }
+
             ev => {}
         }
     }
+}
+
+/// Find `pubkey`'s avatar image either in cache or, if not available,
+/// download it from `url` and then cache.
+async fn obtain_avatar(pubkey: XOnlyPublicKey, url: Url) -> GnostiqueCmd {
+    let filename: PathBuf = pubkey.to_string().into();
+
+    let cache = directories::ProjectDirs::from("com.jirijakes", "", "Gnostique")
+        .unwrap()
+        .cache_dir()
+        .join("avatars");
+    tokio::fs::create_dir_all(&cache).await.unwrap();
+    let file = cache.join(&filename);
+
+    if !file.is_file() {
+        let bytes = reqwest::get(url).await.unwrap().bytes().await.unwrap();
+        tokio::fs::write(&file, &bytes).await.unwrap();
+    }
+
+    GnostiqueCmd::AvatarBitmap { pubkey, file }
 }

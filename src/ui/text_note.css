@@ -1,5 +1,6 @@
 .text-note.central .content {
     font-size: 1.3em;
+    font-family: "Roboto", sans-serif;
 }
 
 .text-note .content {
@@ -18,7 +19,6 @@
 .text-note {
     border-bottom: solid 1px alpha(grey, 0.3);
     min-width: 500px;
-    font-family: Roboto, "Noto Sans";
 }
 
 .text-note .right-column {
@@ -31,6 +31,11 @@
 .text-note label.text {
     padding: 10px;
     padding-left: 0;
+ }
+
+.text-note .content {
+   font-family: "Roboto", sans-serif;
+   font-size: 1.1em;
 }
 
 .hidden-buttons button {

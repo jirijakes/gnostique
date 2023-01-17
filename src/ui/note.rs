@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use chrono::{DateTime, TimeZone, Utc};
-use gtk::gdk_pixbuf::Pixbuf;
+use gtk::gdk;
 use gtk::pango::WrapMode;
 use gtk::prelude::*;
 use nostr_sdk::nostr::prelude::TagKind;
@@ -32,7 +32,7 @@ pub struct Note {
     show_hidden_buttons: bool,
     event_json: String,
     metadata_json: Option<String>,
-    avatar: Rc<Pixbuf>,
+    avatar: Rc<gdk::Texture>,
     pub time: DateTime<Utc>,
     pub event_id: Sha256Hash,
 }
@@ -64,7 +64,10 @@ pub enum NoteInput {
     /// Show this note's details.
     ShowDetails,
     /// (New) avatar bitmap is available.
-    AvatarBitmap(Rc<Pixbuf>),
+    AvatarBitmap {
+        pubkey: XOnlyPublicKey,
+        bitmap: Rc<gdk::Texture>,
+    },
 }
 
 #[derive(Debug)]
@@ -109,7 +112,7 @@ impl FactoryComponent for Note {
 
                     gtk::Image {
                         #[watch]
-                        set_from_pixbuf: Some(&self.avatar),
+                        set_from_paintable: Some(self.avatar.as_ref()),
                         set_halign: gtk::Align::Center,
                         set_valign: gtk::Align::Start,
                     }
@@ -228,7 +231,7 @@ impl FactoryComponent for Note {
             show_hidden_buttons: false,
             event_json: serde_json::to_string_pretty(&init.event).unwrap(),
             metadata_json: None,
-            avatar: Rc::new(Pixbuf::from_file("default-user-icon-8.jpg").unwrap()), // TODO: Share
+            avatar: Rc::new(gdk::Texture::from_filename("default-user-icon-8.jpg").unwrap()), // TODO: Share
             time: Utc.timestamp_opt(init.event.created_at as i64, 0).unwrap(),
             event_id: init.event.id,
         }
@@ -248,7 +251,11 @@ impl FactoryComponent for Note {
             }
             NoteInput::FocusIn => self.show_hidden_buttons = true,
             NoteInput::FocusOut => self.show_hidden_buttons = false,
-            NoteInput::AvatarBitmap(pixbuf) => self.avatar = pixbuf,
+            NoteInput::AvatarBitmap { pubkey, bitmap } => {
+                if pubkey == self.author_pubkey {
+                    self.avatar = bitmap
+                }
+            }
             NoteInput::ShowDetails => {
                 let details = Details {
                     event_json: self.event_json.clone(),
