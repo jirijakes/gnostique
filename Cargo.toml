@@ -12,8 +12,7 @@ chrono = "0.4.23"
 directories = "4.0.1"
 gtk4 = { name = "gtk", version = "0.5.5", features = ["v4_6"] }
 linkify = "0.9.0"
-# Gnostique started to use nostr-sdk-sqlite before it was removed. Luckily it still survives in a branch.
-nostr-sdk = { features = ["all-nips", "sqlite"], git = "https://github.com/yukibtc/nostr-rs-sdk", branch = "sqlite" }
+nostr-sdk = "0.14.1"
 relm4 = "0.5.0-rc.1"
 reqwest = "0.11.13"
 serde_json = "1.0.91"

@@ -4,7 +4,7 @@ use gtk::gdk;
 use nostr_sdk::nostr::secp256k1::XOnlyPublicKey;
 use nostr_sdk::nostr::Event;
 use nostr_sdk::nostr::Sha256Hash;
-use nostr_sdk::sqlite::model::Profile;
+// use nostr_sdk::sqlite::model::Profile;
 use relm4::factory::FactoryVecDeque;
 use relm4::gtk;
 use relm4::prelude::*;
@@ -25,7 +25,7 @@ pub struct Lane {
 pub enum LaneMsg {
     NewTextNote {
         event: Event,
-        profile: Option<Profile>,
+        // profile: Option<Profile>,
     },
     UpdatedProfile {
         author_pubkey: XOnlyPublicKey,
@@ -125,14 +125,14 @@ impl FactoryComponent for Lane {
                     );
                 }
             }
-            LaneMsg::NewTextNote { event, profile } => {
+            LaneMsg::NewTextNote { event /*, profile*/ } => {
                 if !self.text_notes.iter().any(|tn| tn.event_id == event.id) {
                     let is_central = self.central_note.contains(&event.id);
                     let event_time = event.created_at;
 
                     let text_note = NoteInit {
                         event,
-                        profile,
+                        // profile,
                         is_central,
                     };
 

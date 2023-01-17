@@ -132,13 +132,13 @@ impl AsyncComponent for Gnostique {
     ) {
         match msg {
             Msg::Notification(RelayPoolNotification::Event(_url, ev))
-                if ev.kind == Kind::Base(KindBase::TextNote) =>
+                if ev.kind == Kind::TextNote =>
             {
-                let profile = self
-                    .client
-                    .store()
-                    .ok()
-                    .and_then(|s| s.get_profile(ev.pubkey).ok());
+                // let profile = self
+                //     .client
+                //     .store()
+                //     .ok()
+                //     .and_then(|s| s.get_profile(ev.pubkey).ok());
 
                 // let replies = ev
                 //     .tags
@@ -168,14 +168,14 @@ impl AsyncComponent for Gnostique {
                         i,
                         LaneMsg::NewTextNote {
                             event: ev.clone(),
-                            profile: profile.clone(),
+                            // profile: profile.clone(),
                         },
                     );
                 }
             }
 
             Msg::Notification(RelayPoolNotification::Event(_url, ev))
-                if ev.kind == Kind::Base(KindBase::Metadata) =>
+                if ev.kind == Kind::Metadata =>
             {
                 let json = serde_json::to_string_pretty(&ev).unwrap();
                 let m = Metadata::from_json(ev.content).unwrap();
@@ -198,7 +198,7 @@ impl AsyncComponent for Gnostique {
             }
 
             Msg::Notification(RelayPoolNotification::Event(_url, ev))
-                if ev.kind == Kind::Base(KindBase::ContactList) =>
+                if ev.kind == Kind::ContactList =>
             {
                 println!("{ev:?}")
             }

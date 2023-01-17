@@ -18,8 +18,8 @@ async fn main() -> Result<()> {
     // npub1mwe5spuec22ch97tun3znyn8vcwrt6zgpfvs7gmlysm0nqn3g5msr0653t
     let keys = Keys::new(secret_key);
 
-    std::fs::create_dir_all("store")?;
-    let client = Client::new_with_store(&keys, "store")?;
+    // std::fs::create_dir_all("store")?;
+    let client = Client::new(&keys);
 
     // client.restore_relays().await?;
 
@@ -29,17 +29,17 @@ async fn main() -> Result<()> {
 
     // client.sync().await?;
 
-    let sub = SubscriptionFilter::new()
-        // .pubkey(XOnlyPublicKey::from_bech32(
-        // "npub1gl23nnfmlewvvuz7xgrrauuexx2xj70whdf5yhd47tj0r8p68t6sww70gt",
-        // )?)
-        .events(vec![
-            "b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b"
-                .parse()
-                .unwrap(),
-        ])
-        // .limit(20)
-	;
+    // let sub = SubscriptionFilter::new()
+    //     // .pubkey(XOnlyPublicKey::from_bech32(
+    //     // "npub1gl23nnfmlewvvuz7xgrrauuexx2xj70whdf5yhd47tj0r8p68t6sww70gt",
+    //     // )?)
+    //     .events(vec![
+    //         "b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b"
+    //             .parse()
+    //             .unwrap(),
+    //     ])
+    //     // .limit(20)
+    //     ;
 
     // client
     //     .subscribe(vec![

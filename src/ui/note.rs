@@ -7,7 +7,7 @@ use gtk::prelude::*;
 use nostr_sdk::nostr::prelude::TagKind;
 use nostr_sdk::nostr::secp256k1::XOnlyPublicKey;
 use nostr_sdk::nostr::*;
-use nostr_sdk::sqlite::model::Profile;
+// use nostr_sdk::sqlite::model::Profile;
 use relm4::gtk;
 use relm4::prelude::*;
 
@@ -18,7 +18,7 @@ use super::details::Details;
 /// Initial
 pub struct NoteInit {
     pub event: Event,
-    pub profile: Option<Profile>,
+    // pub profile: Option<Profile>,
     pub is_central: bool,
 }
 
@@ -224,7 +224,7 @@ impl FactoryComponent for Note {
 
         Self {
             client,
-            author_name: init.profile.and_then(|p| p.name),
+            author_name: None, // init.profile.and_then(|p| p.name),
             author_pubkey: init.event.pubkey,
             is_central: init.is_central,
             content: add_links(&init.event.content),
