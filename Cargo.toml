@@ -1,15 +1,18 @@
 [package]
 name = "gnostique"
-version = "0.1.0"
+version = "0.1.0-alpha.1"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license = "Apache-2.0 OR MIT"
+repository = "https://jirijakes.com/code/gnostique"
+description = "Native desktop Nostr client."
+keywords = ["nostr", "client", "GTK", "GUI"]
 
 [dependencies]
 chrono = "0.4.23"
 directories = "4.0.1"
 gtk4 = { name = "gtk", version = "0.5.5", features = ["v4_6"] }
 linkify = "0.9.0"
+# Gnostique started to use nostr-sdk-sqlite before it was removed. Luckily it still survives in a branch.
 nostr-sdk = { features = ["all-nips", "sqlite"], git = "https://github.com/yukibtc/nostr-rs-sdk", branch = "sqlite" }
 relm4 = "0.5.0-rc.1"
 reqwest = "0.11.13"
