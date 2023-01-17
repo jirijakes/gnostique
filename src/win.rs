@@ -8,7 +8,6 @@ use nostr_sdk::Client;
 use nostr_sdk::RelayPoolNotification;
 use relm4::component::*;
 use relm4::factory::FactoryVecDeque;
-use relm4::gtk;
 // use relm4::prelude::*;
 
 use crate::lane::Lane;
@@ -16,7 +15,7 @@ use crate::lane::LaneMsg;
 use crate::ui::details::*;
 
 pub struct Gnostique {
-    client: Client,
+    // client: Client,
     lanes: FactoryVecDeque<Lane>,
     details: Controller<DetailsWindow>,
 }
@@ -67,16 +66,12 @@ impl AsyncComponent for Gnostique {
         // TODO: join handle?
         let mut notif = client.notifications();
         tokio::spawn(async move {
-            let f = std::fs::File::open(
-                "b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b.json",
+            include_str!(
+                "../b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b.json"
             )
-            .unwrap();
-            let f = std::io::BufReader::new(f);
-
-            use std::io::prelude::*;
-
-            f.lines().for_each(|l| {
-                let ev = nostr_sdk::nostr::event::Event::from_json(l.unwrap()).unwrap();
+            .lines()
+            .for_each(|l| {
+                let ev = nostr_sdk::nostr::event::Event::from_json(l).unwrap();
                 let url: Url = "http://example.com".parse().unwrap();
                 sender.input(Msg::Notification(RelayPoolNotification::Event(url, ev)));
             });
@@ -89,7 +84,7 @@ impl AsyncComponent for Gnostique {
         let details = DetailsWindow::builder().launch(()).detach();
 
         let mut model = Gnostique {
-            client,
+            // client,
             lanes,
             details,
         };

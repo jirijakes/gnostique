@@ -2,13 +2,13 @@ use std::rc::Rc;
 
 use chrono::{DateTime, TimeZone, Utc};
 use gtk::gdk;
+use gtk::glib;
 use gtk::pango::WrapMode;
 use gtk::prelude::*;
 use nostr_sdk::nostr::prelude::TagKind;
 use nostr_sdk::nostr::secp256k1::XOnlyPublicKey;
 use nostr_sdk::nostr::*;
 // use nostr_sdk::sqlite::model::Profile;
-use relm4::gtk;
 use relm4::prelude::*;
 
 use crate::lane::LaneMsg;
@@ -231,7 +231,12 @@ impl FactoryComponent for Note {
             show_hidden_buttons: false,
             event_json: serde_json::to_string_pretty(&init.event).unwrap(),
             metadata_json: None,
-            avatar: Rc::new(gdk::Texture::from_filename("default-user-icon-8.jpg").unwrap()), // TODO: Share
+            avatar: Rc::new(
+                gdk::Texture::from_bytes(&glib::Bytes::from(include_bytes!(
+                    "../../default-user-icon-8.jpg"
+                )))
+                .unwrap(),
+            ), // TODO: Share
             time: Utc.timestamp_opt(init.event.created_at as i64, 0).unwrap(),
             event_id: init.event.id,
         }
