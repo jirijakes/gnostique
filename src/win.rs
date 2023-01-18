@@ -193,6 +193,27 @@ impl AsyncComponent for Gnostique {
             }
 
             Msg::Notification(RelayPoolNotification::Event(_url, ev))
+                if ev.kind == Kind::Reaction =>
+            {
+                let to = ev.tags.iter().rev().find_map(|t| match t {
+                    Tag::Event(hash, _, _) => Some(*hash),
+                    _ => None,
+                });
+
+                if let Some(h) = to {
+                    for i in 0..self.lanes.len() {
+                        self.lanes.send(
+                            i,
+                            LaneMsg::Reaction {
+                                event: h,
+                                reaction: ev.content.clone(),
+                            },
+                        );
+                    }
+                }
+            }
+
+            Msg::Notification(RelayPoolNotification::Event(_url, ev))
                 if ev.kind == Kind::ContactList =>
             {
                 println!("{ev:?}")

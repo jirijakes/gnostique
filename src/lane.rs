@@ -37,6 +37,10 @@ pub enum LaneMsg {
         pubkey: XOnlyPublicKey,
         bitmap: Arc<gdk::Texture>,
     },
+    Reaction {
+        event: Sha256Hash,
+        reaction: String,
+    },
 }
 
 #[derive(Debug)]
@@ -121,6 +125,17 @@ impl FactoryComponent for Lane {
                         NoteInput::AvatarBitmap {
                             pubkey,
                             bitmap: bitmap.clone(),
+                        },
+                    );
+                }
+            }
+            LaneMsg::Reaction { event, reaction } => {
+                for i in 0..self.text_notes.len() {
+                    self.text_notes.send(
+                        i,
+                        NoteInput::Reaction {
+                            event,
+                            reaction: reaction.clone(),
                         },
                     );
                 }

@@ -38,6 +38,14 @@
    font-size: 1.1em;
 }
 
+.reactions {
+    padding: 5px 100px 0px 50px;
+}
+
+.reactions label {
+    color: grey;
+}
+
 .hidden-buttons button {
     /* border: none; */
     /* text-shadow: none; */

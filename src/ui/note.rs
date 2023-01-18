@@ -33,6 +33,8 @@ pub struct Note {
     event_json: String,
     metadata_json: Option<String>,
     avatar: Arc<gdk::Texture>,
+    likes: u32,
+    dislikes: u32,
     pub time: DateTime<Utc>,
     pub event_id: Sha256Hash,
 }
@@ -68,6 +70,10 @@ pub enum NoteInput {
         pubkey: XOnlyPublicKey,
         bitmap: Arc<gdk::Texture>,
     },
+    Reaction {
+        event: Sha256Hash,
+        reaction: String,
+    },
 }
 
 #[derive(Debug)]
@@ -80,7 +86,9 @@ pub enum NoteOutput {
     |   AVATAR    |        AUTHOR         |
     |             +-----------------------+
     |             |        CONTENT        |
-    +-------------+-----------------------+
+    +             +-----------------------+
+    |             |       REACTIONS       |
+    +             +-----------------------+
     |             |        STATUS         |
     +-------------+-----------------------+
 */
@@ -175,6 +183,51 @@ impl FactoryComponent for Note {
                     add_css_class: "content"
                 },
 
+                // reactions
+                gtk::Grid {
+                    // set_column_spacing: 20,
+                    set_column_homogeneous: true,
+                    set_hexpand: true,
+                    add_css_class: "reactions",
+
+                    attach[1, 1, 1, 1] =
+                        &gtk::Box {
+                            set_orientation: gtk::Orientation::Horizontal,
+                            set_spacing: 4,
+                            set_halign: gtk::Align::Start,
+
+                            gtk::Label {
+                                set_label: "♥"
+                            },
+
+                            gtk::Label {
+                                #[watch]
+                                set_label: &self.likes.to_string(),
+                                #[watch]
+                                set_visible: self.likes > 0
+                            }
+                        },
+                    attach[2, 1, 1, 1] =
+                        &gtk::Box {
+                            set_orientation: gtk::Orientation::Horizontal,
+                            set_spacing: 4,
+                            set_halign: gtk::Align::Start,
+
+                            gtk::Label {
+                                set_label: "👎"
+                            },
+
+                            gtk::Label {
+                                #[watch]
+                                set_label: &self.dislikes.to_string(),
+                                #[watch]
+                                set_visible: self.dislikes > 0,
+
+                            }
+                        }
+
+                },
+
                 // status
                 gtk::Box {
                     set_orientation: gtk::Orientation::Horizontal,
@@ -232,6 +285,8 @@ impl FactoryComponent for Note {
             event_json: serde_json::to_string_pretty(&init.event).unwrap(),
             metadata_json: None,
             avatar: ANONYMOUS_USER.clone(),
+            likes: 0,
+            dislikes: 0,
             time: Utc.timestamp_opt(init.event.created_at as i64, 0).unwrap(),
             event_id: init.event.id,
         }
@@ -254,6 +309,15 @@ impl FactoryComponent for Note {
             NoteInput::AvatarBitmap { pubkey, bitmap } => {
                 if pubkey == self.author_pubkey {
                     self.avatar = bitmap
+                }
+            }
+            NoteInput::Reaction { event, reaction } => {
+                if self.event_id == event {
+                    if reaction == "+" || reaction == "🤙" {
+                        self.likes += 1;
+                    } else if reaction == "-" {
+                        self.dislikes += 1;
+                    }
                 }
             }
             NoteInput::ShowDetails => {
