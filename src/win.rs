@@ -8,10 +8,7 @@ use nostr_sdk::Client;
 use nostr_sdk::RelayPoolNotification;
 use relm4::component::*;
 use relm4::factory::FactoryVecDeque;
-use tracing::info_span;
-use tracing::Level;
-use tracing::{info, span};
-// use relm4::prelude::*;
+use tracing::info;
 
 use crate::lane::Lane;
 use crate::lane::LaneMsg;
@@ -175,7 +172,6 @@ impl AsyncComponent for Gnostique {
             Msg::Notification(RelayPoolNotification::Event(_url, ev))
                 if ev.kind == Kind::Metadata =>
             {
-                tracing::event!(tracing::Level::INFO, "METADATA");
                 let json = serde_json::to_string_pretty(&ev).unwrap();
                 let m = Metadata::from_json(ev.content).unwrap();
 
@@ -234,12 +230,27 @@ async fn obtain_avatar(pubkey: XOnlyPublicKey, url: Url) -> GnostiqueCmd {
     tokio::fs::create_dir_all(&cache).await.unwrap();
     let file = cache.join(&filename);
 
+    let url_s = url.to_string();
+
     if !file.is_file() {
-        let url_s = url.to_string();
-        info!("Downloading {}", url);
-        let bytes = reqwest::get(url).await.unwrap().bytes().await.unwrap();
-        tokio::fs::write(&file, &bytes).await.unwrap();
-        info!("Finished {}", url_s);
+        use futures_util::StreamExt;
+        use tokio::io::AsyncWriteExt;
+
+        info!("Downloading {}", url_s);
+
+        let mut f = tokio::fs::File::create(&file).await.unwrap();
+        let response = reqwest::get(url).await.unwrap();
+        // let content_length = response.headers().get("content-length");
+        let mut bytes = response.bytes_stream();
+
+        while let Some(chunk) = bytes.next().await {
+            let c = chunk.unwrap();
+            // println!("{}", c.len());
+            f.write_all(&c).await.unwrap();
+        }
+        info!("Finished downloading: {}", url_s);
+    } else {
+        info!("Avatar obtained from cache: {}", url_s);
     }
 
     GnostiqueCmd::AvatarBitmap { pubkey, file }

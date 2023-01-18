@@ -11,11 +11,12 @@ exclude = ["doc/"]
 [dependencies]
 chrono = "0.4.23"
 directories = "4.0.1"
+futures-util = "0.3.25"
 gtk = { package = "gtk4", version = "0.5.5", features = ["v4_6"] }
 linkify = "0.9.0"
 nostr-sdk = "0.14.1"
 relm4 = "0.5.0-rc.1"
-reqwest = "0.11.13"
+reqwest = { version = "0.11.13", features = ["stream"] }
 serde_json = "1.0.91"
 tokio = { version = "1.24.1", features = ["full"] }
 tracing = "0.1.37"
