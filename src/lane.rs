@@ -125,7 +125,9 @@ impl FactoryComponent for Lane {
                     );
                 }
             }
-            LaneMsg::NewTextNote { event /*, profile*/ } => {
+            LaneMsg::NewTextNote {
+                event, /*, profile*/
+            } => {
                 if !self.text_notes.iter().any(|tn| tn.event_id == event.id) {
                     let is_central = self.central_note.contains(&event.id);
                     let event_time = event.created_at;

@@ -9,9 +9,23 @@ use nostr_sdk::nostr::prelude::*;
 // use nostr_sdk::nostr::util::time::timestamp;
 use nostr_sdk::*;
 use relm4::*;
+use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let subscriber = tracing_subscriber::FmtSubscriber::builder()
+        // .pretty()
+        .compact()
+        .with_max_level(tracing::Level::TRACE)
+        .with_file(true)
+        .with_line_number(true)
+        .with_ansi(true)
+        .with_env_filter(EnvFilter::new("info,relm4=warn"))
+        .with_span_events(tracing_subscriber::fmt::format::FmtSpan::FULL)
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber)?;
+
     let secret_key =
         SecretKey::from_bech32("nsec1qh685ta6ht7emkn8nlggzjfl0h58zxntgsdjgxmvjz2kctv5puysjcmm03")
             .unwrap();

@@ -8,6 +8,9 @@ use nostr_sdk::Client;
 use nostr_sdk::RelayPoolNotification;
 use relm4::component::*;
 use relm4::factory::FactoryVecDeque;
+use tracing::info_span;
+use tracing::Level;
+use tracing::{info, span};
 // use relm4::prelude::*;
 
 use crate::lane::Lane;
@@ -172,6 +175,7 @@ impl AsyncComponent for Gnostique {
             Msg::Notification(RelayPoolNotification::Event(_url, ev))
                 if ev.kind == Kind::Metadata =>
             {
+                tracing::event!(tracing::Level::INFO, "METADATA");
                 let json = serde_json::to_string_pretty(&ev).unwrap();
                 let m = Metadata::from_json(ev.content).unwrap();
 
@@ -231,8 +235,11 @@ async fn obtain_avatar(pubkey: XOnlyPublicKey, url: Url) -> GnostiqueCmd {
     let file = cache.join(&filename);
 
     if !file.is_file() {
+        let url_s = url.to_string();
+        info!("Downloading {}", url);
         let bytes = reqwest::get(url).await.unwrap().bytes().await.unwrap();
         tokio::fs::write(&file, &bytes).await.unwrap();
+        info!("Finished {}", url_s);
     }
 
     GnostiqueCmd::AvatarBitmap { pubkey, file }
