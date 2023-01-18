@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use gtk::gdk;
 use nostr_sdk::nostr::secp256k1::XOnlyPublicKey;
@@ -35,7 +35,7 @@ pub enum LaneMsg {
     ShowDetails(Details),
     AvatarBitmap {
         pubkey: XOnlyPublicKey,
-        bitmap: Rc<gdk::Texture>,
+        bitmap: Arc<gdk::Texture>,
     },
 }
 

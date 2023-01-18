@@ -1,8 +1,7 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use chrono::{DateTime, TimeZone, Utc};
 use gtk::gdk;
-use gtk::glib;
 use gtk::pango::WrapMode;
 use gtk::prelude::*;
 use nostr_sdk::nostr::prelude::TagKind;
@@ -12,6 +11,7 @@ use nostr_sdk::nostr::*;
 use relm4::prelude::*;
 
 use crate::lane::LaneMsg;
+use crate::nostr::ANONYMOUS_USER;
 
 use super::details::Details;
 
@@ -32,7 +32,7 @@ pub struct Note {
     show_hidden_buttons: bool,
     event_json: String,
     metadata_json: Option<String>,
-    avatar: Rc<gdk::Texture>,
+    avatar: Arc<gdk::Texture>,
     pub time: DateTime<Utc>,
     pub event_id: Sha256Hash,
 }
@@ -66,7 +66,7 @@ pub enum NoteInput {
     /// (New) avatar bitmap is available.
     AvatarBitmap {
         pubkey: XOnlyPublicKey,
-        bitmap: Rc<gdk::Texture>,
+        bitmap: Arc<gdk::Texture>,
     },
 }
 
@@ -231,12 +231,7 @@ impl FactoryComponent for Note {
             show_hidden_buttons: false,
             event_json: serde_json::to_string_pretty(&init.event).unwrap(),
             metadata_json: None,
-            avatar: Rc::new(
-                gdk::Texture::from_bytes(&glib::Bytes::from(include_bytes!(
-                    "../../default-user-icon-8.jpg"
-                )))
-                .unwrap(),
-            ), // TODO: Share
+            avatar: ANONYMOUS_USER.clone(),
             time: Utc.timestamp_opt(init.event.created_at as i64, 0).unwrap(),
             event_id: init.event.id,
         }

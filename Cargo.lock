@@ -708,6 +708,7 @@ dependencies = [
  "gtk4",
  "linkify",
  "nostr-sdk",
+ "once_cell",
  "relm4",
  "reqwest",
  "serde_json",

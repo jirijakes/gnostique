@@ -1,5 +1,9 @@
+use std::sync::Arc;
+
 use nostr_sdk::nostr::prelude::*;
 use nostr_sdk::nostr::{Event, Sha256Hash, Tag};
+use once_cell::sync::Lazy;
+use relm4::gtk::{gdk, glib};
 
 /// Find event ID to which the given event replies.
 pub fn replies(event: &Event) -> Option<Sha256Hash> {
@@ -26,3 +30,7 @@ pub fn replies(event: &Event) -> Option<Sha256Hash> {
             }
         })
 }
+
+pub static ANONYMOUS_USER: Lazy<Arc<gdk::Texture>> = Lazy::new(|| {
+    Arc::new(gdk::Texture::from_bytes(&glib::Bytes::from(include_bytes!("../resources/user.svg"))).unwrap())
+});

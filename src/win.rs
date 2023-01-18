@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use gtk::gdk;
 use gtk::prelude::*;
@@ -67,7 +67,7 @@ impl AsyncComponent for Gnostique {
         let mut notif = client.notifications();
         tokio::spawn(async move {
             include_str!(
-                "../b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b.json"
+                "../resources/b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b.json"
             )
             .lines()
             .for_each(|l| {
@@ -201,7 +201,7 @@ impl AsyncComponent for Gnostique {
             Msg::ShowDetail(details) => self.details.emit(DetailsWindowInput::Show(details)),
 
             Msg::AvatarBitmap { pubkey, file } => {
-                let pix = Rc::new(gdk::Texture::from_filename(file).unwrap());
+                let pix = Arc::new(gdk::Texture::from_filename(file).unwrap());
                 for i in 0..self.lanes.len() {
                     self.lanes.send(
                         i,
