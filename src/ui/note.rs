@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use chrono::{DateTime, TimeZone, Utc};
@@ -18,7 +19,7 @@ use super::details::Details;
 
 /// Initial
 pub struct NoteInit {
-    pub event: Event,
+    pub event: Rc<Event>,
     // pub profile: Option<Profile>,
     pub is_central: bool,
 }
@@ -31,14 +32,13 @@ pub struct Note {
     author_pubkey: XOnlyPublicKey,
     client: Option<String>,
     show_hidden_buttons: bool,
-    event_json: String,
     metadata_json: Option<String>,
     avatar: Arc<gdk::Texture>,
     likes: u32,
     dislikes: u32,
     replies: HashSet<Sha256Hash>,
     pub time: DateTime<Utc>,
-    pub event_id: Sha256Hash,
+    event: Rc<Event>,
 }
 
 impl Note {
@@ -291,14 +291,13 @@ impl FactoryComponent for Note {
             is_central: init.is_central,
             content: add_links(&init.event.content),
             show_hidden_buttons: false,
-            event_json: serde_json::to_string_pretty(&init.event).unwrap(),
             metadata_json: None,
             avatar: ANONYMOUS_USER.clone(),
             likes: 0,
             dislikes: 0,
             replies: Default::default(),
             time: Utc.timestamp_opt(init.event.created_at as i64, 0).unwrap(),
-            event_id: init.event.id,
+            event: init.event,
         }
     }
 
@@ -325,7 +324,7 @@ impl FactoryComponent for Note {
                 self.replies.insert(event);
             }
             NoteInput::Reaction { event, reaction } => {
-                if self.event_id == event {
+                if self.event.id == event {
                     if reaction == "+" || reaction == "🤙" {
                         self.likes += 1;
                     } else if reaction == "-" {
@@ -335,7 +334,7 @@ impl FactoryComponent for Note {
             }
             NoteInput::ShowDetails => {
                 let details = Details {
-                    event_json: self.event_json.clone(),
+                    event_json: serde_json::to_string_pretty(self.event.as_ref()).unwrap(),
                     metadata_json: self.metadata_json.clone(),
                 };
                 sender.output(NoteOutput::ShowDetails(details));

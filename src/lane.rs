@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use gtk::gdk;
@@ -26,7 +27,7 @@ pub struct Lane {
 #[derive(Debug)]
 pub enum LaneMsg {
     NewTextNote {
-        event: Event,
+        event: Rc<Event>,
         // profile: Option<Profile>,
     },
     UpdatedProfile {
@@ -150,7 +151,7 @@ impl FactoryComponent for Lane {
 
 impl Lane {
     /// New text note was received, let's handle it.
-    fn text_note_received(&mut self, event: Event) {
+    fn text_note_received(&mut self, event: Rc<Event>) {
         let event_id = event.id;
 
         // If `event` is a reply to a note, deliver it to the note to which

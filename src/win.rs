@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use gtk::gdk;
@@ -158,6 +159,7 @@ impl AsyncComponent for Gnostique {
                 // let event = EventContext { event: ev, profile };
 
                 // Send the event to all lanes, they will decide themselves what to do with it.
+                let ev = Rc::new(ev);
                 for i in 0..self.lanes.len() {
                     self.lanes.send(
                         i,
