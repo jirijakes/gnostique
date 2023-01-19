@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use chrono::{DateTime, TimeZone, Utc};
@@ -35,6 +36,7 @@ pub struct Note {
     avatar: Arc<gdk::Texture>,
     likes: u32,
     dislikes: u32,
+    replies: HashSet<Sha256Hash>,
     pub time: DateTime<Utc>,
     pub event_id: Sha256Hash,
 }
@@ -74,6 +76,7 @@ pub enum NoteInput {
         event: Sha256Hash,
         reaction: String,
     },
+    Reply(Sha256Hash),
 }
 
 #[derive(Debug)]
@@ -183,6 +186,12 @@ impl FactoryComponent for Note {
                     add_css_class: "content"
                 },
 
+                // Replies, to be removed.
+                gtk::Label {
+                    #[watch]
+                    set_label: &format!("Replies: {}", self.replies.len()),
+                },
+
                 // reactions
                 gtk::Grid {
                     // set_column_spacing: 20,
@@ -287,6 +296,7 @@ impl FactoryComponent for Note {
             avatar: ANONYMOUS_USER.clone(),
             likes: 0,
             dislikes: 0,
+            replies: Default::default(),
             time: Utc.timestamp_opt(init.event.created_at as i64, 0).unwrap(),
             event_id: init.event.id,
         }
@@ -310,6 +320,9 @@ impl FactoryComponent for Note {
                 if pubkey == self.author_pubkey {
                     self.avatar = bitmap
                 }
+            }
+            NoteInput::Reply(event) => {
+                self.replies.insert(event);
             }
             NoteInput::Reaction { event, reaction } => {
                 if self.event_id == event {

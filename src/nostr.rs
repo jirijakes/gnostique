@@ -5,7 +5,7 @@ use nostr_sdk::nostr::{Event, Sha256Hash, Tag};
 use once_cell::sync::Lazy;
 use relm4::gtk::{gdk, glib};
 
-/// Find event ID to which the given event replies.
+/// Find event ID to which the given event replies according to NIP-10.
 pub fn replies(event: &Event) -> Option<Sha256Hash> {
     // Marked tags
     event
