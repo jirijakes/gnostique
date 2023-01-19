@@ -6,14 +6,12 @@ use chrono::{DateTime, TimeZone, Utc};
 use gtk::gdk;
 use gtk::pango::WrapMode;
 use gtk::prelude::*;
-use nostr_sdk::nostr::prelude::TagKind;
 use nostr_sdk::nostr::secp256k1::XOnlyPublicKey;
 use nostr_sdk::nostr::*;
-// use nostr_sdk::sqlite::model::Profile;
 use relm4::prelude::*;
 
 use crate::lane::LaneMsg;
-use crate::nostr::ANONYMOUS_USER;
+use crate::nostr::*;
 
 use super::details::Details;
 
@@ -30,7 +28,6 @@ pub struct Note {
     is_central: bool,
     author_name: Option<String>,
     author_pubkey: XOnlyPublicKey,
-    client: Option<String>,
     show_hidden_buttons: bool,
     metadata_json: Option<String>,
     avatar: Arc<gdk::Texture>,
@@ -243,9 +240,9 @@ impl FactoryComponent for Note {
                     add_css_class: "status",
 
                     gtk::Label {
-                        set_label?: &self.client.as_ref().map(|c| format!("Sent by {c}")),
+                        set_label?: &self.event.client().as_ref().map(|c| format!("Sent by {c}")),
                         set_xalign: 0.0,
-                        set_visible: self.client.is_some(),
+                        set_visible: self.event.client().is_some(),
                         add_css_class: "client",
                     },
 
@@ -279,13 +276,7 @@ impl FactoryComponent for Note {
             gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
         );
 
-        let client = init.event.tags.iter().find_map(|t| match t {
-            Tag::Generic(TagKind::Custom(tag), s) if tag.as_str() == "client" => s.first().cloned(),
-            _ => None,
-        });
-
         Self {
-            client,
             author_name: None, // init.profile.and_then(|p| p.name),
             author_pubkey: init.event.pubkey,
             is_central: init.is_central,

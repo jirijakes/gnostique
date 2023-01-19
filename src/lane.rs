@@ -11,6 +11,7 @@ use relm4::factory::FactoryVecDeque;
 use relm4::gtk;
 use relm4::prelude::*;
 
+use crate::nostr::EventExt;
 use crate::ui::details::Details;
 use crate::ui::note::Note;
 use crate::ui::note::NoteInit;
@@ -156,7 +157,8 @@ impl Lane {
 
         // If `event` is a reply to a note, deliver it to the note to which
         // it replies.
-        crate::nostr::replies(&event)
+        event
+            .replies_to()
             .and_then(|hash| self.hash_index.get(&hash))
             .iter()
             .for_each(|&idx| {
