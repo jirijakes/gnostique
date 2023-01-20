@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -11,6 +10,7 @@ use nostr_sdk::nostr::*;
 use relm4::prelude::*;
 
 use super::details::Details;
+use super::replies::{Replies, RepliesInput};
 use crate::lane::LaneMsg;
 use crate::nostr::*;
 
@@ -31,9 +31,10 @@ pub struct Note {
     avatar: Arc<gdk::Texture>,
     likes: u32,
     dislikes: u32,
-    replies: HashMap<Sha256Hash, Rc<Event>>,
+    // replies: HashMap<Sha256Hash, Rc<Event>>,
     pub time: DateTime<Utc>,
     event: Rc<Event>,
+    replies: Controller<Replies>,
 }
 
 impl Note {
@@ -181,11 +182,7 @@ impl FactoryComponent for Note {
                     add_css_class: "content"
                 },
 
-                // Replies, to be removed.
-                gtk::Label {
-                    #[watch]
-                    set_label: &format!("Replies: {}", self.replies.len()),
-                },
+                self.replies.widget(),
 
                 // reactions
                 gtk::Grid {
@@ -284,9 +281,9 @@ impl FactoryComponent for Note {
             avatar: ANONYMOUS_USER.clone(),
             likes: 0,
             dislikes: 0,
-            replies: Default::default(),
             time: Utc.timestamp_opt(init.event.created_at as i64, 0).unwrap(),
             event: init.event,
+            replies: Replies::builder().launch(()).detach(),
         }
     }
 
@@ -310,7 +307,7 @@ impl FactoryComponent for Note {
                 }
             }
             NoteInput::Reply(event) => {
-                self.replies.insert(event.id, event);
+                self.replies.emit(RepliesInput::NewReply(event));
             }
             NoteInput::Reaction { event, reaction } => {
                 if self.event.id == event {
@@ -337,7 +334,7 @@ fn add_links(content: &str) -> String {
     use linkify::*;
 
     LinkFinder::new()
-        .spans(content)
+        .spans(content.trim())
         .map(|span| {
             let s = span.as_str();
             match span.kind() {
