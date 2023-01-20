@@ -4,8 +4,7 @@ use std::sync::Arc;
 
 use gtk::gdk;
 use nostr_sdk::nostr::secp256k1::XOnlyPublicKey;
-use nostr_sdk::nostr::Event;
-use nostr_sdk::nostr::Sha256Hash;
+use nostr_sdk::nostr::{Event, Sha256Hash};
 // use nostr_sdk::sqlite::model::Profile;
 use relm4::factory::FactoryVecDeque;
 use relm4::gtk;
@@ -13,9 +12,7 @@ use relm4::prelude::*;
 
 use crate::nostr::EventExt;
 use crate::ui::details::Details;
-use crate::ui::note::Note;
-use crate::ui::note::NoteInit;
-use crate::ui::note::NoteInput;
+use crate::ui::note::{Note, NoteInit, NoteInput};
 use crate::win::Msg;
 
 #[derive(Debug)]
@@ -163,7 +160,7 @@ impl Lane {
             .iter()
             .for_each(|&idx| {
                 self.text_notes
-                    .send(idx.current_index(), NoteInput::Reply(event_id))
+                    .send(idx.current_index(), NoteInput::Reply(event.clone()))
             });
 
         // Add note iff it has not been added yet (they may arrive multiple times).

@@ -5,14 +5,12 @@ use std::sync::Arc;
 use gtk::gdk;
 use gtk::prelude::*;
 use nostr_sdk::nostr::prelude::*;
-use nostr_sdk::Client;
-use nostr_sdk::RelayPoolNotification;
+use nostr_sdk::{Client, RelayPoolNotification};
 use relm4::component::*;
 use relm4::factory::FactoryVecDeque;
 use tracing::info;
 
-use crate::lane::Lane;
-use crate::lane::LaneMsg;
+use crate::lane::{Lane, LaneMsg};
 use crate::nostr::EventExt;
 use crate::ui::details::*;
 

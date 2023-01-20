@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -10,15 +10,13 @@ use nostr_sdk::nostr::secp256k1::XOnlyPublicKey;
 use nostr_sdk::nostr::*;
 use relm4::prelude::*;
 
+use super::details::Details;
 use crate::lane::LaneMsg;
 use crate::nostr::*;
-
-use super::details::Details;
 
 /// Initial
 pub struct NoteInit {
     pub event: Rc<Event>,
-    // pub profile: Option<Profile>,
     pub is_central: bool,
 }
 
@@ -33,7 +31,7 @@ pub struct Note {
     avatar: Arc<gdk::Texture>,
     likes: u32,
     dislikes: u32,
-    replies: HashSet<Sha256Hash>,
+    replies: HashMap<Sha256Hash, Rc<Event>>,
     pub time: DateTime<Utc>,
     event: Rc<Event>,
 }
@@ -50,7 +48,7 @@ impl Note {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum NoteInput {
     /// Author profile has some new data.
     UpdatedProfile {
@@ -73,7 +71,7 @@ pub enum NoteInput {
         event: Sha256Hash,
         reaction: String,
     },
-    Reply(Sha256Hash),
+    Reply(Rc<Event>),
 }
 
 #[derive(Debug)]
@@ -312,7 +310,7 @@ impl FactoryComponent for Note {
                 }
             }
             NoteInput::Reply(event) => {
-                self.replies.insert(event);
+                self.replies.insert(event.id, event);
             }
             NoteInput::Reaction { event, reaction } => {
                 if self.event.id == event {
