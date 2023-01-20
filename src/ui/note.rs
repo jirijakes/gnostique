@@ -1,24 +1,22 @@
+use std::rc::Rc;
 use std::sync::Arc;
 
 use chrono::{DateTime, TimeZone, Utc};
 use gtk::gdk;
 use gtk::pango::WrapMode;
 use gtk::prelude::*;
-use nostr_sdk::nostr::prelude::TagKind;
 use nostr_sdk::nostr::secp256k1::XOnlyPublicKey;
 use nostr_sdk::nostr::*;
-// use nostr_sdk::sqlite::model::Profile;
 use relm4::prelude::*;
 
-use crate::lane::LaneMsg;
-use crate::nostr::ANONYMOUS_USER;
-
 use super::details::Details;
+use super::replies::{Replies, RepliesInput};
+use crate::lane::LaneMsg;
+use crate::nostr::*;
 
 /// Initial
 pub struct NoteInit {
-    pub event: Event,
-    // pub profile: Option<Profile>,
+    pub event: Rc<Event>,
     pub is_central: bool,
 }
 
@@ -28,15 +26,15 @@ pub struct Note {
     is_central: bool,
     author_name: Option<String>,
     author_pubkey: XOnlyPublicKey,
-    client: Option<String>,
     show_hidden_buttons: bool,
-    event_json: String,
     metadata_json: Option<String>,
     avatar: Arc<gdk::Texture>,
     likes: u32,
     dislikes: u32,
+    // replies: HashMap<Sha256Hash, Rc<Event>>,
     pub time: DateTime<Utc>,
-    pub event_id: Sha256Hash,
+    event: Rc<Event>,
+    replies: Controller<Replies>,
 }
 
 impl Note {
@@ -51,7 +49,7 @@ impl Note {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum NoteInput {
     /// Author profile has some new data.
     UpdatedProfile {
@@ -74,6 +72,7 @@ pub enum NoteInput {
         event: Sha256Hash,
         reaction: String,
     },
+    Reply(Rc<Event>),
 }
 
 #[derive(Debug)]
@@ -183,6 +182,8 @@ impl FactoryComponent for Note {
                     add_css_class: "content"
                 },
 
+                self.replies.widget(),
+
                 // reactions
                 gtk::Grid {
                     // set_column_spacing: 20,
@@ -234,9 +235,9 @@ impl FactoryComponent for Note {
                     add_css_class: "status",
 
                     gtk::Label {
-                        set_label?: &self.client.as_ref().map(|c| format!("Sent by {c}")),
+                        set_label?: &self.event.client().as_ref().map(|c| format!("Sent by {c}")),
                         set_xalign: 0.0,
-                        set_visible: self.client.is_some(),
+                        set_visible: self.event.client().is_some(),
                         add_css_class: "client",
                     },
 
@@ -270,25 +271,19 @@ impl FactoryComponent for Note {
             gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
         );
 
-        let client = init.event.tags.iter().find_map(|t| match t {
-            Tag::Generic(TagKind::Custom(tag), s) if tag.as_str() == "client" => s.first().cloned(),
-            _ => None,
-        });
-
         Self {
-            client,
             author_name: None, // init.profile.and_then(|p| p.name),
             author_pubkey: init.event.pubkey,
             is_central: init.is_central,
             content: add_links(&init.event.content),
             show_hidden_buttons: false,
-            event_json: serde_json::to_string_pretty(&init.event).unwrap(),
             metadata_json: None,
             avatar: ANONYMOUS_USER.clone(),
             likes: 0,
             dislikes: 0,
             time: Utc.timestamp_opt(init.event.created_at as i64, 0).unwrap(),
-            event_id: init.event.id,
+            event: init.event,
+            replies: Replies::builder().launch(()).detach(),
         }
     }
 
@@ -311,8 +306,11 @@ impl FactoryComponent for Note {
                     self.avatar = bitmap
                 }
             }
+            NoteInput::Reply(event) => {
+                self.replies.emit(RepliesInput::NewReply(event));
+            }
             NoteInput::Reaction { event, reaction } => {
-                if self.event_id == event {
+                if self.event.id == event {
                     if reaction == "+" || reaction == "🤙" {
                         self.likes += 1;
                     } else if reaction == "-" {
@@ -322,7 +320,7 @@ impl FactoryComponent for Note {
             }
             NoteInput::ShowDetails => {
                 let details = Details {
-                    event_json: self.event_json.clone(),
+                    event_json: serde_json::to_string_pretty(self.event.as_ref()).unwrap(),
                     metadata_json: self.metadata_json.clone(),
                 };
                 sender.output(NoteOutput::ShowDetails(details));
@@ -336,7 +334,7 @@ fn add_links(content: &str) -> String {
     use linkify::*;
 
     LinkFinder::new()
-        .spans(content)
+        .spans(content.trim())
         .map(|span| {
             let s = span.as_str();
             match span.kind() {

@@ -1,7 +1,6 @@
 use gtk::prelude::*;
-use relm4::gtk;
 use relm4::prelude::*;
-use relm4::ComponentParts;
+use relm4::{gtk, ComponentParts};
 use serde_json::Value;
 
 /// A window that display all available information about a note.

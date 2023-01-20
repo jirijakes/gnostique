@@ -1,17 +1,17 @@
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use gtk::gdk;
 use gtk::prelude::*;
 use nostr_sdk::nostr::prelude::*;
-use nostr_sdk::Client;
-use nostr_sdk::RelayPoolNotification;
+use nostr_sdk::{Client, RelayPoolNotification};
 use relm4::component::*;
 use relm4::factory::FactoryVecDeque;
 use tracing::info;
 
-use crate::lane::Lane;
-use crate::lane::LaneMsg;
+use crate::lane::{Lane, LaneMsg};
+use crate::nostr::EventExt;
 use crate::ui::details::*;
 
 pub struct Gnostique {
@@ -158,6 +158,7 @@ impl AsyncComponent for Gnostique {
                 // let event = EventContext { event: ev, profile };
 
                 // Send the event to all lanes, they will decide themselves what to do with it.
+                let ev = Rc::new(ev);
                 for i in 0..self.lanes.len() {
                     self.lanes.send(
                         i,
@@ -172,8 +173,8 @@ impl AsyncComponent for Gnostique {
             Msg::Notification(RelayPoolNotification::Event(_url, ev))
                 if ev.kind == Kind::Metadata =>
             {
-                let json = serde_json::to_string_pretty(&ev).unwrap();
-                let m = Metadata::from_json(ev.content).unwrap();
+                let json = ev.as_pretty_json();
+                let m = ev.as_metadata().unwrap();
 
                 // If the metadata contains valid URL, download it as an avatar.
                 if let Some(url) = m.picture.and_then(|p| Url::parse(&p).ok()) {
@@ -195,17 +196,12 @@ impl AsyncComponent for Gnostique {
             Msg::Notification(RelayPoolNotification::Event(_url, ev))
                 if ev.kind == Kind::Reaction =>
             {
-                let to = ev.tags.iter().rev().find_map(|t| match t {
-                    Tag::Event(hash, _, _) => Some(*hash),
-                    _ => None,
-                });
-
-                if let Some(h) = to {
+                if let Some(to) = ev.reacts_to() {
                     for i in 0..self.lanes.len() {
                         self.lanes.send(
                             i,
                             LaneMsg::Reaction {
-                                event: h,
+                                event: to,
                                 reaction: ev.content.clone(),
                             },
                         );
