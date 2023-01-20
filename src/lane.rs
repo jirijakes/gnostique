@@ -63,6 +63,7 @@ impl FactoryComponent for Lane {
         gtk::ScrolledWindow::builder()
             .hscrollbar_policy(gtk::PolicyType::Never)
             .min_content_width(600)
+            .hexpand(true)
             .build()
     }
 
