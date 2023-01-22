@@ -232,18 +232,20 @@ impl FactoryComponent for Note {
                 // status
                 gtk::Box {
                     set_orientation: gtk::Orientation::Horizontal,
+                    set_halign: gtk::Align::End,
+                    set_hexpand: true,
+                    set_spacing: 12,
                     add_css_class: "status",
 
                     gtk::Label {
                         set_label?: &self.event.client().as_ref().map(|c| format!("Sent by {c}")),
-                        set_xalign: 0.0,
+                        set_xalign: 1.0,
                         set_visible: self.event.client().is_some(),
                         add_css_class: "client",
                     },
 
                     gtk::Label {
                         set_label: &self.time.to_string(),
-                        set_hexpand: true,
                         set_xalign: 1.0,
                         add_css_class: "time",
                     }

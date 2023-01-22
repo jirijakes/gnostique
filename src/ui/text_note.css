@@ -80,12 +80,7 @@
     opacity: 0.7;
 }
 
-.status .client {
-    opacity: 0.7;
-    font-size: 0.85em;
-}
-
-.status .time {
+.status {
     opacity: 0.6;
     font-size: 0.7em;
 }
