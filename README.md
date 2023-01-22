@@ -25,4 +25,4 @@ Subsequent launches will use the cached images.
 
 ## Screenshot
 
-![](https://jirijakes.com/code/gnostique/raw/345cc0d28c5a377145023e0e45a2e30bf3af815a256a1252d9855c4e953fbd61?m=image/png)
+![](/doc/tip/doc/history/Screenshot_20230122_200646.png)

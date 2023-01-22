@@ -9,6 +9,7 @@ use nostr_sdk::nostr::secp256k1::XOnlyPublicKey;
 use nostr_sdk::nostr::*;
 use relm4::prelude::*;
 
+use super::author::Author;
 use super::details::Details;
 use super::replies::{Replies, RepliesInput};
 use crate::lane::LaneMsg;
@@ -135,23 +136,20 @@ impl FactoryComponent for Note {
 
                 // author (template widget?)
                 gtk::Overlay {
-                    gtk::Box {
-                        set_orientation: gtk::Orientation::Horizontal,
-                        set_spacing: 12,
-                        add_css_class: "author",
-
-                        gtk::Button {
+                    #[template]
+                    Author {
+                        #[template_child]
+                        author_name {
                             #[watch]
                             set_label?: self.author_name.as_ref(),
                             #[watch]
                             set_visible: self.author_name.is_some(),
-                            add_css_class: "author-name"
                         },
 
-                        gtk::Label {
+                        #[template_child]
+                        author_pubkey {
                             #[watch]
                             set_label: &self.format_pubkey(),
-                            add_css_class: "author-pubkey"
                         }
                     },
                     add_overlay = &gtk::Box {
@@ -297,9 +295,14 @@ impl FactoryComponent for Note {
                 metadata_json,
             } => {
                 if self.author_pubkey == author_pubkey {
-                    self.author_name = author_name;
+                    self.author_name = author_name.clone();
                     self.metadata_json = Some(metadata_json);
-                }
+                };
+
+                self.replies.emit(RepliesInput::UpdatedProfile {
+                    author_pubkey,
+                    author_name,
+                });
             }
             NoteInput::FocusIn => self.show_hidden_buttons = true,
             NoteInput::FocusOut => self.show_hidden_buttons = false,
