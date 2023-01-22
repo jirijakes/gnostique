@@ -10,7 +10,7 @@ use relm4::factory::FactoryVecDeque;
 use relm4::gtk;
 use relm4::prelude::*;
 
-use crate::nostr::EventExt;
+use crate::nostr::{EventExt, Persona};
 use crate::ui::details::Details;
 use crate::ui::note::{Note, NoteInit, NoteInput};
 use crate::win::Msg;
@@ -29,8 +29,7 @@ pub enum LaneMsg {
         // profile: Option<Profile>,
     },
     UpdatedProfile {
-        author_pubkey: XOnlyPublicKey,
-        author_name: Option<String>,
+        author: Persona,
         metadata_json: String,
     },
     ShowDetails(Details),
@@ -106,16 +105,14 @@ impl FactoryComponent for Lane {
                 sender.output(LaneOutput::ShowDetails(details));
             }
             LaneMsg::UpdatedProfile {
-                author_pubkey,
-                author_name,
+                author,
                 metadata_json,
             } => {
                 for i in 0..self.text_notes.len() {
                     self.text_notes.send(
                         i,
                         NoteInput::UpdatedProfile {
-                            author_pubkey,
-                            author_name: author_name.clone(),
+                            author: author.clone(),
                             metadata_json: metadata_json.clone(),
                         },
                     )

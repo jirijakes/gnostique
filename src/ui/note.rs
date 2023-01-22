@@ -25,8 +25,7 @@ pub struct NoteInit {
 pub struct Note {
     content: String,
     is_central: bool,
-    author_name: Option<String>,
-    author_pubkey: XOnlyPublicKey,
+    author: Persona,
     show_hidden_buttons: bool,
     metadata_json: Option<String>,
     avatar: Arc<gdk::Texture>,
@@ -38,24 +37,11 @@ pub struct Note {
     replies: Controller<Replies>,
 }
 
-impl Note {
-    /// Format author's pubkey according to context (has or has not author name).
-    fn format_pubkey(&self) -> String {
-        let chars = if self.author_name.is_some() { 8 } else { 16 };
-
-        let s = self.author_pubkey.to_string();
-        let (pre, tail) = s.split_at(chars);
-        let (_, post) = tail.split_at(tail.len() - chars);
-        format!("{pre}…{post}")
-    }
-}
-
 #[derive(Clone, Debug)]
 pub enum NoteInput {
     /// Author profile has some new data.
     UpdatedProfile {
-        author_pubkey: XOnlyPublicKey,
-        author_name: Option<String>,
+        author: Persona,
         metadata_json: String,
     },
     /// The text note comes into focus.
@@ -141,15 +127,15 @@ impl FactoryComponent for Note {
                         #[template_child]
                         author_name {
                             #[watch]
-                            set_label?: self.author_name.as_ref(),
+                            set_label?: self.author.name.as_ref(),
                             #[watch]
-                            set_visible: self.author_name.is_some(),
+                            set_visible: self.author.name.is_some(),
                         },
 
                         #[template_child]
                         author_pubkey {
                             #[watch]
-                            set_label: &self.format_pubkey(),
+                            set_label: &self.author.format_pubkey(8, 16),
                         }
                     },
                     add_overlay = &gtk::Box {
@@ -272,8 +258,10 @@ impl FactoryComponent for Note {
         );
 
         Self {
-            author_name: None, // init.profile.and_then(|p| p.name),
-            author_pubkey: init.event.pubkey,
+            author: Persona {
+                name: None,
+                pubkey: init.event.pubkey,
+            },
             is_central: init.is_central,
             content: add_links(&init.event.content),
             show_hidden_buttons: false,
@@ -290,24 +278,20 @@ impl FactoryComponent for Note {
     fn update(&mut self, message: Self::Input, sender: FactorySender<Self>) {
         match message {
             NoteInput::UpdatedProfile {
-                author_pubkey,
-                author_name,
+                author,
                 metadata_json,
             } => {
-                if self.author_pubkey == author_pubkey {
-                    self.author_name = author_name.clone();
+                if self.author.pubkey == author.pubkey {
+                    self.author.name = author.name.clone();
                     self.metadata_json = Some(metadata_json);
                 };
 
-                self.replies.emit(RepliesInput::UpdatedProfile {
-                    author_pubkey,
-                    author_name,
-                });
+                self.replies.emit(RepliesInput::UpdatedProfile { author });
             }
             NoteInput::FocusIn => self.show_hidden_buttons = true,
             NoteInput::FocusOut => self.show_hidden_buttons = false,
             NoteInput::AvatarBitmap { pubkey, bitmap } => {
-                if pubkey == self.author_pubkey {
+                if pubkey == self.author.pubkey {
                     self.avatar = bitmap
                 }
             }

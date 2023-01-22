@@ -11,7 +11,7 @@ use relm4::factory::FactoryVecDeque;
 use tracing::info;
 
 use crate::lane::{Lane, LaneMsg};
-use crate::nostr::EventExt;
+use crate::nostr::{EventExt, Persona};
 use crate::ui::details::*;
 
 pub struct Gnostique {
@@ -185,8 +185,10 @@ impl AsyncComponent for Gnostique {
                     self.lanes.send(
                         i,
                         LaneMsg::UpdatedProfile {
-                            author_pubkey: ev.pubkey,
-                            author_name: m.name.clone(),
+                            author: Persona {
+                                pubkey: ev.pubkey,
+                                name: m.name.clone(),
+                            },
                             metadata_json: json.clone(),
                         },
                     );

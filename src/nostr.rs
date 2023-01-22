@@ -12,6 +12,28 @@ pub static ANONYMOUS_USER: Lazy<Arc<gdk::Texture>> = Lazy::new(|| {
     )
 });
 
+#[derive(Clone, Debug)]
+pub struct Persona {
+    pub name: Option<String>,
+    pub pubkey: XOnlyPublicKey,
+}
+
+impl Persona {
+    /// Format author's pubkey according to context (has or has not author name).
+    pub fn format_pubkey(&self, short_len: usize, long_len: usize) -> String {
+        let chars = if self.name.is_some() {
+            short_len
+        } else {
+            long_len
+        };
+
+        let s = self.pubkey.to_string();
+        let (pre, tail) = s.split_at(chars);
+        let (_, post) = tail.split_at(tail.len() - chars);
+        format!("{pre}…{post}")
+    }
+}
+
 pub trait EventExt {
     /// Find client that generated the event.
     fn client(&self) -> Option<String>;
