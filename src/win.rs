@@ -170,7 +170,7 @@ impl Win {
                 pubkey: event.pubkey,
                 name: m.name,
             },
-            metadata_json: json,
+            metadata_json: Arc::new(json),
         });
     }
 

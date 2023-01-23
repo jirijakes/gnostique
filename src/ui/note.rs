@@ -27,7 +27,7 @@ pub struct Note {
     is_central: bool,
     author: Persona,
     show_hidden_buttons: bool,
-    metadata_json: Option<String>,
+    metadata_json: Option<Arc<String>>,
     avatar: Arc<gdk::Texture>,
     likes: u32,
     dislikes: u32,
@@ -42,7 +42,7 @@ pub enum NoteInput {
     /// Author profile has some new data.
     UpdatedProfile {
         author: Persona,
-        metadata_json: String,
+        metadata_json: Arc<String>,
     },
     /// The text note comes into focus.
     FocusIn,

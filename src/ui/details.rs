@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use gtk::prelude::*;
 use relm4::prelude::*;
 use relm4::{gtk, ComponentParts};
@@ -124,7 +126,7 @@ impl Component for DetailsWindow {
                     .details
                     .as_ref()
                     .and_then(|d| d.metadata_json.clone())
-                    .unwrap_or(String::new());
+                    .unwrap_or(Arc::new(String::new()));
 
                 self.metadata_buffer.set_text(metadata_json);
                 if let Some(x) = pretty_content(metadata_json) {
@@ -155,5 +157,5 @@ pub struct Details {
     pub event_json: String,
 
     /// Complete JSON of the author metadata.
-    pub metadata_json: Option<String>,
+    pub metadata_json: Option<Arc<String>>,
 }

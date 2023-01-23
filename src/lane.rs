@@ -30,7 +30,7 @@ pub enum LaneMsg {
     },
     UpdatedProfile {
         author: Persona,
-        metadata_json: String,
+        metadata_json: Arc<String>,
     },
     ShowDetails(Details),
     AvatarBitmap {
