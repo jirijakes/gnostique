@@ -16,12 +16,14 @@ use tracing::info;
 use crate::lane::{Lane, LaneMsg};
 use crate::nostr::{EventExt, Persona};
 use crate::ui::details::*;
+use crate::ui::statusbar::StatusBar;
 use crate::Gnostique;
 
 pub struct Win {
-    gnostique: Gnostique,
+    gnostique: Arc<Gnostique>,
     lanes: FactoryVecDeque<Lane>,
     details: Controller<DetailsWindow>,
+    status_bar: Controller<StatusBar>,
 }
 
 #[derive(Debug)]
@@ -47,7 +49,7 @@ pub enum WinCmd {
 
 #[relm4::component(pub async)]
 impl AsyncComponent for Win {
-    type Init = Gnostique;
+    type Init = Arc<Gnostique>;
     type Input = Msg;
     type Output = ();
     type CommandOutput = WinCmd;
@@ -55,11 +57,18 @@ impl AsyncComponent for Win {
     #[rustfmt::skip]
     view! {
 	gtk::ApplicationWindow {
-	    #[local_ref]
-	    lanes_box -> gtk::Box {
-		set_orientation: gtk::Orientation::Horizontal,
-		set_vexpand: true,
-	    }
+            gtk::Box {
+                set_orientation: gtk::Orientation::Vertical,
+
+	        #[local_ref]
+	        lanes_box -> gtk::Box {
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_vexpand: true,
+	        },
+
+                #[local_ref]
+                status_bar -> gtk::Box { }
+            }
 	}
     }
 
@@ -89,12 +98,14 @@ impl AsyncComponent for Win {
         });
 
         let mut model = Win {
-            gnostique,
+            gnostique: gnostique.clone(),
             lanes,
             details: DetailsWindow::builder().launch(()).detach(),
+            status_bar: StatusBar::builder().launch(gnostique).detach(),
         };
 
         let lanes_box = model.lanes.widget();
+        let status_bar = model.status_bar.widget();
         let widgets = view_output!();
 
         {

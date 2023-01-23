@@ -38,6 +38,13 @@ async fn main() -> Result<()> {
 
     tracing::subscriber::set_global_default(subscriber)?;
 
+    let secret_key =
+        SecretKey::from_bech32("nsec1qh685ta6ht7emkn8nlggzjfl0h58zxntgsdjgxmvjz2kctv5puysjcmm03")
+            .unwrap();
+
+    // npub1mwe5spuec22ch97tun3znyn8vcwrt6zgpfvs7gmlysm0nqn3g5msr0653t
+    let keys = Keys::new(secret_key);
+
     let dirs = ProjectDirs::from("com.jirijakes", "", "Gnostique").unwrap();
     tokio::fs::create_dir_all(dirs.data_dir()).await?;
 
@@ -54,24 +61,20 @@ async fn main() -> Result<()> {
     sqlx::migrate!().run(&pool).await.unwrap();
 
     let pool = Arc::new(pool);
-
-    let secret_key =
-        SecretKey::from_bech32("nsec1qh685ta6ht7emkn8nlggzjfl0h58zxntgsdjgxmvjz2kctv5puysjcmm03")
-            .unwrap();
-
-    // npub1mwe5spuec22ch97tun3znyn8vcwrt6zgpfvs7gmlysm0nqn3g5msr0653t
-    let keys = Keys::new(secret_key);
-
-    // std::fs::create_dir_all("store")?;
     let client = Client::new(&keys);
+    let gnostique = Arc::new(Gnostique { dirs, pool, client });
 
-    let gnostique = Gnostique { dirs, pool, client };
-
-    // client.restore_relays().await?;
+    gnostique
+        .client
+        .add_relays(vec![
+            ("wss://nostr.onsats.org", None),
+            ("wss://nostr.openchain.fr", None),
+        ])
+        .await?;
 
     // npub1gl23nnfmlewvvuz7xgrrauuexx2xj70whdf5yhd47tj0r8p68t6sww70gt
 
-    // client.connect().await;
+    gnostique.client.connect().await;
 
     // client.sync().await?;
 

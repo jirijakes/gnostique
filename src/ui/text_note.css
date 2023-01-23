@@ -112,3 +112,14 @@
     opacity: 0.6;
     font-size: 0.7em;
 }
+
+.statusbar {
+    border-top: 2px solid darker(@theme_bg_color);
+    padding: 0 8px;
+    font-size: 0.9em;
+}
+
+.statusbar .relaystatus button {
+    padding: 0 8px;
+    border: none;
+}
