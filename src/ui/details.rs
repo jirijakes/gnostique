@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use gtk::prelude::*;
+use nostr_sdk::nostr::Event;
 use relm4::prelude::*;
 use relm4::{gtk, ComponentParts};
 use serde_json::Value;
@@ -114,27 +115,27 @@ impl Component for DetailsWindow {
     ) {
         match message {
             DetailsWindowInput::Show(details) => {
-                self.details = Some(details);
-                self.event_buffer.set_text(
-                    self.details
-                        .as_ref()
-                        .map(|d| &d.event_json)
-                        .unwrap_or(&String::new()),
+                self.event_buffer.set_text(&details.event_json);
+
+                self.event_buffer.insert(
+                    &mut self.event_buffer.end_iter(),
+                    &format!(
+                        "\n\n\n//Event struct:\n\n{:#?}",
+                        serde_json::from_str::<Event>(&details.event_json).unwrap()
+                    ),
                 );
 
-                let metadata_json = &self
-                    .details
-                    .as_ref()
-                    .and_then(|d| d.metadata_json.clone())
-                    .unwrap_or(Arc::new(String::new()));
-
-                self.metadata_buffer.set_text(metadata_json);
-                if let Some(x) = pretty_content(metadata_json) {
-                    self.metadata_buffer.insert(
-                        &mut self.metadata_buffer.end_iter(),
-                        &format!("\n\n\n// Parsed content:\n\n{x}"),
-                    );
+                if let Some(metadata_json) = details.metadata_json.as_ref() {
+                    self.metadata_buffer.set_text(metadata_json);
+                    if let Some(x) = pretty_content(metadata_json) {
+                        self.metadata_buffer.insert(
+                            &mut self.metadata_buffer.end_iter(),
+                            &format!("\n\n\n// Parsed content:\n\n{x}"),
+                        );
+                    }
                 }
+
+                self.details = Some(details);
                 self.visible = true;
             }
             DetailsWindowInput::Hide => self.visible = false,
