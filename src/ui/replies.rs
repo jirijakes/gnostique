@@ -142,10 +142,7 @@ impl FactoryComponent for Reply {
     fn init_model(init: Self::Init, _index: &DynamicIndex, _sender: FactorySender<Self>) -> Self {
         Reply {
             content: init.as_ref().content.to_string(),
-            author: Persona {
-                name: None,
-                pubkey: init.pubkey,
-            },
+            author: Persona::new(init.pubkey),
         }
     }
 

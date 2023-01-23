@@ -19,6 +19,13 @@ impl WidgetTemplate for Author {
             #[name = "author_pubkey"]
             gtk::Label {
                 add_css_class: "author-pubkey"
+            },
+
+            #[name = "author_nip05"]
+            gtk::Label {
+                add_css_class: "author-nip05",
+                set_yalign: 1.0,
+                set_visible: false
             }
         }
     }
