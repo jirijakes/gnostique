@@ -82,11 +82,7 @@ impl AsyncComponent for Win {
         // TODO: join handle?
         let mut notif = gnostique.client.notifications();
         tokio::spawn(async move {
-            include_str!(
-                "../resources/b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b.json"
-            )
-            .lines()
-            .for_each(|l| {
+            include_str!("../resources/febbaba219357c6c64adfa2e01789f274aa60e90c289938bfc80dd91facb2899.json").lines().for_each(|l| {
                 let ev = nostr_sdk::nostr::event::Event::from_json(l).unwrap();
                 let url: Url = "http://example.com".parse().unwrap();
                 sender.input(Msg::Event(url, ev));
@@ -111,12 +107,12 @@ impl AsyncComponent for Win {
         {
             let mut guard = model.lanes.guard();
             // Create one lane.
-            guard.push_back(Some(
-                // "3b39477d16f6433ad7a6a1e68c0ee88ecd5acd087139583e6246adfdb3ce4b3b"
-                "b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b"
-                    .parse()
-                    .unwrap(),
-            ));
+            guard.push_back(None);
+            // guard.push_back(Some(
+            // "b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b"
+            // .parse()
+            // .unwrap(),
+            // ));
         }
 
         AsyncComponentParts { model, widgets }

@@ -9,6 +9,7 @@ use nostr_sdk::nostr::{Event, Sha256Hash};
 use relm4::factory::FactoryVecDeque;
 use relm4::gtk;
 use relm4::prelude::*;
+use reqwest::Url;
 
 use crate::nostr::{EventExt, Persona};
 use crate::ui::details::Details;
@@ -42,6 +43,7 @@ pub enum LaneMsg {
         reaction: String,
     },
     Nip05Verified(XOnlyPublicKey),
+    LinkClicked(Url),
 }
 
 #[derive(Debug)]
@@ -127,6 +129,7 @@ impl FactoryComponent for Lane {
             }
 
             LaneMsg::NewTextNote { event } => self.text_note_received(event),
+            LaneMsg::LinkClicked(uri) => println!("Clicked: {uri}"),
         }
     }
 }

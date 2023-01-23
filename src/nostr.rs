@@ -70,6 +70,8 @@ pub trait EventExt {
     fn as_metadata(&self) -> Option<Metadata>;
 
     fn as_pretty_json(&self) -> String;
+
+    fn augment_content(&self) -> String;
 }
 
 impl EventExt for Event {
@@ -125,5 +127,41 @@ impl EventExt for Event {
 
     fn as_pretty_json(&self) -> String {
         serde_json::to_string_pretty(self).expect("Could not serialize Event?")
+    }
+
+    /// Takes content of the event and replaces links by appropriate `<a>` tags.
+    ///
+    /// The method does not care about the content of the content. It is responsibility
+    /// of the caller to assure that the content is supposed to be plain text.
+    fn augment_content(&self) -> String {
+        use linkify::*;
+
+        let content = &self.content;
+
+        // Replace web links by normal web link.
+        let www: String = LinkFinder::new()
+            .spans(&html_escape::encode_text(content.trim()))
+            .map(|span| {
+                let s = span.as_str();
+                match span.kind() {
+                    Some(LinkKind::Url) => {
+                        format!(r#"<a href="{s}">{s}</a>"#)
+                    }
+                    _ => s.to_string(),
+                }
+            })
+            .collect();
+
+        // Replace hashtags by internal nostr URL.
+        regex::Regex::new("#(?P<tag>[a-zA-Z0-9]+)")
+            .unwrap()
+            .replace_all(&www, |caps: &regex::Captures| {
+                format!(
+                    r#"<a href="nostr:search?t={}">#{}</a>"#,
+                    caps["tag"].to_lowercase(),
+                    &caps["tag"]
+                )
+            })
+            .into()
     }
 }

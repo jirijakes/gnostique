@@ -66,6 +66,7 @@ pub enum NoteInput {
 #[derive(Debug)]
 pub enum NoteOutput {
     ShowDetails(Details),
+    LinkClicked(String),
 }
 
 /*
@@ -166,7 +167,14 @@ impl FactoryComponent for Note {
                     set_vexpand: true,
                     set_xalign: 0.0,
                     set_selectable: true,
-                    add_css_class: "content"
+                    add_css_class: "content",
+
+                    connect_activate_link[sender] => move |_, uri| {
+                        if uri.starts_with("nostr") {
+                            sender.output(NoteOutput::LinkClicked(uri.to_string()));
+                            gtk::Inhibit(true)
+                        } else { gtk::Inhibit(false) }
+                    }
                 },
 
                 self.replies.widget(),
@@ -248,6 +256,7 @@ impl FactoryComponent for Note {
     fn output_to_parent_input(output: Self::Output) -> Option<Self::ParentInput> {
         match output {
             NoteOutput::ShowDetails(details) => Some(LaneMsg::ShowDetails(details)),
+            NoteOutput::LinkClicked(uri) => uri.parse().map(LaneMsg::LinkClicked).ok(),
         }
     }
 
@@ -263,7 +272,7 @@ impl FactoryComponent for Note {
         Self {
             author: Persona::new(init.event.pubkey),
             is_central: init.is_central,
-            content: add_links(&init.event.content),
+            content: init.event.augment_content(),
             show_hidden_buttons: false,
             metadata_json: None,
             avatar: ANONYMOUS_USER.clone(),
@@ -323,22 +332,4 @@ impl FactoryComponent for Note {
             }
         }
     }
-}
-
-/// Detect URLs in given text and wrap them by `<a href="…">…</a>`.
-fn add_links(content: &str) -> String {
-    use linkify::*;
-
-    LinkFinder::new()
-        .spans(content.trim())
-        .map(|span| {
-            let s = span.as_str();
-            match span.kind() {
-                Some(LinkKind::Url) => {
-                    format!(r#"<a href="{s}">{s}</a>"#)
-                }
-                _ => s.to_string(),
-            }
-        })
-        .collect()
 }
