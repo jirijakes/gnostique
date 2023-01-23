@@ -113,18 +113,19 @@ impl FactoryComponent for Reply {
             Author {
                 #[template_child]
                 author_name {
-                    #[watch]
-                    set_label?: self.author.name.as_ref(),
-                    #[watch]
-                    set_visible: self.author.name.is_some(),
+                    #[watch] set_label?: self.author.name.as_ref(),
+                    #[watch] set_visible: self.author.name.is_some(),
                 },
-
                 #[template_child]
                 author_pubkey {
-                    #[watch]
-                    set_label: &self.author.format_pubkey(8, 8),
+                    #[watch] set_label: &self.author.format_pubkey(8, 8),
+                    #[watch] set_visible: self.author.nip05.is_none(),
+                },
+                #[template_child]
+                author_nip05 {
+                    #[watch] set_label?: &self.author.format_nip05(),
+                    #[watch] set_visible: self.author.nip05.is_some(),
                 }
-
             },
 
             gtk::Label {
@@ -150,7 +151,7 @@ impl FactoryComponent for Reply {
         match message {
             ReplyInput::UpdatedProfile { author } => {
                 if self.author.pubkey == author.pubkey {
-                    self.author.name = author.name;
+                    self.author = author;
                 }
             }
         }

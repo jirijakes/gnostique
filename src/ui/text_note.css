@@ -61,10 +61,13 @@
     border-bottom: 1px solid lighter(@theme_bg_color);
 }
 
-
 .replies .reply:last-child {
     padding-bottom: 0;
     border-bottom: 0;
+}
+
+.replies .reply .author {
+    margin-bottom: 6px;
 }
 
 .hidden-buttons button {

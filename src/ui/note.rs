@@ -281,8 +281,7 @@ impl FactoryComponent for Note {
                 metadata_json,
             } => {
                 if self.author.pubkey == author.pubkey {
-                    self.author.name = author.name.clone();
-                    self.author.nip05 = author.nip05.clone();
+                    self.author = author.clone();
                     self.metadata_json = Some(metadata_json);
                 };
 
