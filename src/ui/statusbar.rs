@@ -46,7 +46,7 @@ impl SimpleComponent for StatusBar {
             gtk::Box {
                 set_hexpand: true,
             },
-            
+
             gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
                 #[watch] set_visible: model.relay_status.is_some(),
@@ -106,13 +106,14 @@ impl StatusBar {
     }
 
     fn format_relay_status_tooltip(&self) -> String {
-        fn status(relays: &HashSet<Url>, color: &str, status: &str) -> String {
+        fn status<'a>(
+            relays: &'a HashSet<Url>,
+            color: &'a str,
+            status: &'a str,
+        ) -> impl Iterator<Item = String> + 'a {
             relays
                 .iter()
-                .map(|r| format!(r#"[<span color="{color}">{status}</span>] {r}"#))
-                .filter(|s| !s.is_empty())
-                .collect::<Vec<_>>()
-                .join("\n")
+                .map(move |r| format!(r#"[<span color="{color}">{status}</span>] {r}"#))
         }
 
         if let Some(RelayStatus {
@@ -121,18 +122,24 @@ impl StatusBar {
             ref disconnected,
         }) = self.relay_status
         {
-            format!(
-                "<b>Status of relays</b>\n\n{}",
-                [
-                    status(connected, "#00ff00", "Connected"),
-                    status(connecting, "orange", "Connecting"),
-                    status(disconnected, "red", "Disconnected")
-                ]
-                .into_iter()
-                .filter(|s| !s.is_empty())
-                .collect::<Vec<_>>()
-                .join("\n")
-            )
+            let status = [
+                status(connected, "#00ff00", "Connected"),
+                status(connecting, "orange", "Connecting"),
+                status(disconnected, "red", "Disconnected"),
+            ]
+            .into_iter()
+            .flatten()
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<_>>()
+            .join("\n");
+
+            let status = if status.is_empty() {
+                "No relays."
+            } else {
+                &status
+            };
+
+            format!("<b>Status of relays:</b>\n\n{status}")
         } else {
             "Could not obtain status of relays.".to_string()
         }
