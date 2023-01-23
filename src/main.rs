@@ -64,49 +64,37 @@ async fn main() -> Result<()> {
     let client = Client::new(&keys);
     let gnostique = Arc::new(Gnostique { dirs, pool, client });
 
-    gnostique
-        .client
-        .add_relays(vec![
-            ("wss://nostr.onsats.org", None),
-            ("wss://nostr.openchain.fr", None),
-        ])
-        .await?;
-
-    // npub1gl23nnfmlewvvuz7xgrrauuexx2xj70whdf5yhd47tj0r8p68t6sww70gt
-
-    gnostique.client.connect().await;
-
-    // client.sync().await?;
-
-    // let sub = SubscriptionFilter::new()
-    //     // .pubkey(XOnlyPublicKey::from_bech32(
-    //     // "npub1gl23nnfmlewvvuz7xgrrauuexx2xj70whdf5yhd47tj0r8p68t6sww70gt",
-    //     // )?)
-    //     .events(vec![
-    //         "b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b"
-    //             .parse()
-    //             .unwrap(),
-    //     ])
-    //     // .limit(20)
-    //     ;
-
-    // client
-    //     .subscribe(vec![
-    //         sub,
-    //         SubscriptionFilter::new()
-    //             .id("b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b"),
+    // gnostique
+    //     .client
+    //     .add_relays(vec![
+    //         ("wss://nostr.onsats.org", None),
+    //         ("wss://nostr.openchain.fr", None),
     //     ])
     //     .await?;
 
-    // let x = client
+    // gnostique.client.connect().await;
+
+    // gnostique
+    //     .client
     //     .get_events_of(vec![
-    //         sub,
     //         SubscriptionFilter::new()
-    //             .id("b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b"),
+    //             .author(
+    //                 "febbaba219357c6c64adfa2e01789f274aa60e90c289938bfc80dd91facb2899"
+    //                     .parse()
+    //                     .unwrap(),
+    //             )
+    //             .limit(100),
+    //         SubscriptionFilter::new()
+    //             .pubkey(
+    //                 "febbaba219357c6c64adfa2e01789f274aa60e90c289938bfc80dd91facb2899"
+    //                     .parse()
+    //                     .unwrap(),
+    //             )
+    //             .limit(100),
     //     ])
-    //     .await?;
-
-    // x.iter().for_each(|a| println!("{}", a.as_json().unwrap()));
+    //     .await?
+    //     .iter()
+    //     .for_each(|a| println!("{}", a.as_json().unwrap()));
 
     let app = RelmApp::new("com.jirijakes.gnostique");
 
