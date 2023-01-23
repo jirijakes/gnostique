@@ -5,17 +5,19 @@ mod nostr;
 mod ui;
 mod win;
 
-use std::rc::Rc;
+use std::sync::Arc;
 
+use directories::ProjectDirs;
 use nostr_sdk::nostr::prelude::*;
 // use nostr_sdk::nostr::util::time::timestamp;
 use nostr_sdk::*;
 use relm4::*;
+use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use sqlx::SqlitePool;
 use tracing_subscriber::EnvFilter;
 
 pub struct Gnostique {
-    pool: Rc<SqlitePool>,
+    pool: Arc<SqlitePool>,
 }
 
 #[tokio::main]
@@ -32,6 +34,20 @@ async fn main() -> Result<()> {
         .finish();
 
     tracing::subscriber::set_global_default(subscriber)?;
+
+    let dirs = ProjectDirs::from("com.jirijakes", "", "Gnostique").unwrap();
+
+    let pool = SqlitePoolOptions::new()
+        .max_connections(5)
+        .connect_with(
+            SqliteConnectOptions::new()
+                .filename(dirs.data_dir().join("gnostique.db"))
+                .create_if_missing(true),
+        )
+        .await
+        .unwrap();
+
+    let pool = Arc::new(pool);
 
     let secret_key =
         SecretKey::from_bech32("nsec1qh685ta6ht7emkn8nlggzjfl0h58zxntgsdjgxmvjz2kctv5puysjcmm03")
@@ -86,7 +102,7 @@ async fn main() -> Result<()> {
     let settings = gtk::Settings::default().unwrap();
     settings.set_gtk_application_prefer_dark_theme(true);
 
-    app.run_async::<crate::win::Win>(client);
+    app.run_async::<crate::win::Win>((client, pool));
 
     Ok(())
 }

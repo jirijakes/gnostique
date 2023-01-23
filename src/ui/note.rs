@@ -60,6 +60,7 @@ pub enum NoteInput {
         reaction: String,
     },
     Reply(Rc<Event>),
+    Nip05Verified(XOnlyPublicKey),
 }
 
 #[derive(Debug)]
@@ -126,16 +127,18 @@ impl FactoryComponent for Note {
                     Author {
                         #[template_child]
                         author_name {
-                            #[watch]
-                            set_label?: self.author.name.as_ref(),
-                            #[watch]
-                            set_visible: self.author.name.is_some(),
+                            #[watch] set_label?: self.author.name.as_ref(),
+                            #[watch] set_visible: self.author.name.is_some(),
                         },
-
                         #[template_child]
                         author_pubkey {
-                            #[watch]
-                            set_label: &self.author.format_pubkey(8, 16),
+                            #[watch] set_label: &self.author.format_pubkey(8, 16),
+                            #[watch] set_visible: !self.author.show_nip05(),
+                        },
+                        #[template_child]
+                        author_nip05 {
+                            #[watch] set_label?: &self.author.format_nip05(),
+                            #[watch] set_visible: self.author.show_nip05(),
                         }
                     },
                     add_overlay = &gtk::Box {
@@ -258,10 +261,7 @@ impl FactoryComponent for Note {
         );
 
         Self {
-            author: Persona {
-                name: None,
-                pubkey: init.event.pubkey,
-            },
+            author: Persona::new(init.event.pubkey),
             is_central: init.is_central,
             content: add_links(&init.event.content),
             show_hidden_buttons: false,
@@ -282,7 +282,7 @@ impl FactoryComponent for Note {
                 metadata_json,
             } => {
                 if self.author.pubkey == author.pubkey {
-                    self.author.name = author.name.clone();
+                    self.author = author.clone();
                     self.metadata_json = Some(metadata_json);
                 };
 
@@ -298,6 +298,13 @@ impl FactoryComponent for Note {
             NoteInput::Reply(event) => {
                 self.replies.emit(RepliesInput::NewReply(event));
             }
+            NoteInput::Nip05Verified(pubkey) => {
+                if pubkey == self.author.pubkey {
+                    self.author.nip05_verified = true;
+                }
+                self.replies.emit(RepliesInput::Nip05Verified(pubkey));
+            }
+
             NoteInput::Reaction { event, reaction } => {
                 if self.event.id == event {
                     if reaction == "+" || reaction == "🤙" {

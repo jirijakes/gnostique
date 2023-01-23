@@ -5,10 +5,12 @@ use std::sync::Arc;
 use gtk::gdk;
 use gtk::prelude::*;
 use nostr_sdk::nostr::prelude::*;
+use nostr_sdk::nostr::util::nips::nip05;
 use nostr_sdk::nostr::Event;
 use nostr_sdk::Client;
 use relm4::component::*;
 use relm4::factory::FactoryVecDeque;
+use sqlx::{query, SqlitePool};
 use tracing::info;
 
 use crate::lane::{Lane, LaneMsg};
@@ -17,6 +19,7 @@ use crate::ui::details::*;
 
 pub struct Win {
     // client: Client,
+    pool: Arc<SqlitePool>,
     lanes: FactoryVecDeque<Lane>,
     details: Controller<DetailsWindow>,
 }
@@ -29,22 +32,25 @@ pub enum Msg {
         pubkey: XOnlyPublicKey,
         file: PathBuf,
     },
+    Nip05Verified(XOnlyPublicKey),
 }
 
 #[derive(Debug)]
-pub enum GnostiqueCmd {
+pub enum WinCmd {
     AvatarBitmap {
         pubkey: XOnlyPublicKey,
         file: PathBuf,
     },
+    Nip05Verified(XOnlyPublicKey),
+    Noop,
 }
 
 #[relm4::component(pub async)]
 impl AsyncComponent for Win {
-    type Init = Client;
+    type Init = (Client, Arc<SqlitePool>);
     type Input = Msg;
     type Output = ();
-    type CommandOutput = GnostiqueCmd;
+    type CommandOutput = WinCmd;
 
     #[rustfmt::skip]
     view! {
@@ -58,10 +64,12 @@ impl AsyncComponent for Win {
     }
 
     async fn init(
-        client: Self::Init,
+        init: Self::Init,
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
+        let (client, pool) = init;
+
         let lanes = FactoryVecDeque::new(gtk::Box::default(), sender.input_sender());
 
         // TODO: join handle?
@@ -84,6 +92,7 @@ impl AsyncComponent for Win {
 
         let mut model = Win {
             // client,
+            pool,
             lanes,
             details: DetailsWindow::builder().launch(()).detach(),
         };
@@ -112,9 +121,11 @@ impl AsyncComponent for Win {
         _root: &Self::Root,
     ) {
         match msg {
-            GnostiqueCmd::AvatarBitmap { pubkey, file } => {
+            WinCmd::AvatarBitmap { pubkey, file } => {
                 sender.input(Msg::AvatarBitmap { pubkey, file })
             }
+            WinCmd::Nip05Verified(nip05) => sender.input(Msg::Nip05Verified(nip05)),
+            WinCmd::Noop => {}
         }
     }
 
@@ -125,9 +136,11 @@ impl AsyncComponent for Win {
         _root: &Self::Root,
     ) {
         match msg {
-            Msg::Event(relay, event) => self.received_event(relay, event, sender),
+            Msg::Event(relay, event) => self.received_event(relay, event, sender).await,
 
             Msg::ShowDetail(details) => self.details.emit(DetailsWindowInput::Show(details)),
+
+            Msg::Nip05Verified(nip05) => self.lanes.broadcast(LaneMsg::Nip05Verified(nip05)),
 
             Msg::AvatarBitmap { pubkey, file } => {
                 self.lanes.broadcast(LaneMsg::AvatarBitmap {
@@ -140,10 +153,15 @@ impl AsyncComponent for Win {
 }
 
 impl Win {
-    fn received_event(&mut self, relay: Url, event: Event, sender: AsyncComponentSender<Self>) {
+    async fn received_event(
+        &mut self,
+        relay: Url,
+        event: Event,
+        sender: AsyncComponentSender<Self>,
+    ) {
         match event.kind {
             Kind::TextNote => self.received_text_note(relay, event),
-            Kind::Metadata => self.received_metadata(relay, event, sender),
+            Kind::Metadata => self.received_metadata(relay, event, sender).await,
             Kind::Reaction => self.received_reaction(relay, event),
             _ => {}
         }
@@ -156,19 +174,44 @@ impl Win {
         })
     }
 
-    fn received_metadata(&self, _relay: Url, event: Event, sender: AsyncComponentSender<Self>) {
+    async fn received_metadata(
+        &self,
+        _relay: Url,
+        event: Event,
+        sender: AsyncComponentSender<Self>,
+    ) {
         let json = event.as_pretty_json();
-        let m = event.as_metadata().unwrap();
+        let metadata = event.as_metadata().unwrap();
+
+        let pool = self.pool.clone();
+        let pubkey_vec = event.pubkey.serialize().to_vec();
+
+        let _ = query!(
+            r#"
+INSERT INTO metadata (author, event) VALUES (?, ?)
+ON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event
+"#,
+            pubkey_vec,
+            json
+        )
+        .execute(pool.as_ref())
+        .await;
 
         // If the metadata contains valid URL, download it as an avatar.
-        if let Some(url) = m.picture.and_then(|p| Url::parse(&p).ok()) {
+        if let Some(url) = metadata.picture.and_then(|p| Url::parse(&p).ok()) {
             sender.oneshot_command(obtain_avatar(event.pubkey, url));
+        }
+
+        if let Some(nip05) = metadata.nip05.clone() {
+            sender.oneshot_command(verify_nip05(self.pool.clone(), event.pubkey, nip05));
         }
 
         self.lanes.broadcast(LaneMsg::UpdatedProfile {
             author: Persona {
                 pubkey: event.pubkey,
-                name: m.name,
+                name: metadata.name,
+                nip05: metadata.nip05,
+                nip05_verified: false,
             },
             metadata_json: Arc::new(json),
         });
@@ -184,9 +227,55 @@ impl Win {
     }
 }
 
+async fn verify_nip05(pool: Arc<SqlitePool>, pubkey: XOnlyPublicKey, nip05: String) -> WinCmd {
+    let pubkey_bytes = pubkey.serialize().to_vec();
+    // If the nip05 is already verified and not for too long, just confirm.
+    let x = query!(
+        r#"
+SELECT (unixepoch('now') - unixepoch(nip05_verified)) / 60 / 60 AS "hours?: u32"
+FROM metadata WHERE author = ?"#,
+        pubkey_bytes
+    )
+    .fetch_optional(pool.as_ref())
+    .await;
+
+    if let Ok(result) = x {
+        let x = result.and_then(|r| r.hours);
+
+        match x {
+            Some(hours) if hours < 12 => {
+                info!("NIP05: {} verified {} hours ago", nip05, hours);
+                WinCmd::Nip05Verified(pubkey)
+            }
+            _ => {
+                info!("NIP05: Verifying {}.", nip05);
+                // If it's not yet verified or been verified for very long, update.
+                if nip05::verify(pubkey, &nip05, None).await.is_ok() {
+                    let _ = query!(
+                        r#"
+UPDATE metadata SET nip05_verified = datetime('now')
+WHERE author = ?"#,
+                        pubkey_bytes
+                    )
+                    .execute(pool.as_ref())
+                    .await;
+
+                    info!("NIP05: {} verified.", nip05);
+                    WinCmd::Nip05Verified(pubkey)
+                } else {
+                    info!("NIP05: {} verification failed.", nip05);
+                    WinCmd::Noop
+                }
+            }
+        }
+    } else {
+        WinCmd::Noop
+    }
+}
+
 /// Find `pubkey`'s avatar image either in cache or, if not available,
 /// download it from `url` and then cache.
-async fn obtain_avatar(pubkey: XOnlyPublicKey, url: Url) -> GnostiqueCmd {
+async fn obtain_avatar(pubkey: XOnlyPublicKey, url: Url) -> WinCmd {
     let filename: PathBuf = pubkey.to_string().into();
 
     let cache = directories::ProjectDirs::from("com.jirijakes", "", "Gnostique")
@@ -219,5 +308,5 @@ async fn obtain_avatar(pubkey: XOnlyPublicKey, url: Url) -> GnostiqueCmd {
         info!("Avatar obtained from cache: {}", url_s);
     }
 
-    GnostiqueCmd::AvatarBitmap { pubkey, file }
+    WinCmd::AvatarBitmap { pubkey, file }
 }

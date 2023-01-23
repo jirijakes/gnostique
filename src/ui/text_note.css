@@ -1,6 +1,9 @@
+* {
+    font-family: "Roboto", sans-serif;
+}
+
 .text-note.central .content {
     font-size: 1.3em;
-    font-family: "Roboto", sans-serif;
 }
 
 .text-note .content {
@@ -34,7 +37,6 @@
  }
 
 .text-note .content {
-   font-family: "Roboto", sans-serif;
    font-size: 1.1em;
 }
 
@@ -59,10 +61,13 @@
     border-bottom: 1px solid lighter(@theme_bg_color);
 }
 
-
 .replies .reply:last-child {
     padding-bottom: 0;
     border-bottom: 0;
+}
+
+.replies .reply .author {
+    margin-bottom: 6px;
 }
 
 .hidden-buttons button {
@@ -96,6 +101,10 @@
 .author label.author-pubkey {
     font-size: 0.9em;
     font-family: monospace;
+    opacity: 0.7;
+}
+
+.author label.author-nip05 {
     opacity: 0.7;
 }
 

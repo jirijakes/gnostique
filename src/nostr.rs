@@ -16,9 +16,30 @@ pub static ANONYMOUS_USER: Lazy<Arc<gdk::Texture>> = Lazy::new(|| {
 pub struct Persona {
     pub name: Option<String>,
     pub pubkey: XOnlyPublicKey,
+    pub nip05: Option<String>,
+    pub nip05_verified: bool,
 }
 
 impl Persona {
+    pub fn new(pubkey: XOnlyPublicKey) -> Persona {
+        Persona {
+            pubkey,
+            name: None,
+            nip05: None,
+            nip05_verified: false,
+        }
+    }
+
+    pub fn format_nip05(&self) -> Option<String> {
+        self.nip05
+            .clone()
+            .map(|n| format!("✅ {}", n.strip_prefix("_@").unwrap_or(&n)))
+    }
+
+    pub fn show_nip05(&self) -> bool {
+        self.nip05.is_some() && self.nip05_verified
+    }
+
     /// Format author's pubkey according to context (has or has not author name).
     pub fn format_pubkey(&self, short_len: usize, long_len: usize) -> String {
         let chars = if self.name.is_some() {
