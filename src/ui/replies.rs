@@ -3,6 +3,7 @@ use std::rc::Rc;
 
 use gtk::prelude::*;
 use nostr_sdk::nostr::{Event, Sha256Hash};
+use nostr_sdk::prelude::XOnlyPublicKey;
 use relm4::factory::FactoryVecDeque;
 use relm4::gtk;
 use relm4::prelude::*;
@@ -21,6 +22,7 @@ pub struct Replies {
 pub enum RepliesInput {
     NewReply(Rc<Event>),
     UpdatedProfile { author: Persona },
+    Nip05Verified(XOnlyPublicKey),
 }
 
 #[relm4::component(pub)]
@@ -68,14 +70,12 @@ impl SimpleComponent for Replies {
                 }
             }
             RepliesInput::UpdatedProfile { author } => {
-                for i in 0..self.replies.len() {
-                    self.replies.send(
-                        i,
-                        ReplyInput::UpdatedProfile {
-                            author: author.clone(),
-                        },
-                    );
-                }
+                self.replies.broadcast(ReplyInput::UpdatedProfile {
+                    author: author.clone(),
+                })
+            }
+            RepliesInput::Nip05Verified(pubkey) => {
+                self.replies.broadcast(ReplyInput::Nip05Verified(pubkey))
             }
         }
     }
@@ -88,9 +88,10 @@ pub struct Reply {
     author: Persona,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum ReplyInput {
     UpdatedProfile { author: Persona },
+    Nip05Verified(XOnlyPublicKey),
 }
 
 #[relm4::factory(pub)]
@@ -119,12 +120,12 @@ impl FactoryComponent for Reply {
                 #[template_child]
                 author_pubkey {
                     #[watch] set_label: &self.author.format_pubkey(8, 8),
-                    #[watch] set_visible: self.author.nip05.is_none(),
+                    #[watch] set_visible: !self.author.show_nip05(),
                 },
                 #[template_child]
                 author_nip05 {
                     #[watch] set_label?: &self.author.format_nip05(),
-                    #[watch] set_visible: self.author.nip05.is_some(),
+                    #[watch] set_visible: self.author.show_nip05(),
                 }
             },
 
@@ -152,6 +153,11 @@ impl FactoryComponent for Reply {
             ReplyInput::UpdatedProfile { author } => {
                 if self.author.pubkey == author.pubkey {
                     self.author = author;
+                }
+            }
+            ReplyInput::Nip05Verified(pubkey) => {
+                if pubkey == self.author.pubkey {
+                    self.author.nip05_verified = true;
                 }
             }
         }

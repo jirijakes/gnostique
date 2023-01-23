@@ -60,6 +60,7 @@ pub enum NoteInput {
         reaction: String,
     },
     Reply(Rc<Event>),
+    Nip05Verified(XOnlyPublicKey),
 }
 
 #[derive(Debug)]
@@ -132,12 +133,12 @@ impl FactoryComponent for Note {
                         #[template_child]
                         author_pubkey {
                             #[watch] set_label: &self.author.format_pubkey(8, 16),
-                            #[watch] set_visible: self.author.nip05.is_none(),
+                            #[watch] set_visible: !self.author.show_nip05(),
                         },
                         #[template_child]
                         author_nip05 {
                             #[watch] set_label?: &self.author.format_nip05(),
-                            #[watch] set_visible: self.author.nip05.is_some(),
+                            #[watch] set_visible: self.author.show_nip05(),
                         }
                     },
                     add_overlay = &gtk::Box {
@@ -297,6 +298,13 @@ impl FactoryComponent for Note {
             NoteInput::Reply(event) => {
                 self.replies.emit(RepliesInput::NewReply(event));
             }
+            NoteInput::Nip05Verified(pubkey) => {
+                if pubkey == self.author.pubkey {
+                    self.author.nip05_verified = true;
+                }
+                self.replies.emit(RepliesInput::Nip05Verified(pubkey));
+            }
+
             NoteInput::Reaction { event, reaction } => {
                 if self.event.id == event {
                     if reaction == "+" || reaction == "🤙" {

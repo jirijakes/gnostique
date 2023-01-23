@@ -140,9 +140,7 @@ impl AsyncComponent for Win {
 
             Msg::ShowDetail(details) => self.details.emit(DetailsWindowInput::Show(details)),
 
-            Msg::Nip05Verified(nip05) => {
-                // self.lanes.broadcast(LaneMsg::Nip05Verified(nip05))
-            }
+            Msg::Nip05Verified(nip05) => self.lanes.broadcast(LaneMsg::Nip05Verified(nip05)),
 
             Msg::AvatarBitmap { pubkey, file } => {
                 self.lanes.broadcast(LaneMsg::AvatarBitmap {
@@ -213,6 +211,7 @@ ON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event
                 pubkey: event.pubkey,
                 name: metadata.name,
                 nip05: metadata.nip05,
+                nip05_verified: false,
             },
             metadata_json: Arc::new(json),
         });

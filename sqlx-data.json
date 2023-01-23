@@ -1,0 +1,41 @@
+{
+  "db": "SQLite",
+  "5f8493e81f7cb2eb8cccc49522c237b7557bd46afb5d1e65a65834bddbd00583": {
+    "describe": {
+      "columns": [
+        {
+          "name": "hours?: u32",
+          "ordinal": 0,
+          "type_info": "Int"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "\nSELECT (unixepoch('now') - unixepoch(nip05_verified)) / 60 / 60 AS \"hours?: u32\"\nFROM metadata WHERE author = ?"
+  },
+  "c1649e400797f9eb38cd710b5d759c30d7b82d6c20c66af6b1845f396f021270": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "\nINSERT INTO metadata (author, event) VALUES (?, ?)\nON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event\n"
+  },
+  "f1d221a16deb319fc3058ce991331f39d59d509a3f7862d873387675c9404ab0": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "\nUPDATE metadata SET nip05_verified = datetime('now')\nWHERE author = ?"
+  }
+}

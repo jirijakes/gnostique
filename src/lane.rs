@@ -41,6 +41,7 @@ pub enum LaneMsg {
         event: Sha256Hash,
         reaction: String,
     },
+    Nip05Verified(XOnlyPublicKey),
 }
 
 #[derive(Debug)]
@@ -104,42 +105,27 @@ impl FactoryComponent for Lane {
             LaneMsg::ShowDetails(details) => {
                 sender.output(LaneOutput::ShowDetails(details));
             }
+
             LaneMsg::UpdatedProfile {
                 author,
                 metadata_json,
-            } => {
-                for i in 0..self.text_notes.len() {
-                    self.text_notes.send(
-                        i,
-                        NoteInput::UpdatedProfile {
-                            author: author.clone(),
-                            metadata_json: metadata_json.clone(),
-                        },
-                    )
-                }
+            } => self.text_notes.broadcast(NoteInput::UpdatedProfile {
+                author,
+                metadata_json,
+            }),
+
+            LaneMsg::AvatarBitmap { pubkey, bitmap } => self
+                .text_notes
+                .broadcast(NoteInput::AvatarBitmap { pubkey, bitmap }),
+
+            LaneMsg::Reaction { event, reaction } => self
+                .text_notes
+                .broadcast(NoteInput::Reaction { event, reaction }),
+
+            LaneMsg::Nip05Verified(pubkey) => {
+                self.text_notes.broadcast(NoteInput::Nip05Verified(pubkey))
             }
-            LaneMsg::AvatarBitmap { pubkey, bitmap } => {
-                for i in 0..self.text_notes.len() {
-                    self.text_notes.send(
-                        i,
-                        NoteInput::AvatarBitmap {
-                            pubkey,
-                            bitmap: bitmap.clone(),
-                        },
-                    );
-                }
-            }
-            LaneMsg::Reaction { event, reaction } => {
-                for i in 0..self.text_notes.len() {
-                    self.text_notes.send(
-                        i,
-                        NoteInput::Reaction {
-                            event,
-                            reaction: reaction.clone(),
-                        },
-                    );
-                }
-            }
+
             LaneMsg::NewTextNote { event } => self.text_note_received(event),
         }
     }

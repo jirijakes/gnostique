@@ -17,6 +17,7 @@ pub struct Persona {
     pub name: Option<String>,
     pub pubkey: XOnlyPublicKey,
     pub nip05: Option<String>,
+    pub nip05_verified: bool,
 }
 
 impl Persona {
@@ -25,6 +26,7 @@ impl Persona {
             pubkey,
             name: None,
             nip05: None,
+            nip05_verified: false,
         }
     }
 
@@ -32,6 +34,10 @@ impl Persona {
         self.nip05
             .clone()
             .map(|n| format!("✅ {}", n.strip_prefix("_@").unwrap_or(&n)))
+    }
+
+    pub fn show_nip05(&self) -> bool {
+        self.nip05.is_some() && self.nip05_verified
     }
 
     /// Format author's pubkey according to context (has or has not author name).
