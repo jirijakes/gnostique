@@ -153,7 +153,7 @@ impl EventExt for Event {
             .collect();
 
         // Replace hashtags by internal nostr URL.
-        regex::Regex::new("#(?P<tag>[a-zA-Z0-9]+)")
+        let tags = regex::Regex::new("#(?P<tag>[a-zA-Z0-9]+)")
             .unwrap()
             .replace_all(&www, |caps: &regex::Captures| {
                 format!(
@@ -161,6 +161,19 @@ impl EventExt for Event {
                     caps["tag"].to_lowercase(),
                     &caps["tag"]
                 )
+            });
+
+        // Replace mentions. This has to be made much more sofisticated.
+        regex::Regex::new("#\\[(?P<idx>\\d+)\\]")
+            .unwrap()
+            .replace_all(&tags, |caps: &regex::Captures| {
+                let idx: usize = caps["idx"].parse().unwrap();
+                let id = match self.tags.get(idx) {
+                    Some(Tag::Event(id, _, _)) => id.to_string(),
+                    Some(Tag::PubKey(pubkey, _)) => pubkey.to_string(),
+                    _ => caps["idx"].to_string(),
+                };
+                format!(r#"<a href="nostr:{id}">{id}</a>"#)
             })
             .into()
     }
