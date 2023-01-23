@@ -149,7 +149,7 @@ fn pretty_content(metadata_json: &str) -> Option<String> {
 
 /// All available information about a note.
 // TODO: Could it be passed as input to Note widget?
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Details {
     /// Complete JSON of the note event.
     pub event_json: String,

@@ -5,7 +5,8 @@ use std::sync::Arc;
 use gtk::gdk;
 use gtk::prelude::*;
 use nostr_sdk::nostr::prelude::*;
-use nostr_sdk::{Client, RelayPoolNotification};
+use nostr_sdk::nostr::Event;
+use nostr_sdk::Client;
 use relm4::component::*;
 use relm4::factory::FactoryVecDeque;
 use tracing::info;
@@ -14,7 +15,7 @@ use crate::lane::{Lane, LaneMsg};
 use crate::nostr::{EventExt, Persona};
 use crate::ui::details::*;
 
-pub struct Gnostique {
+pub struct Win {
     // client: Client,
     lanes: FactoryVecDeque<Lane>,
     details: Controller<DetailsWindow>,
@@ -22,7 +23,7 @@ pub struct Gnostique {
 
 #[derive(Debug)]
 pub enum Msg {
-    Notification(RelayPoolNotification),
+    Event(Url, Event),
     ShowDetail(Details),
     AvatarBitmap {
         pubkey: XOnlyPublicKey,
@@ -39,7 +40,7 @@ pub enum GnostiqueCmd {
 }
 
 #[relm4::component(pub async)]
-impl AsyncComponent for Gnostique {
+impl AsyncComponent for Win {
     type Init = Client;
     type Input = Msg;
     type Output = ();
@@ -73,7 +74,7 @@ impl AsyncComponent for Gnostique {
             .for_each(|l| {
                 let ev = nostr_sdk::nostr::event::Event::from_json(l).unwrap();
                 let url: Url = "http://example.com".parse().unwrap();
-                sender.input(Msg::Notification(RelayPoolNotification::Event(url, ev)));
+                sender.input(Msg::Event(url, ev));
             });
 
             // while let Ok(not) = notif.recv().await {
@@ -81,12 +82,10 @@ impl AsyncComponent for Gnostique {
             // }
         });
 
-        let details = DetailsWindow::builder().launch(()).detach();
-
-        let mut model = Gnostique {
+        let mut model = Win {
             // client,
             lanes,
-            details,
+            details: DetailsWindow::builder().launch(()).detach(),
         };
 
         let lanes_box = model.lanes.widget();
@@ -109,7 +108,7 @@ impl AsyncComponent for Gnostique {
     async fn update_cmd(
         &mut self,
         msg: Self::CommandOutput,
-        sender: AsyncComponentSender<Gnostique>,
+        sender: AsyncComponentSender<Win>,
         _root: &Self::Root,
     ) {
         match msg {
@@ -126,113 +125,61 @@ impl AsyncComponent for Gnostique {
         _root: &Self::Root,
     ) {
         match msg {
-            Msg::Notification(RelayPoolNotification::Event(_url, ev))
-                if ev.kind == Kind::TextNote =>
-            {
-                // let profile = self
-                //     .client
-                //     .store()
-                //     .ok()
-                //     .and_then(|s| s.get_profile(ev.pubkey).ok());
-
-                // let replies = ev
-                //     .tags
-                //     .iter()
-                //     .filter_map(|t| match t {
-                //         Tag::Event(e, _, Some(Marker::Root)) => Some(*e),
-                //         _ => None,
-                //     })
-                //     .collect::<HashSet<_>>();
-
-                // if !replies.is_empty() {
-                //     let reply_filter =
-                //         SubscriptionFilter::new().events(replies.into_iter().collect());
-                //     let x = self.client.get_events_of(vec![reply_filter]).await.unwrap();
-                //     x.iter().for_each(|e| println!(">>>> {e:?}"));
-                // }
-
-                // println!("{}", ev.as_json().unwrap());
-                // println!("{:?}", ev.tags);
-                // println!();
-
-                // let event = EventContext { event: ev, profile };
-
-                // Send the event to all lanes, they will decide themselves what to do with it.
-                let ev = Rc::new(ev);
-                for i in 0..self.lanes.len() {
-                    self.lanes.send(
-                        i,
-                        LaneMsg::NewTextNote {
-                            event: ev.clone(),
-                            // profile: profile.clone(),
-                        },
-                    );
-                }
-            }
-
-            Msg::Notification(RelayPoolNotification::Event(_url, ev))
-                if ev.kind == Kind::Metadata =>
-            {
-                let json = ev.as_pretty_json();
-                let m = ev.as_metadata().unwrap();
-
-                // If the metadata contains valid URL, download it as an avatar.
-                if let Some(url) = m.picture.and_then(|p| Url::parse(&p).ok()) {
-                    sender.oneshot_command(obtain_avatar(ev.pubkey, url));
-                }
-
-                for i in 0..self.lanes.len() {
-                    self.lanes.send(
-                        i,
-                        LaneMsg::UpdatedProfile {
-                            author: Persona {
-                                pubkey: ev.pubkey,
-                                name: m.name.clone(),
-                            },
-                            metadata_json: json.clone(),
-                        },
-                    );
-                }
-            }
-
-            Msg::Notification(RelayPoolNotification::Event(_url, ev))
-                if ev.kind == Kind::Reaction =>
-            {
-                if let Some(to) = ev.reacts_to() {
-                    for i in 0..self.lanes.len() {
-                        self.lanes.send(
-                            i,
-                            LaneMsg::Reaction {
-                                event: to,
-                                reaction: ev.content.clone(),
-                            },
-                        );
-                    }
-                }
-            }
-
-            Msg::Notification(RelayPoolNotification::Event(_url, ev))
-                if ev.kind == Kind::ContactList =>
-            {
-                println!("{ev:?}")
-            }
+            Msg::Event(relay, event) => self.received_event(relay, event, sender),
 
             Msg::ShowDetail(details) => self.details.emit(DetailsWindowInput::Show(details)),
 
             Msg::AvatarBitmap { pubkey, file } => {
-                let pix = Arc::new(gdk::Texture::from_filename(file).unwrap());
-                for i in 0..self.lanes.len() {
-                    self.lanes.send(
-                        i,
-                        LaneMsg::AvatarBitmap {
-                            pubkey,
-                            bitmap: pix.clone(),
-                        },
-                    );
-                }
+                self.lanes.broadcast(LaneMsg::AvatarBitmap {
+                    pubkey,
+                    bitmap: Arc::new(gdk::Texture::from_filename(file).unwrap()),
+                });
             }
+        }
+    }
+}
 
-            ev => {}
+impl Win {
+    fn received_event(&mut self, relay: Url, event: Event, sender: AsyncComponentSender<Self>) {
+        match event.kind {
+            Kind::TextNote => self.received_text_note(relay, event),
+            Kind::Metadata => self.received_metadata(relay, event, sender),
+            Kind::Reaction => self.received_reaction(relay, event),
+            _ => {}
+        }
+    }
+
+    fn received_text_note(&self, _relay: Url, event: Event) {
+        // Send the event to all lanes, they will decide themselves what to do with it.
+        self.lanes.broadcast(LaneMsg::NewTextNote {
+            event: Rc::new(event),
+        })
+    }
+
+    fn received_metadata(&self, _relay: Url, event: Event, sender: AsyncComponentSender<Self>) {
+        let json = event.as_pretty_json();
+        let m = event.as_metadata().unwrap();
+
+        // If the metadata contains valid URL, download it as an avatar.
+        if let Some(url) = m.picture.and_then(|p| Url::parse(&p).ok()) {
+            sender.oneshot_command(obtain_avatar(event.pubkey, url));
+        }
+
+        self.lanes.broadcast(LaneMsg::UpdatedProfile {
+            author: Persona {
+                pubkey: event.pubkey,
+                name: m.name,
+            },
+            metadata_json: json,
+        });
+    }
+
+    fn received_reaction(&self, _relay: Url, event: Event) {
+        if let Some(to) = event.reacts_to() {
+            self.lanes.broadcast(LaneMsg::Reaction {
+                event: to,
+                reaction: event.content,
+            });
         }
     }
 }

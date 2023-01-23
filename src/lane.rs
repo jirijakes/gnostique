@@ -22,7 +22,7 @@ pub struct Lane {
     hash_index: HashMap<Sha256Hash, DynamicIndex>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum LaneMsg {
     NewTextNote {
         event: Rc<Event>,

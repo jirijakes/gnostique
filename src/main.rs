@@ -5,11 +5,18 @@ mod nostr;
 mod ui;
 mod win;
 
+use std::rc::Rc;
+
 use nostr_sdk::nostr::prelude::*;
 // use nostr_sdk::nostr::util::time::timestamp;
 use nostr_sdk::*;
 use relm4::*;
+use sqlx::SqlitePool;
 use tracing_subscriber::EnvFilter;
+
+pub struct Gnostique {
+    pool: Rc<SqlitePool>,
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -79,7 +86,7 @@ async fn main() -> Result<()> {
     let settings = gtk::Settings::default().unwrap();
     settings.set_gtk_application_prefer_dark_theme(true);
 
-    app.run_async::<crate::win::Gnostique>(client);
+    app.run_async::<crate::win::Win>(client);
 
     Ok(())
 }
