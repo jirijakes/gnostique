@@ -2,12 +2,12 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use directories::ProjectDirs;
 use gtk::gdk;
 use gtk::prelude::*;
 use nostr_sdk::nostr::prelude::*;
 use nostr_sdk::nostr::util::nips::nip05;
 use nostr_sdk::nostr::Event;
-use nostr_sdk::Client;
 use relm4::component::*;
 use relm4::factory::FactoryVecDeque;
 use sqlx::{query, SqlitePool};
@@ -16,10 +16,10 @@ use tracing::info;
 use crate::lane::{Lane, LaneMsg};
 use crate::nostr::{EventExt, Persona};
 use crate::ui::details::*;
+use crate::Gnostique;
 
 pub struct Win {
-    // client: Client,
-    pool: Arc<SqlitePool>,
+    gnostique: Gnostique,
     lanes: FactoryVecDeque<Lane>,
     details: Controller<DetailsWindow>,
 }
@@ -47,7 +47,7 @@ pub enum WinCmd {
 
 #[relm4::component(pub async)]
 impl AsyncComponent for Win {
-    type Init = (Client, Arc<SqlitePool>);
+    type Init = Gnostique;
     type Input = Msg;
     type Output = ();
     type CommandOutput = WinCmd;
@@ -64,16 +64,14 @@ impl AsyncComponent for Win {
     }
 
     async fn init(
-        init: Self::Init,
+        gnostique: Self::Init,
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
-        let (client, pool) = init;
-
         let lanes = FactoryVecDeque::new(gtk::Box::default(), sender.input_sender());
 
         // TODO: join handle?
-        let mut notif = client.notifications();
+        let mut notif = gnostique.client.notifications();
         tokio::spawn(async move {
             include_str!(
                 "../resources/b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b.json"
@@ -91,8 +89,7 @@ impl AsyncComponent for Win {
         });
 
         let mut model = Win {
-            // client,
-            pool,
+            gnostique,
             lanes,
             details: DetailsWindow::builder().launch(()).detach(),
         };
@@ -183,7 +180,7 @@ impl Win {
         let json = event.as_pretty_json();
         let metadata = event.as_metadata().unwrap();
 
-        let pool = self.pool.clone();
+        let pool = self.gnostique.pool.clone();
         let pubkey_vec = event.pubkey.serialize().to_vec();
 
         let _ = query!(
@@ -199,11 +196,19 @@ ON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event
 
         // If the metadata contains valid URL, download it as an avatar.
         if let Some(url) = metadata.picture.and_then(|p| Url::parse(&p).ok()) {
-            sender.oneshot_command(obtain_avatar(event.pubkey, url));
+            sender.oneshot_command(obtain_avatar(
+                self.gnostique.dirs.clone(),
+                event.pubkey,
+                url,
+            ));
         }
 
         if let Some(nip05) = metadata.nip05.clone() {
-            sender.oneshot_command(verify_nip05(self.pool.clone(), event.pubkey, nip05));
+            sender.oneshot_command(verify_nip05(
+                self.gnostique.pool.clone(),
+                event.pubkey,
+                nip05,
+            ));
         }
 
         self.lanes.broadcast(LaneMsg::UpdatedProfile {
@@ -275,13 +280,10 @@ WHERE author = ?"#,
 
 /// Find `pubkey`'s avatar image either in cache or, if not available,
 /// download it from `url` and then cache.
-async fn obtain_avatar(pubkey: XOnlyPublicKey, url: Url) -> WinCmd {
+async fn obtain_avatar(dirs: ProjectDirs, pubkey: XOnlyPublicKey, url: Url) -> WinCmd {
     let filename: PathBuf = pubkey.to_string().into();
 
-    let cache = directories::ProjectDirs::from("com.jirijakes", "", "Gnostique")
-        .unwrap()
-        .cache_dir()
-        .join("avatars");
+    let cache = dirs.cache_dir().join("avatars");
     tokio::fs::create_dir_all(&cache).await.unwrap();
     let file = cache.join(&filename);
 

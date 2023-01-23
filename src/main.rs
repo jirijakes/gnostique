@@ -16,8 +16,11 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use sqlx::SqlitePool;
 use tracing_subscriber::EnvFilter;
 
+#[derive(Debug)]
 pub struct Gnostique {
     pool: Arc<SqlitePool>,
+    dirs: ProjectDirs,
+    client: Client,
 }
 
 #[tokio::main]
@@ -36,6 +39,7 @@ async fn main() -> Result<()> {
     tracing::subscriber::set_global_default(subscriber)?;
 
     let dirs = ProjectDirs::from("com.jirijakes", "", "Gnostique").unwrap();
+    tokio::fs::create_dir_all(dirs.data_dir()).await?;
 
     let pool = SqlitePoolOptions::new()
         .max_connections(5)
@@ -46,6 +50,8 @@ async fn main() -> Result<()> {
         )
         .await
         .unwrap();
+
+    sqlx::migrate!().run(&pool).await.unwrap();
 
     let pool = Arc::new(pool);
 
@@ -58,6 +64,8 @@ async fn main() -> Result<()> {
 
     // std::fs::create_dir_all("store")?;
     let client = Client::new(&keys);
+
+    let gnostique = Gnostique { dirs, pool, client };
 
     // client.restore_relays().await?;
 
@@ -102,7 +110,7 @@ async fn main() -> Result<()> {
     let settings = gtk::Settings::default().unwrap();
     settings.set_gtk_application_prefer_dark_theme(true);
 
-    app.run_async::<crate::win::Win>((client, pool));
+    app.run_async::<crate::win::Win>(gnostique);
 
     Ok(())
 }
