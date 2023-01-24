@@ -72,6 +72,8 @@ pub trait EventExt {
     fn as_pretty_json(&self) -> String;
 
     fn augment_content(&self) -> String;
+
+    fn collect_relays(&self) -> Vec<Url>;
 }
 
 impl EventExt for Event {
@@ -177,5 +179,20 @@ impl EventExt for Event {
                 format!(r#"<a href="nostr:{id}">{id}</a>"#)
             })
             .into()
+    }
+
+    fn collect_relays(&self) -> Vec<Url> {
+        self.tags
+            .iter()
+            .filter_map(|t| match t {
+                Tag::Event(_, Some(r), _) => r.parse().ok(),
+                Tag::PubKey(_, Some(r)) => r.parse().ok(),
+                Tag::ContactList {
+                    relay_url: Some(r), ..
+                } => r.parse().ok(),
+                Tag::Relay(url) => Some(url.clone()),
+                _ => None,
+            })
+            .collect()
     }
 }
