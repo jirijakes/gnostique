@@ -64,15 +64,18 @@ async fn main() -> Result<()> {
     let client = Client::new(&keys);
     let gnostique = Arc::new(Gnostique { dirs, pool, client });
 
-    // gnostique
-    //     .client
-    //     .add_relays(vec![
-    //         ("wss://nostr.onsats.org", None),
-    //         ("wss://nostr.openchain.fr", None),
-    //     ])
-    //     .await?;
+    gnostique
+        .client
+        .add_relays(vec![
+            ("wss://brb.io", None),
+            ("wss://relay.nostr.info", None),
+            ("wss://nostr-relay.wlvs.space", None),
+            ("wss://nostr.onsats.org", None),
+            ("wss://nostr.openchain.fr", None),
+        ])
+        .await?;
 
-    // gnostique.client.connect().await;
+    gnostique.client.connect().await;
 
     // gnostique
     //     .client

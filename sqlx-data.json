@@ -1,5 +1,15 @@
 {
   "db": "SQLite",
+  "14d7fe9d60cadc281ec961ffc609a3d65c3ef8bd99d9121d5c16bddf37892600": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "INSERT INTO relays(url) VALUES (?) ON CONFLICT(url) DO NOTHING"
+  },
   "5f8493e81f7cb2eb8cccc49522c237b7557bd46afb5d1e65a65834bddbd00583": {
     "describe": {
       "columns": [
@@ -18,6 +28,16 @@
     },
     "query": "\nSELECT (unixepoch('now') - unixepoch(nip05_verified)) / 60 / 60 AS \"hours?: u32\"\nFROM metadata WHERE author = ?"
   },
+  "82b4c37a52dca01fef7840835c4eece80e2613021c9df4dcb2dfd8e23ca4d1a0": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "\nINSERT INTO relays(url, information, updated)\nVALUES (?, ?, CURRENT_TIMESTAMP)\nON CONFLICT(url) DO UPDATE SET\n  information = EXCLUDED.information,\n  updated = EXCLUDED.updated\n"
+  },
   "c1649e400797f9eb38cd710b5d759c30d7b82d6c20c66af6b1845f396f021270": {
     "describe": {
       "columns": [],
@@ -27,6 +47,30 @@
       }
     },
     "query": "\nINSERT INTO metadata (author, event) VALUES (?, ?)\nON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event\n"
+  },
+  "d91c36934b68cebc69ef679d429c617978a15afe22d22a7c7089e2c94c195876": {
+    "describe": {
+      "columns": [
+        {
+          "name": "url",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "old: bool",
+          "ordinal": 1,
+          "type_info": "Int"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 0
+      }
+    },
+    "query": "\nSELECT\n  url,\n  information IS NULL OR unixepoch('now') - unixepoch(updated) > 60 * 60 AS \"old: bool\"\nFROM relays\n"
   },
   "f1d221a16deb319fc3058ce991331f39d59d509a3f7862d873387675c9404ab0": {
     "describe": {

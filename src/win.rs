@@ -1,16 +1,19 @@
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
+use std::time::Duration;
 
 use directories::ProjectDirs;
 use gtk::gdk;
 use gtk::prelude::*;
+use nostr_sdk::nostr::nips::{nip05, nip11};
 use nostr_sdk::nostr::prelude::*;
-use nostr_sdk::nostr::util::nips::nip05;
 use nostr_sdk::nostr::Event;
 use relm4::component::*;
 use relm4::factory::FactoryVecDeque;
 use sqlx::{query, SqlitePool};
+use tokio::time::interval;
 use tracing::info;
 
 use crate::lane::{Lane, LaneMsg};
@@ -77,12 +80,15 @@ impl AsyncComponent for Win {
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
+        let gnostique2 = gnostique.clone();
+        tokio::spawn(refresh_relay_information(gnostique2));
+
         let lanes = FactoryVecDeque::new(gtk::Box::default(), sender.input_sender());
 
         // TODO: join handle?
         let mut notif = gnostique.client.notifications();
         tokio::spawn(async move {
-            include_str!("../resources/febbaba219357c6c64adfa2e01789f274aa60e90c289938bfc80dd91facb2899.json").lines().for_each(|l| {
+            include_str!("../resources/b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b.json").lines().for_each(|l| {
                 let ev = nostr_sdk::nostr::event::Event::from_json(l).unwrap();
                 let url: Url = "http://example.com".parse().unwrap();
                 sender.input(Msg::Event(url, ev));
@@ -107,12 +113,12 @@ impl AsyncComponent for Win {
         {
             let mut guard = model.lanes.guard();
             // Create one lane.
-            guard.push_back(None);
-            // guard.push_back(Some(
-            // "b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b"
-            // .parse()
-            // .unwrap(),
-            // ));
+            // guard.push_back(None);
+            guard.push_back(Some(
+                "b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b"
+                    .parse()
+                    .unwrap(),
+            ));
         }
 
         AsyncComponentParts { model, widgets }
@@ -157,12 +163,27 @@ impl AsyncComponent for Win {
 }
 
 impl Win {
+    async fn offer_relay_url(&self, relay: &Url) {
+        let relay_str = relay.to_string();
+        let _ = query!(
+            "INSERT INTO relays(url) VALUES (?) ON CONFLICT(url) DO NOTHING",
+            relay_str
+        )
+        .execute(self.gnostique.pool.as_ref())
+        .await;
+    }
+
     async fn received_event(
         &mut self,
         relay: Url,
         event: Event,
         sender: AsyncComponentSender<Self>,
     ) {
+        self.offer_relay_url(&relay).await;
+        for r in event.collect_relays() {
+            self.offer_relay_url(&r).await;
+        }
+
         match event.kind {
             Kind::TextNote => self.received_text_note(relay, event),
             Kind::Metadata => self.received_metadata(relay, event, sender).await,
@@ -318,4 +339,65 @@ async fn obtain_avatar(dirs: ProjectDirs, pubkey: XOnlyPublicKey, url: Url) -> W
     }
 
     WinCmd::AvatarBitmap { pubkey, file }
+}
+
+/// Regularly, and in the background, obtain information about relays.
+async fn refresh_relay_information(gnostique: Arc<Gnostique>) {
+    let mut int = interval(Duration::from_secs(60));
+    loop {
+        int.tick().await;
+
+        let client_relays = gnostique.client.relays().await;
+        let mut client_relays: HashSet<Url> = client_relays.keys().cloned().collect();
+
+        let old_info = query!(
+            r#"
+SELECT
+  url,
+  information IS NULL OR unixepoch('now') - unixepoch(updated) > 60 * 60 AS "old: bool"
+FROM relays
+"#
+        )
+        .fetch_all(gnostique.pool.as_ref())
+        .await;
+
+        let old_info: HashSet<_> = if let Ok(rec) = old_info {
+            rec.iter()
+                .filter_map(|r| {
+                    let url: reqwest::Url = r.url.parse().unwrap();
+                    client_relays.remove(&url);
+
+                    if r.old {
+                        Some(url)
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        } else {
+            HashSet::new()
+        };
+
+        for url in old_info.union(&client_relays) {
+            if let Ok(info) = nip11::get_relay_information_document(url.clone(), None).await {
+                let url_s = url.to_string();
+                let info_json = serde_json::to_string(&info).unwrap();
+                let _ = query!(
+                    r#"
+INSERT INTO relays(url, information, updated)
+VALUES (?, ?, CURRENT_TIMESTAMP)
+ON CONFLICT(url) DO UPDATE SET
+  information = EXCLUDED.information,
+  updated = EXCLUDED.updated
+"#,
+                    url_s,
+                    info_json
+                )
+                .execute(gnostique.pool.as_ref())
+                .await;
+
+                info!("Stored fresh relay information of {}", url);
+            }
+        }
+    }
 }
