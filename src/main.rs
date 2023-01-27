@@ -1,5 +1,3 @@
-#![feature(option_result_contains)]
-
 mod lane;
 mod nostr;
 mod ui;

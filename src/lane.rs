@@ -144,7 +144,7 @@ impl Lane {
 
         // Add note iff it has not been added yet (they may arrive multiple times).
         if !self.hash_index.contains_key(&event.id) {
-            let is_central = self.central_note.contains(&event_id);
+            let is_central = self.central_note == Some(event_id);
             let event_time = event.created_at;
 
             let init = NoteInit { event, is_central };

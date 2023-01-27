@@ -7,6 +7,7 @@ use gtk::pango::WrapMode;
 use gtk::prelude::*;
 use nostr_sdk::nostr::secp256k1::XOnlyPublicKey;
 use nostr_sdk::nostr::*;
+use relm4::component::{AsyncComponent, AsyncComponentController, AsyncController};
 use relm4::prelude::*;
 
 use super::author::Author;
@@ -31,10 +32,9 @@ pub struct Note {
     avatar: Arc<gdk::Texture>,
     likes: u32,
     dislikes: u32,
-    // replies: HashMap<Sha256Hash, Rc<Event>>,
     pub time: DateTime<Utc>,
     event: Rc<Event>,
-    replies: Controller<Replies>,
+    replies: AsyncController<Replies>,
 }
 
 #[derive(Clone, Debug)]
@@ -269,6 +269,8 @@ impl FactoryComponent for Note {
             gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
         );
 
+        let replies = Replies::builder().launch(()).detach();
+
         Self {
             author: Persona::new(init.event.pubkey),
             is_central: init.is_central,
@@ -280,7 +282,7 @@ impl FactoryComponent for Note {
             dislikes: 0,
             time: Utc.timestamp_opt(init.event.created_at as i64, 0).unwrap(),
             event: init.event,
-            replies: Replies::builder().launch(()).detach(),
+            replies,
         }
     }
 
