@@ -3,12 +3,13 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use gtk::gdk;
+use gtk::prelude::*;
 use nostr_sdk::nostr::secp256k1::XOnlyPublicKey;
 use nostr_sdk::nostr::{Event, Sha256Hash};
 // use nostr_sdk::sqlite::model::Profile;
-use relm4::factory::FactoryVecDeque;
-use relm4::gtk;
+use relm4::factory::{AsyncFactoryComponent, FactoryVecDeque};
 use relm4::prelude::*;
+use relm4::{gtk, AsyncFactorySender};
 use reqwest::Url;
 
 use crate::nostr::{EventExt, Persona};
@@ -51,38 +52,29 @@ pub enum LaneOutput {
     ShowDetails(Details),
 }
 
-impl FactoryComponent for Lane {
+#[relm4::factory(pub async)]
+impl AsyncFactoryComponent for Lane {
     type Init = Option<Sha256Hash>;
     type Input = LaneMsg;
     type Output = LaneOutput;
     type CommandOutput = ();
     type ParentInput = Msg;
     type ParentWidget = gtk::Box;
-    type Root = gtk::ScrolledWindow;
-    type Widgets = ();
 
-    fn init_root(&self) -> Self::Root {
-        gtk::ScrolledWindow::builder()
-            .hscrollbar_policy(gtk::PolicyType::Never)
-            .min_content_width(600)
-            .hexpand(true)
-            .build()
+    view! {
+        gtk::ScrolledWindow {
+            set_hscrollbar_policy: gtk::PolicyType::Never,
+            set_min_content_width: 600,
+            set_hexpand: true,
+            #[wrap(Some)]
+            set_child = self.text_notes.widget() {}
+        }
     }
 
-    fn init_widgets(
-        &mut self,
-        _index: &DynamicIndex,
-        root: &Self::Root,
-        _returned_widget: &<Self::ParentWidget as relm4::factory::FactoryView>::ReturnedWidget,
-        _sender: FactorySender<Self>,
-    ) -> Self::Widgets {
-        root.set_child(Some(self.text_notes.widget()));
-    }
-
-    fn init_model(
+    async fn init_model(
         central_note: Self::Init,
         _index: &DynamicIndex,
-        sender: FactorySender<Self>,
+        sender: AsyncFactorySender<Self>,
     ) -> Self {
         Self {
             central_note,
@@ -102,7 +94,7 @@ impl FactoryComponent for Lane {
         }
     }
 
-    fn update(&mut self, msg: Self::Input, sender: FactorySender<Self>) {
+    async fn update(&mut self, msg: Self::Input, sender: AsyncFactorySender<Self>) {
         match msg {
             LaneMsg::ShowDetails(details) => {
                 sender.output(LaneOutput::ShowDetails(details));

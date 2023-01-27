@@ -11,7 +11,7 @@ use nostr_sdk::nostr::nips::{nip05, nip11};
 use nostr_sdk::nostr::prelude::*;
 use nostr_sdk::nostr::Event;
 use relm4::component::*;
-use relm4::factory::FactoryVecDeque;
+use relm4::factory::AsyncFactoryVecDeque;
 use sqlx::{query, SqlitePool};
 use tokio::time::interval;
 use tracing::info;
@@ -24,7 +24,7 @@ use crate::Gnostique;
 
 pub struct Win {
     gnostique: Arc<Gnostique>,
-    lanes: FactoryVecDeque<Lane>,
+    lanes: AsyncFactoryVecDeque<Lane>,
     details: Controller<DetailsWindow>,
     status_bar: Controller<StatusBar>,
 }
@@ -83,12 +83,12 @@ impl AsyncComponent for Win {
         let gnostique2 = gnostique.clone();
         tokio::spawn(refresh_relay_information(gnostique2));
 
-        let lanes = FactoryVecDeque::new(gtk::Box::default(), sender.input_sender());
+        let lanes = AsyncFactoryVecDeque::new(gtk::Box::default(), sender.input_sender());
 
         // TODO: join handle?
         let mut notif = gnostique.client.notifications();
         tokio::spawn(async move {
-            include_str!("../resources/b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b.json").lines().for_each(|l| {
+            include_str!("../resources/febbaba219357c6c64adfa2e01789f274aa60e90c289938bfc80dd91facb2899.json").lines().for_each(|l| {
                 let ev = nostr_sdk::nostr::event::Event::from_json(l).unwrap();
                 let url: Url = "http://example.com".parse().unwrap();
                 sender.input(Msg::Event(url, ev));
@@ -113,12 +113,12 @@ impl AsyncComponent for Win {
         {
             let mut guard = model.lanes.guard();
             // Create one lane.
-            // guard.push_back(None);
-            guard.push_back(Some(
-                "b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b"
-                    .parse()
-                    .unwrap(),
-            ));
+            guard.push_back(None);
+            // guard.push_back(Some(
+            // "b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b"
+            // .parse()
+            // .unwrap(),
+            // ));
         }
 
         AsyncComponentParts { model, widgets }
