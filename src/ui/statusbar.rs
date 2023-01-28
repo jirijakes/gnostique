@@ -20,7 +20,6 @@ pub struct RelayStatus {
 
 #[derive(Debug)]
 pub struct StatusBar {
-    gnostique: Arc<Gnostique>,
     relay_status: Option<RelayStatus>,
 }
 
@@ -68,12 +67,9 @@ impl SimpleComponent for StatusBar {
         root: &Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        tokio::spawn(update_relay_status(gnostique.client.clone(), sender));
+        relm4::spawn(update_relay_status(gnostique.client.clone(), sender));
 
-        let model = StatusBar {
-            gnostique,
-            relay_status: None,
-        };
+        let model = StatusBar { relay_status: None };
         let widgets = view_output!();
 
         ComponentParts { model, widgets }

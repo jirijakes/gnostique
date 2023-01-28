@@ -8,7 +8,7 @@ use nostr_sdk::nostr::secp256k1::XOnlyPublicKey;
 use nostr_sdk::nostr::{Event, Sha256Hash};
 // use nostr_sdk::sqlite::model::Profile;
 use relm4::factory::AsyncFactoryComponent;
-use relm4::factory::AsyncFactoryVecDeque;
+use relm4::factory::FactoryVecDeque;
 use relm4::prelude::*;
 use relm4::{gtk, AsyncFactorySender};
 use reqwest::Url;
@@ -21,7 +21,7 @@ use crate::win::Msg;
 #[derive(Debug)]
 pub struct Lane {
     central_note: Option<Sha256Hash>,
-    text_notes: AsyncFactoryVecDeque<Note>,
+    text_notes: FactoryVecDeque<Note>,
     hash_index: HashMap<Sha256Hash, DynamicIndex>,
 }
 
@@ -79,7 +79,7 @@ impl AsyncFactoryComponent for Lane {
     ) -> Self {
         Self {
             central_note,
-            text_notes: AsyncFactoryVecDeque::new(
+            text_notes: FactoryVecDeque::new(
                 gtk::ListBox::builder()
                     .selection_mode(gtk::SelectionMode::None)
                     .build(),
@@ -159,7 +159,7 @@ impl Lane {
                 let idx = self
                     .text_notes
                     .iter()
-                    .position(|tn| tn.unwrap().time.timestamp() as u64 > event_time);
+                    .position(|tn| tn.time.timestamp() as u64 > event_time);
 
                 if let Some(idx) = idx {
                     // Inserting somewhere in the middle.
