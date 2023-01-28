@@ -10,6 +10,7 @@ use gtk::prelude::*;
 use nostr_sdk::nostr::nips::{nip05, nip11};
 use nostr_sdk::nostr::prelude::*;
 use nostr_sdk::nostr::Event;
+use relm4::actions::{RelmAction, RelmActionGroup};
 use relm4::component::*;
 use relm4::factory::AsyncFactoryVecDeque;
 use sqlx::{query, SqlitePool};
@@ -59,7 +60,8 @@ impl AsyncComponent for Win {
 
     #[rustfmt::skip]
     view! {
-	gtk::ApplicationWindow {
+        #[name(window)]
+        gtk::ApplicationWindow {
             gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
 
@@ -88,7 +90,7 @@ impl AsyncComponent for Win {
         // TODO: join handle?
         let mut notif = gnostique.client.notifications();
         tokio::spawn(async move {
-            include_str!("../resources/febbaba219357c6c64adfa2e01789f274aa60e90c289938bfc80dd91facb2899.json").lines().for_each(|l| {
+            include_str!("../resources/b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b.json").lines().for_each(|l| {
                 let ev = nostr_sdk::nostr::event::Event::from_json(l).unwrap();
                 let url: Url = "http://example.com".parse().unwrap();
                 sender.input(Msg::Event(url, ev));
@@ -120,6 +122,16 @@ impl AsyncComponent for Win {
             // .unwrap(),
             // ));
         }
+
+        let group = RelmActionGroup::<AuthorActionGroup>::new();
+        let copy: RelmAction<Copy> = RelmAction::new_with_target_value(|_, string: String| {
+            let display = gdk::Display::default().unwrap();
+            let clipboard = display.clipboard();
+            clipboard.set_text(&string);
+        });
+        group.add_action(&copy);
+        let actions = group.into_action_group();
+        widgets.window.insert_action_group("author", Some(&actions));
 
         AsyncComponentParts { model, widgets }
     }
@@ -401,3 +413,6 @@ ON CONFLICT(url) DO UPDATE SET
         }
     }
 }
+
+relm4::new_action_group!(pub AuthorActionGroup, "author");
+relm4::new_stateful_action!(pub Copy, AuthorActionGroup, "copy-hex", String, ());

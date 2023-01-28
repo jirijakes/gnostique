@@ -7,6 +7,8 @@ use gtk::pango::WrapMode;
 use gtk::prelude::*;
 use nostr_sdk::nostr::secp256k1::XOnlyPublicKey;
 use nostr_sdk::nostr::*;
+use nostr_sdk::prelude::ToBech32;
+use relm4::actions::{RelmAction, RelmActionGroup};
 use relm4::component::{AsyncComponent, AsyncComponentController, AsyncController};
 use relm4::factory::AsyncFactoryComponent;
 use relm4::prelude::*;
@@ -127,10 +129,11 @@ impl AsyncFactoryComponent for Note {
                 // author (template widget?)
                 gtk::Overlay {
                     #[template]
+                    #[name(author)]
                     Author {
                         #[watch]
                         set_tooltip_markup: Some(&self.author.tooltip()),
-                        
+
                         #[template_child]
                         author_name {
                             #[watch] set_label?: self.author.name.as_ref(),
@@ -145,6 +148,20 @@ impl AsyncFactoryComponent for Note {
                         author_nip05 {
                             #[watch] set_label?: &self.author.format_nip05(),
                             #[watch] set_visible: self.author.show_nip05(),
+                        },
+
+                        add_controller = &gtk::GestureClick::new() {
+                            set_button: 3,
+                            connect_pressed[author] => move |_, _, x, y| {
+                                let popover = gtk::PopoverMenu::builder()
+                                    .menu_model(&author_menu)
+                                    .has_arrow(false)
+                                    .pointing_to(&gdk::Rectangle::new(x as i32, y as i32, 1, 1))
+                                    .build();
+
+                                popover.set_parent(author.widget_ref());
+                                popover.popup();
+                            }
                         }
                     },
                     add_overlay = &gtk::Box {
@@ -255,6 +272,13 @@ impl AsyncFactoryComponent for Note {
                 connect_enter[sender] => move |_, _, _| { sender.input(NoteInput::FocusIn) },
                 connect_leave[sender] => move |_| { sender.input(NoteInput::FocusOut) }
             }
+        }
+    }
+
+    menu! {
+        author_menu: {
+            "Copy pubkey as hex" => crate::win::Copy(self.author.pubkey.to_string()),
+            "Copy pubkey as bech32" => crate::win::Copy(self.author.pubkey.to_bech32().unwrap()),
         }
     }
 
