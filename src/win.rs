@@ -10,12 +10,15 @@ use gtk::prelude::*;
 use nostr_sdk::nostr::nips::{nip05, nip11};
 use nostr_sdk::nostr::prelude::*;
 use nostr_sdk::nostr::Event;
+use nostr_sdk::Client;
 use relm4::actions::{RelmAction, RelmActionGroup};
 use relm4::component::*;
 use relm4::factory::AsyncFactoryVecDeque;
+use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use sqlx::{query, SqlitePool};
 use tokio::time::interval;
 use tracing::info;
+use tracing_subscriber::EnvFilter;
 
 use crate::lane::{Lane, LaneMsg};
 use crate::nostr::{EventExt, Persona};
@@ -53,7 +56,7 @@ pub enum WinCmd {
 
 #[relm4::component(pub async)]
 impl AsyncComponent for Win {
-    type Init = Arc<Gnostique>;
+    type Init = ();
     type Input = Msg;
     type Output = ();
     type CommandOutput = WinCmd;
@@ -78,19 +81,20 @@ impl AsyncComponent for Win {
     }
 
     async fn init(
-        gnostique: Self::Init,
+        _init: Self::Init,
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
-        let gnostique2 = gnostique.clone();
-        tokio::spawn(refresh_relay_information(gnostique2));
+        let gnostique = relm4::spawn(init_app()).await.unwrap();
+
+        relm4::spawn(refresh_relay_information(gnostique.clone()));
 
         let lanes = AsyncFactoryVecDeque::new(gtk::Box::default(), sender.input_sender());
 
         // TODO: join handle?
         let mut notif = gnostique.client.notifications();
-        tokio::spawn(async move {
-            include_str!("../resources/b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b.json").lines().for_each(|l| {
+        relm4::spawn(async move {
+            include_str!("../resources/febbaba219357c6c64adfa2e01789f274aa60e90c289938bfc80dd91facb2899.json").lines().for_each(|l| {
                 let ev = nostr_sdk::nostr::event::Event::from_json(l).unwrap();
                 let url: Url = "http://example.com".parse().unwrap();
                 sender.input(Msg::Event(url, ev));
@@ -176,13 +180,18 @@ impl AsyncComponent for Win {
 
 impl Win {
     async fn offer_relay_url(&self, relay: &Url) {
-        let relay_str = relay.to_string();
-        let _ = query!(
-            "INSERT INTO relays(url) VALUES (?) ON CONFLICT(url) DO NOTHING",
-            relay_str
-        )
-        .execute(self.gnostique.pool.as_ref())
-        .await;
+        async fn go(pool: Arc<SqlitePool>, relay_str: String) {
+            let _ = query!(
+                "INSERT INTO relays(url) VALUES (?) ON CONFLICT(url) DO NOTHING",
+                relay_str
+            )
+            .execute(pool.as_ref())
+            .await;
+        }
+
+        relm4::spawn(go(self.gnostique.pool.clone(), relay.to_string()))
+            .await
+            .unwrap();
     }
 
     async fn received_event(
@@ -192,8 +201,9 @@ impl Win {
         sender: AsyncComponentSender<Self>,
     ) {
         self.offer_relay_url(&relay).await;
+
         for r in event.collect_relays() {
-            self.offer_relay_url(&r).await;
+            self.offer_relay_url(&r).await
         }
 
         match event.kind {
@@ -217,22 +227,29 @@ impl Win {
         event: Event,
         sender: AsyncComponentSender<Self>,
     ) {
-        let json = event.as_pretty_json();
-        let metadata = event.as_metadata().unwrap();
-
-        let pool = self.gnostique.pool.clone();
-        let pubkey_vec = event.pubkey.serialize().to_vec();
-
-        let _ = query!(
-            r#"
+        async fn insert(pool: Arc<SqlitePool>, pubkey_vec: Vec<u8>, json: String) {
+            let _ = query!(
+                r#"
 INSERT INTO metadata (author, event) VALUES (?, ?)
 ON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event
 "#,
-            pubkey_vec,
-            json
-        )
-        .execute(pool.as_ref())
-        .await;
+                pubkey_vec,
+                json
+            )
+            .execute(pool.as_ref())
+            .await;
+        }
+
+        let json = event.as_pretty_json();
+        let metadata = event.as_metadata().unwrap();
+
+        relm4::spawn(insert(
+            self.gnostique.pool.clone(),
+            event.pubkey.serialize().to_vec(),
+            json.clone(),
+        ))
+        .await
+        .unwrap();
 
         // If the metadata contains valid URL, download it as an avatar.
         if let Some(url) = metadata.picture.and_then(|p| Url::parse(&p).ok()) {
@@ -416,3 +433,82 @@ ON CONFLICT(url) DO UPDATE SET
 
 relm4::new_action_group!(pub AuthorActionGroup, "author");
 relm4::new_stateful_action!(pub Copy, AuthorActionGroup, "copy-hex", String, ());
+
+async fn init_app() -> Arc<Gnostique> {
+    let subscriber = tracing_subscriber::FmtSubscriber::builder()
+        // .pretty()
+        .compact()
+        .with_max_level(tracing::Level::TRACE)
+        .with_file(true)
+        .with_line_number(true)
+        .with_ansi(true)
+        .with_env_filter(EnvFilter::new("info,relm4=warn"))
+        .with_span_events(tracing_subscriber::fmt::format::FmtSpan::FULL)
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber).unwrap();
+
+    let secret_key =
+        SecretKey::from_bech32("nsec1qh685ta6ht7emkn8nlggzjfl0h58zxntgsdjgxmvjz2kctv5puysjcmm03")
+            .unwrap();
+
+    // npub1mwe5spuec22ch97tun3znyn8vcwrt6zgpfvs7gmlysm0nqn3g5msr0653t
+    let keys = Keys::new(secret_key);
+
+    let dirs = ProjectDirs::from("com.jirijakes", "", "Gnostique").unwrap();
+    tokio::fs::create_dir_all(dirs.data_dir()).await.unwrap();
+
+    let pool = SqlitePoolOptions::new()
+        .max_connections(5)
+        .connect_with(
+            SqliteConnectOptions::new()
+                .filename(dirs.data_dir().join("gnostique.db"))
+                .create_if_missing(true),
+        )
+        .await
+        .unwrap();
+
+    sqlx::migrate!().run(&pool).await.unwrap();
+
+    let pool = Arc::new(pool);
+    let client = Client::new(&keys);
+    let gnostique = Arc::new(Gnostique { dirs, pool, client });
+
+    gnostique
+        .client
+        .add_relays(vec![
+            ("wss://brb.io", None),
+            ("wss://relay.nostr.info", None),
+            ("wss://nostr-relay.wlvs.space", None),
+            ("wss://nostr.onsats.org", None),
+            ("wss://nostr.openchain.fr", None),
+        ])
+        .await
+        .unwrap();
+
+    gnostique.client.connect().await;
+
+    // gnostique
+    //     .client
+    //     .get_events_of(vec![
+    //         SubscriptionFilter::new()
+    //             .author(
+    //                 "febbaba219357c6c64adfa2e01789f274aa60e90c289938bfc80dd91facb2899"
+    //                     .parse()
+    //                     .unwrap(),
+    //             )
+    //             .limit(100),
+    //         SubscriptionFilter::new()
+    //             .pubkey(
+    //                 "febbaba219357c6c64adfa2e01789f274aa60e90c289938bfc80dd91facb2899"
+    //                     .parse()
+    //                     .unwrap(),
+    //             )
+    //             .limit(100),
+    //     ])
+    //     .await?
+    //     .iter()
+    //     .for_each(|a| println!("{}", a.as_json().unwrap()));
+
+    gnostique
+}

@@ -8,11 +8,8 @@ use gtk::prelude::*;
 use nostr_sdk::nostr::secp256k1::XOnlyPublicKey;
 use nostr_sdk::nostr::*;
 use nostr_sdk::prelude::ToBech32;
-use relm4::actions::{RelmAction, RelmActionGroup};
 use relm4::component::{AsyncComponent, AsyncComponentController, AsyncController};
-use relm4::factory::AsyncFactoryComponent;
 use relm4::prelude::*;
-use relm4::AsyncFactorySender;
 
 use super::author::Author;
 use super::details::Details;
@@ -85,8 +82,8 @@ pub enum NoteOutput {
     +-------------+-----------------------+
 */
 
-#[relm4::factory(async pub)]
-impl AsyncFactoryComponent for Note {
+#[relm4::factory(pub)]
+impl FactoryComponent for Note {
     type Init = NoteInit;
     type Input = NoteInput;
     type Output = NoteOutput;
@@ -289,11 +286,7 @@ impl AsyncFactoryComponent for Note {
         }
     }
 
-    async fn init_model(
-        init: Self::Init,
-        _index: &DynamicIndex,
-        _sender: AsyncFactorySender<Self>,
-    ) -> Self {
+    fn init_model(init: Self::Init, _index: &DynamicIndex, _sender: FactorySender<Self>) -> Self {
         let provider = gtk::CssProvider::new();
         provider.load_from_data(include_bytes!("text_note.css"));
         gtk::StyleContext::add_provider_for_display(
@@ -319,7 +312,7 @@ impl AsyncFactoryComponent for Note {
         }
     }
 
-    async fn update(&mut self, message: Self::Input, sender: AsyncFactorySender<Self>) {
+    fn update(&mut self, message: Self::Input, sender: FactorySender<Self>) {
         match message {
             NoteInput::UpdatedProfile {
                 author,
