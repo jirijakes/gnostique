@@ -16,6 +16,7 @@ use super::details::Details;
 use super::replies::{Replies, RepliesInput};
 use crate::lane::LaneMsg;
 use crate::nostr::*;
+use crate::app::action::*;
 
 /// Initial
 pub struct NoteInit {
@@ -274,8 +275,8 @@ impl FactoryComponent for Note {
 
     menu! {
         author_menu: {
-            "Copy pubkey as hex" => crate::win::Copy(self.author.pubkey.to_string()),
-            "Copy pubkey as bech32" => crate::win::Copy(self.author.pubkey.to_bech32().unwrap()),
+            "Copy pubkey as hex" => Copy(self.author.pubkey.to_string()),
+            "Copy pubkey as bech32" => Copy(self.author.pubkey.to_bech32().unwrap()),
         }
     }
 

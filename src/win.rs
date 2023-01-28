@@ -1,24 +1,17 @@
-use std::collections::HashSet;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::time::Duration;
 
 use directories::ProjectDirs;
 use gtk::gdk;
 use gtk::prelude::*;
-use nostr_sdk::nostr::nips::{nip05, nip11};
+use nostr_sdk::nostr::nips::nip05;
 use nostr_sdk::nostr::prelude::*;
 use nostr_sdk::nostr::Event;
-use nostr_sdk::Client;
-use relm4::actions::{RelmAction, RelmActionGroup};
 use relm4::component::*;
 use relm4::factory::AsyncFactoryVecDeque;
-use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use sqlx::{query, SqlitePool};
-use tokio::time::interval;
 use tracing::info;
-use tracing_subscriber::EnvFilter;
 
 use crate::lane::{Lane, LaneMsg};
 use crate::nostr::{EventExt, Persona};
@@ -85,29 +78,22 @@ impl AsyncComponent for Win {
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
-        let gnostique = relm4::spawn(init_app()).await.unwrap();
+        let gnostique = relm4::spawn(crate::app::init::make_gnostique())
+            .await
+            .unwrap();
 
-        relm4::spawn(refresh_relay_information(gnostique.clone()));
+        relm4::spawn(crate::app::task::refresh_relay_information(
+            gnostique.clone(),
+        ));
 
-        let lanes = AsyncFactoryVecDeque::new(gtk::Box::default(), sender.input_sender());
-
-        // TODO: join handle?
-        let mut notif = gnostique.client.notifications();
-        relm4::spawn(async move {
-            include_str!("../resources/febbaba219357c6c64adfa2e01789f274aa60e90c289938bfc80dd91facb2899.json").lines().for_each(|l| {
-                let ev = nostr_sdk::nostr::event::Event::from_json(l).unwrap();
-                let url: Url = "http://example.com".parse().unwrap();
-                sender.input(Msg::Event(url, ev));
-            });
-
-            // while let Ok(not) = notif.recv().await {
-            // sender.input(Msg::Notification(not));
-            // }
-        });
+        relm4::spawn(crate::app::task::receive_events(
+            gnostique.client.clone(),
+            sender.clone(),
+        ));
 
         let mut model = Win {
             gnostique: gnostique.clone(),
-            lanes,
+            lanes: AsyncFactoryVecDeque::new(gtk::Box::default(), sender.input_sender()),
             details: DetailsWindow::builder().launch(()).detach(),
             status_bar: StatusBar::builder().launch(gnostique).detach(),
         };
@@ -127,15 +113,9 @@ impl AsyncComponent for Win {
             // ));
         }
 
-        let group = RelmActionGroup::<AuthorActionGroup>::new();
-        let copy: RelmAction<Copy> = RelmAction::new_with_target_value(|_, string: String| {
-            let display = gdk::Display::default().unwrap();
-            let clipboard = display.clipboard();
-            clipboard.set_text(&string);
-        });
-        group.add_action(&copy);
-        let actions = group.into_action_group();
-        widgets.window.insert_action_group("author", Some(&actions));
+        widgets
+            .window
+            .insert_action_group("author", Some(&crate::app::action::make_author_actions()));
 
         AsyncComponentParts { model, widgets }
     }
@@ -368,147 +348,4 @@ async fn obtain_avatar(dirs: ProjectDirs, pubkey: XOnlyPublicKey, url: Url) -> W
     }
 
     WinCmd::AvatarBitmap { pubkey, file }
-}
-
-/// Regularly, and in the background, obtain information about relays.
-async fn refresh_relay_information(gnostique: Arc<Gnostique>) {
-    let mut int = interval(Duration::from_secs(60));
-    loop {
-        int.tick().await;
-
-        let client_relays = gnostique.client.relays().await;
-        let mut client_relays: HashSet<Url> = client_relays.keys().cloned().collect();
-
-        let old_info = query!(
-            r#"
-SELECT
-  url,
-  information IS NULL OR unixepoch('now') - unixepoch(updated) > 60 * 60 AS "old: bool"
-FROM relays
-"#
-        )
-        .fetch_all(gnostique.pool.as_ref())
-        .await;
-
-        let old_info: HashSet<_> = if let Ok(rec) = old_info {
-            rec.iter()
-                .filter_map(|r| {
-                    let url: reqwest::Url = r.url.parse().unwrap();
-                    client_relays.remove(&url);
-
-                    if r.old {
-                        Some(url)
-                    } else {
-                        None
-                    }
-                })
-                .collect()
-        } else {
-            HashSet::new()
-        };
-
-        for url in old_info.union(&client_relays) {
-            if let Ok(info) = nip11::get_relay_information_document(url.clone(), None).await {
-                let url_s = url.to_string();
-                let info_json = serde_json::to_string(&info).unwrap();
-                let _ = query!(
-                    r#"
-INSERT INTO relays(url, information, updated)
-VALUES (?, ?, CURRENT_TIMESTAMP)
-ON CONFLICT(url) DO UPDATE SET
-  information = EXCLUDED.information,
-  updated = EXCLUDED.updated
-"#,
-                    url_s,
-                    info_json
-                )
-                .execute(gnostique.pool.as_ref())
-                .await;
-
-                info!("Stored fresh relay information of {}", url);
-            }
-        }
-    }
-}
-
-relm4::new_action_group!(pub AuthorActionGroup, "author");
-relm4::new_stateful_action!(pub Copy, AuthorActionGroup, "copy-hex", String, ());
-
-async fn init_app() -> Arc<Gnostique> {
-    let subscriber = tracing_subscriber::FmtSubscriber::builder()
-        // .pretty()
-        .compact()
-        .with_max_level(tracing::Level::TRACE)
-        .with_file(true)
-        .with_line_number(true)
-        .with_ansi(true)
-        .with_env_filter(EnvFilter::new("info,relm4=warn"))
-        .with_span_events(tracing_subscriber::fmt::format::FmtSpan::FULL)
-        .finish();
-
-    tracing::subscriber::set_global_default(subscriber).unwrap();
-
-    let secret_key =
-        SecretKey::from_bech32("nsec1qh685ta6ht7emkn8nlggzjfl0h58zxntgsdjgxmvjz2kctv5puysjcmm03")
-            .unwrap();
-
-    // npub1mwe5spuec22ch97tun3znyn8vcwrt6zgpfvs7gmlysm0nqn3g5msr0653t
-    let keys = Keys::new(secret_key);
-
-    let dirs = ProjectDirs::from("com.jirijakes", "", "Gnostique").unwrap();
-    tokio::fs::create_dir_all(dirs.data_dir()).await.unwrap();
-
-    let pool = SqlitePoolOptions::new()
-        .max_connections(5)
-        .connect_with(
-            SqliteConnectOptions::new()
-                .filename(dirs.data_dir().join("gnostique.db"))
-                .create_if_missing(true),
-        )
-        .await
-        .unwrap();
-
-    sqlx::migrate!().run(&pool).await.unwrap();
-
-    let pool = Arc::new(pool);
-    let client = Client::new(&keys);
-    let gnostique = Arc::new(Gnostique { dirs, pool, client });
-
-    gnostique
-        .client
-        .add_relays(vec![
-            ("wss://brb.io", None),
-            ("wss://relay.nostr.info", None),
-            ("wss://nostr-relay.wlvs.space", None),
-            ("wss://nostr.onsats.org", None),
-            ("wss://nostr.openchain.fr", None),
-        ])
-        .await
-        .unwrap();
-
-    gnostique.client.connect().await;
-
-    // gnostique
-    //     .client
-    //     .get_events_of(vec![
-    //         SubscriptionFilter::new()
-    //             .author(
-    //                 "febbaba219357c6c64adfa2e01789f274aa60e90c289938bfc80dd91facb2899"
-    //                     .parse()
-    //                     .unwrap(),
-    //             )
-    //             .limit(100),
-    //         SubscriptionFilter::new()
-    //             .pubkey(
-    //                 "febbaba219357c6c64adfa2e01789f274aa60e90c289938bfc80dd91facb2899"
-    //                     .parse()
-    //                     .unwrap(),
-    //             )
-    //             .limit(100),
-    //     ])
-    //     .await?
-    //     .iter()
-    //     .for_each(|a| println!("{}", a.as_json().unwrap()));
-
-    gnostique
 }
