@@ -111,6 +111,9 @@ impl AsyncFactoryComponent for Reply {
 
             #[template]
             Author {
+                #[watch]
+                set_tooltip_markup: Some(&self.author.tooltip()),
+
                 #[template_child]
                 author_name {
                     #[watch] set_label?: self.author.name.as_ref(),
