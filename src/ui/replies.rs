@@ -4,9 +4,10 @@ use std::rc::Rc;
 use gtk::prelude::*;
 use nostr_sdk::nostr::{Event, Sha256Hash};
 use nostr_sdk::prelude::XOnlyPublicKey;
-use relm4::factory::FactoryVecDeque;
-use relm4::gtk;
+use relm4::component::{AsyncComponentParts, SimpleAsyncComponent};
+use relm4::factory::{AsyncFactoryComponent, AsyncFactoryVecDeque};
 use relm4::prelude::*;
+use relm4::{gtk, AsyncComponentSender, AsyncFactorySender};
 
 use super::author::Author;
 use crate::nostr::Persona;
@@ -15,7 +16,7 @@ use crate::nostr::Persona;
 #[derive(Debug)]
 pub struct Replies {
     reply_hashes: HashSet<Sha256Hash>,
-    replies: FactoryVecDeque<Reply>,
+    replies: AsyncFactoryVecDeque<Reply>,
 }
 
 #[derive(Debug)]
@@ -25,8 +26,8 @@ pub enum RepliesInput {
     Nip05Verified(XOnlyPublicKey),
 }
 
-#[relm4::component(pub)]
-impl SimpleComponent for Replies {
+#[relm4::component(async pub)]
+impl SimpleAsyncComponent for Replies {
     type Input = RepliesInput;
     type Output = ();
     type Init = ();
@@ -43,12 +44,12 @@ impl SimpleComponent for Replies {
         }
     }
 
-    fn init(
+    async fn init(
         _init: Self::Init,
-        root: &Self::Root,
-        sender: ComponentSender<Self>,
-    ) -> ComponentParts<Self> {
-        let replies = FactoryVecDeque::new(
+        root: Self::Root,
+        sender: AsyncComponentSender<Self>,
+    ) -> AsyncComponentParts<Self> {
+        let replies = AsyncFactoryVecDeque::new(
             gtk::Box::new(gtk::Orientation::Vertical, 10),
             sender.input_sender(),
         );
@@ -59,21 +60,19 @@ impl SimpleComponent for Replies {
         let replies_list = model.replies.widget();
         let widgets = view_output!();
 
-        ComponentParts { model, widgets }
+        AsyncComponentParts { model, widgets }
     }
 
-    fn update(&mut self, message: Self::Input, _sender: ComponentSender<Self>) {
+    async fn update(&mut self, message: Self::Input, _sender: AsyncComponentSender<Self>) {
         match message {
             RepliesInput::NewReply(event) => {
                 if self.reply_hashes.insert(event.id) {
                     self.replies.guard().push_back(event);
                 }
             }
-            RepliesInput::UpdatedProfile { author } => {
-                self.replies.broadcast(ReplyInput::UpdatedProfile {
-                    author: author.clone(),
-                })
-            }
+            RepliesInput::UpdatedProfile { author } => self
+                .replies
+                .broadcast(ReplyInput::UpdatedProfile { author }),
             RepliesInput::Nip05Verified(pubkey) => {
                 self.replies.broadcast(ReplyInput::Nip05Verified(pubkey))
             }
@@ -94,8 +93,8 @@ pub enum ReplyInput {
     Nip05Verified(XOnlyPublicKey),
 }
 
-#[relm4::factory(pub)]
-impl FactoryComponent for Reply {
+#[relm4::factory(async pub)]
+impl AsyncFactoryComponent for Reply {
     type Init = Rc<Event>;
     type Input = ReplyInput;
     type Output = ();
@@ -112,6 +111,9 @@ impl FactoryComponent for Reply {
 
             #[template]
             Author {
+                #[watch]
+                set_tooltip_markup: Some(&self.author.tooltip()),
+
                 #[template_child]
                 author_name {
                     #[watch] set_label?: self.author.name.as_ref(),
@@ -141,14 +143,18 @@ impl FactoryComponent for Reply {
         }
     }
 
-    fn init_model(init: Self::Init, _index: &DynamicIndex, _sender: FactorySender<Self>) -> Self {
+    async fn init_model(
+        init: Self::Init,
+        _index: &DynamicIndex,
+        _sender: AsyncFactorySender<Self>,
+    ) -> Self {
         Reply {
             content: init.as_ref().content.to_string(),
             author: Persona::new(init.pubkey),
         }
     }
 
-    fn update(&mut self, message: Self::Input, _sender: FactorySender<Self>) {
+    async fn update(&mut self, message: Self::Input, _sender: AsyncFactorySender<Self>) {
         match message {
             ReplyInput::UpdatedProfile { author } => {
                 if self.author.pubkey == author.pubkey {

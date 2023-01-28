@@ -48,10 +48,26 @@ impl Persona {
             long_len
         };
 
-        let s = self.pubkey.to_string();
-        let (pre, tail) = s.split_at(chars);
+        let s = self.pubkey.to_bech32().unwrap();
+        let (pre, tail) = s.split_at(chars + 5);
+        let pre = pre.replace("npub1", r#"<span alpha="50%">npub1</span>"#);
         let (_, post) = tail.split_at(tail.len() - chars);
         format!("{pre}…{post}")
+    }
+
+    pub fn tooltip(&self) -> String {
+        format!(
+            r###"<span alpha="70%">Pubkey hex:</span> <span color="yellow">{}</span>
+<span alpha="70%">Pubkey bech32:</span> <span color="#00FF00">{}</span>
+<span alpha="70%">Name:</span> <b>{}</b>
+<span alpha="70%">NIP-05:</span> <span color="cyan">{}</span>
+<span alpha="70%">NIP-05 verified: </span> {}"###,
+            self.pubkey,
+            self.pubkey.to_bech32().unwrap_or("?".to_string()),
+            self.name.as_ref().unwrap_or(&"?".to_string()),
+            self.nip05.as_ref().unwrap_or(&"?".to_string()),
+            self.nip05_verified
+        )
     }
 }
 

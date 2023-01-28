@@ -1,19 +1,16 @@
-use std::collections::HashSet;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::time::Duration;
 
 use directories::ProjectDirs;
 use gtk::gdk;
 use gtk::prelude::*;
-use nostr_sdk::nostr::nips::{nip05, nip11};
+use nostr_sdk::nostr::nips::nip05;
 use nostr_sdk::nostr::prelude::*;
 use nostr_sdk::nostr::Event;
 use relm4::component::*;
-use relm4::factory::FactoryVecDeque;
+use relm4::factory::AsyncFactoryVecDeque;
 use sqlx::{query, SqlitePool};
-use tokio::time::interval;
 use tracing::info;
 
 use crate::lane::{Lane, LaneMsg};
@@ -24,7 +21,7 @@ use crate::Gnostique;
 
 pub struct Win {
     gnostique: Arc<Gnostique>,
-    lanes: FactoryVecDeque<Lane>,
+    lanes: AsyncFactoryVecDeque<Lane>,
     details: Controller<DetailsWindow>,
     status_bar: Controller<StatusBar>,
 }
@@ -52,14 +49,15 @@ pub enum WinCmd {
 
 #[relm4::component(pub async)]
 impl AsyncComponent for Win {
-    type Init = Arc<Gnostique>;
+    type Init = ();
     type Input = Msg;
     type Output = ();
     type CommandOutput = WinCmd;
 
     #[rustfmt::skip]
     view! {
-	gtk::ApplicationWindow {
+        #[name(window)]
+        gtk::ApplicationWindow {
             gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
 
@@ -76,32 +74,26 @@ impl AsyncComponent for Win {
     }
 
     async fn init(
-        gnostique: Self::Init,
+        _init: Self::Init,
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
-        let gnostique2 = gnostique.clone();
-        tokio::spawn(refresh_relay_information(gnostique2));
+        let gnostique = relm4::spawn(crate::app::init::make_gnostique())
+            .await
+            .unwrap();
 
-        let lanes = FactoryVecDeque::new(gtk::Box::default(), sender.input_sender());
+        relm4::spawn(crate::app::task::refresh_relay_information(
+            gnostique.clone(),
+        ));
 
-        // TODO: join handle?
-        let mut notif = gnostique.client.notifications();
-        tokio::spawn(async move {
-            include_str!("../resources/b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b.json").lines().for_each(|l| {
-                let ev = nostr_sdk::nostr::event::Event::from_json(l).unwrap();
-                let url: Url = "http://example.com".parse().unwrap();
-                sender.input(Msg::Event(url, ev));
-            });
-
-            // while let Ok(not) = notif.recv().await {
-            // sender.input(Msg::Notification(not));
-            // }
-        });
+        relm4::spawn(crate::app::task::receive_events(
+            gnostique.client.clone(),
+            sender.clone(),
+        ));
 
         let mut model = Win {
             gnostique: gnostique.clone(),
-            lanes,
+            lanes: AsyncFactoryVecDeque::new(gtk::Box::default(), sender.input_sender()),
             details: DetailsWindow::builder().launch(()).detach(),
             status_bar: StatusBar::builder().launch(gnostique).detach(),
         };
@@ -113,13 +105,17 @@ impl AsyncComponent for Win {
         {
             let mut guard = model.lanes.guard();
             // Create one lane.
-            // guard.push_back(None);
-            guard.push_back(Some(
-                "b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b"
-                    .parse()
-                    .unwrap(),
-            ));
+            guard.push_back(None);
+            // guard.push_back(Some(
+            // "b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b"
+            // .parse()
+            // .unwrap(),
+            // ));
         }
+
+        widgets
+            .window
+            .insert_action_group("author", Some(&crate::app::action::make_author_actions()));
 
         AsyncComponentParts { model, widgets }
     }
@@ -164,13 +160,18 @@ impl AsyncComponent for Win {
 
 impl Win {
     async fn offer_relay_url(&self, relay: &Url) {
-        let relay_str = relay.to_string();
-        let _ = query!(
-            "INSERT INTO relays(url) VALUES (?) ON CONFLICT(url) DO NOTHING",
-            relay_str
-        )
-        .execute(self.gnostique.pool.as_ref())
-        .await;
+        async fn go(pool: Arc<SqlitePool>, relay_str: String) {
+            let _ = query!(
+                "INSERT INTO relays(url) VALUES (?) ON CONFLICT(url) DO NOTHING",
+                relay_str
+            )
+            .execute(pool.as_ref())
+            .await;
+        }
+
+        relm4::spawn(go(self.gnostique.pool.clone(), relay.to_string()))
+            .await
+            .unwrap();
     }
 
     async fn received_event(
@@ -180,8 +181,9 @@ impl Win {
         sender: AsyncComponentSender<Self>,
     ) {
         self.offer_relay_url(&relay).await;
+
         for r in event.collect_relays() {
-            self.offer_relay_url(&r).await;
+            self.offer_relay_url(&r).await
         }
 
         match event.kind {
@@ -205,22 +207,29 @@ impl Win {
         event: Event,
         sender: AsyncComponentSender<Self>,
     ) {
-        let json = event.as_pretty_json();
-        let metadata = event.as_metadata().unwrap();
-
-        let pool = self.gnostique.pool.clone();
-        let pubkey_vec = event.pubkey.serialize().to_vec();
-
-        let _ = query!(
-            r#"
+        async fn insert(pool: Arc<SqlitePool>, pubkey_vec: Vec<u8>, json: String) {
+            let _ = query!(
+                r#"
 INSERT INTO metadata (author, event) VALUES (?, ?)
 ON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event
 "#,
-            pubkey_vec,
-            json
-        )
-        .execute(pool.as_ref())
-        .await;
+                pubkey_vec,
+                json
+            )
+            .execute(pool.as_ref())
+            .await;
+        }
+
+        let json = event.as_pretty_json();
+        let metadata = event.as_metadata().unwrap();
+
+        relm4::spawn(insert(
+            self.gnostique.pool.clone(),
+            event.pubkey.serialize().to_vec(),
+            json.clone(),
+        ))
+        .await
+        .unwrap();
 
         // If the metadata contains valid URL, download it as an avatar.
         if let Some(url) = metadata.picture.and_then(|p| Url::parse(&p).ok()) {
@@ -339,65 +348,4 @@ async fn obtain_avatar(dirs: ProjectDirs, pubkey: XOnlyPublicKey, url: Url) -> W
     }
 
     WinCmd::AvatarBitmap { pubkey, file }
-}
-
-/// Regularly, and in the background, obtain information about relays.
-async fn refresh_relay_information(gnostique: Arc<Gnostique>) {
-    let mut int = interval(Duration::from_secs(60));
-    loop {
-        int.tick().await;
-
-        let client_relays = gnostique.client.relays().await;
-        let mut client_relays: HashSet<Url> = client_relays.keys().cloned().collect();
-
-        let old_info = query!(
-            r#"
-SELECT
-  url,
-  information IS NULL OR unixepoch('now') - unixepoch(updated) > 60 * 60 AS "old: bool"
-FROM relays
-"#
-        )
-        .fetch_all(gnostique.pool.as_ref())
-        .await;
-
-        let old_info: HashSet<_> = if let Ok(rec) = old_info {
-            rec.iter()
-                .filter_map(|r| {
-                    let url: reqwest::Url = r.url.parse().unwrap();
-                    client_relays.remove(&url);
-
-                    if r.old {
-                        Some(url)
-                    } else {
-                        None
-                    }
-                })
-                .collect()
-        } else {
-            HashSet::new()
-        };
-
-        for url in old_info.union(&client_relays) {
-            if let Ok(info) = nip11::get_relay_information_document(url.clone(), None).await {
-                let url_s = url.to_string();
-                let info_json = serde_json::to_string(&info).unwrap();
-                let _ = query!(
-                    r#"
-INSERT INTO relays(url, information, updated)
-VALUES (?, ?, CURRENT_TIMESTAMP)
-ON CONFLICT(url) DO UPDATE SET
-  information = EXCLUDED.information,
-  updated = EXCLUDED.updated
-"#,
-                    url_s,
-                    info_json
-                )
-                .execute(gnostique.pool.as_ref())
-                .await;
-
-                info!("Stored fresh relay information of {}", url);
-            }
-        }
-    }
 }
