@@ -180,7 +180,7 @@ impl EventExt for Event {
                 let s = span.as_str();
                 match span.kind() {
                     Some(LinkKind::Url) => {
-                        format!(r#"<a href="{s}">{s}</a>"#)
+                        format!(r#"<a href="{s}" title="{s}">{s}</a>"#)
                     }
                     _ => s.to_string(),
                 }
@@ -192,7 +192,8 @@ impl EventExt for Event {
             .unwrap()
             .replace_all(&www, |caps: &regex::Captures| {
                 format!(
-                    r#"<a href="nostr:search?t={}">#{}</a>"#,
+                    r###"<a href="nostr:search?t={}" title="#{}">#{}</a>"###,
+                    caps["tag"].to_lowercase(),
                     caps["tag"].to_lowercase(),
                     &caps["tag"]
                 )
