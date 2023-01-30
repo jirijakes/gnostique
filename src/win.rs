@@ -17,6 +17,9 @@ use crate::lane::{Lane, LaneInit, LaneMsg};
 use crate::nostr::{EventExt, Persona};
 use crate::ui::details::*;
 use crate::ui::statusbar::StatusBar;
+use crate::ui::writenote::model::WriteNote;
+use crate::ui::writenote::model::WriteNoteInput;
+use crate::ui::writenote::model::WriteNoteResult;
 use crate::Gnostique;
 
 pub struct Win {
@@ -24,12 +27,16 @@ pub struct Win {
     lanes: AsyncFactoryVecDeque<Lane>,
     details: Controller<DetailsWindow>,
     status_bar: Controller<StatusBar>,
+    write_note: Controller<WriteNote>,
 }
 
 #[derive(Debug)]
 pub enum Msg {
     Event(Url, Event),
     ShowDetail(Details),
+    WriteNote,
+    Send(String),
+    Noop,
     MetadataBitmap {
         pubkey: XOnlyPublicKey,
         url: Url,
@@ -84,9 +91,9 @@ impl AsyncComponent for Win {
             .await
             .unwrap();
 
-        relm4::spawn(crate::app::task::refresh_relay_information(
-            gnostique.clone(),
-        ));
+        // relm4::spawn(crate::app::task::refresh_relay_information(
+        //     gnostique.clone(),
+        // ));
 
         relm4::spawn(crate::app::task::receive_events(
             gnostique.client.clone(),
@@ -98,6 +105,12 @@ impl AsyncComponent for Win {
             lanes: AsyncFactoryVecDeque::new(gtk::Box::default(), sender.input_sender()),
             details: DetailsWindow::builder().launch(()).detach(),
             status_bar: StatusBar::builder().launch(gnostique).detach(),
+            write_note: WriteNote::builder()
+                .launch(())
+                .forward(sender.input_sender(), |result| match result {
+                    WriteNoteResult::Send(c) => Msg::Send(c),
+                    _ => Msg::Noop,
+                }),
         };
 
         let lanes_box = model.lanes.widget();
@@ -107,16 +120,16 @@ impl AsyncComponent for Win {
         {
             let mut guard = model.lanes.guard();
 
-            guard.push_back(LaneInit::Profile(
-                "febbaba219357c6c64adfa2e01789f274aa60e90c289938bfc80dd91facb2899"
-                    .parse()
-                    .unwrap(),
-            ));
-            // guard.push_back(LaneInit::Thread(
-            // "b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b"
+            // guard.push_back(LaneInit::Profile(
+            // "febbaba219357c6c64adfa2e01789f274aa60e90c289938bfc80dd91facb2899"
             // .parse()
             // .unwrap(),
             // ));
+            guard.push_back(LaneInit::Thread(
+                "b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b"
+                    .parse()
+                    .unwrap(),
+            ));
         }
 
         widgets
@@ -149,6 +162,28 @@ impl AsyncComponent for Win {
     ) {
         match msg {
             Msg::Event(relay, event) => self.received_event(relay, event, sender).await,
+
+            Msg::WriteNote => self.write_note.emit(WriteNoteInput::Show),
+
+            Msg::Noop => {}
+
+            Msg::Send(c) => {
+                let client = self.gnostique.client.clone();
+                relm4::spawn(async move {
+                    client
+                        .publish_text_note(
+                            c,
+                            &[Tag::Generic(
+                                TagKind::Custom("client".to_string()),
+                                vec!["Gnostique".to_string()],
+                            )],
+                        )
+                        .await
+                })
+                .await
+                .unwrap()
+                .unwrap();
+            }
 
             Msg::ShowDetail(details) => self.details.emit(DetailsWindowInput::Show(details)),
 

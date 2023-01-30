@@ -80,7 +80,7 @@ impl Component for Profilebox {
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, message: Self::Input, sender: ComponentSender<Self>, root: &Self::Root) {
+    fn update(&mut self, message: Self::Input, _sender: ComponentSender<Self>, _root: &Self::Root) {
         match message {
             Input::UpdatedProfile { author } => self.author = Some(author),
             Input::MetadataBitmap { bitmap, url } => {

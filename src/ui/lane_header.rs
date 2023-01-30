@@ -1,5 +1,5 @@
-use relm4::*;
 use gtk::prelude::*;
+use relm4::*;
 
 #[derive(Debug)]
 pub struct LaneHeader {}
@@ -19,10 +19,11 @@ impl SimpleComponent for LaneHeader {
             set_start_widget = &gtk::Box {
                 gtk::Button::from_icon_name("mail-message-new-symbolic") {
                     set_has_frame: false,
-                    set_tooltip_text: Some("Write new text note with the current identity")
+                    set_tooltip_text: Some("Write new text note with the current identity"),
+                    connect_clicked[sender] => move |_| { sender.output(()).unwrap() }
                 }
             },
-            
+
             #[wrap(Some)]
             set_center_widget = &gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
@@ -48,8 +49,8 @@ impl SimpleComponent for LaneHeader {
     }
 
     fn init(
-        init: Self::Init,
-        root: &Self::Root,
+        _init: Self::Init,
+        _root: &Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let model = LaneHeader {};
@@ -58,5 +59,5 @@ impl SimpleComponent for LaneHeader {
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, message: Self::Input, sender: ComponentSender<Self>) {}
+    fn update(&mut self, _message: Self::Input, _sender: ComponentSender<Self>) {}
 }

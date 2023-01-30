@@ -13,22 +13,32 @@ use crate::win::{Msg, Win};
 use crate::Gnostique;
 
 /// Obtains Nostr events and forwards them to the provided `sender`.
-pub async fn receive_events(_nostr: Client, sender: AsyncComponentSender<Win>) {
-    include_str!(
-        // "../../resources/b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b.json"
-        "../../resources/febbaba219357c6c64adfa2e01789f274aa60e90c289938bfc80dd91facb2899.json"
-    )
-    .lines()
-    .for_each(|l| {
-        let ev = nostr_sdk::nostr::event::Event::from_json(l).unwrap();
-        let url = "http://example.com".parse().unwrap();
-        sender.input(Msg::Event(url, ev));
-    });
+pub async fn receive_events(nostr: Client, sender: AsyncComponentSender<Win>) {
+    // include_str!(
+    //     "../../resources/b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b.json"
+    //     // "../../resources/febbaba219357c6c64adfa2e01789f274aa60e90c289938bfc80dd91facb2899.json"
+    // )
+    // .lines()
+    // .for_each(|l| {
+    //     let ev = nostr_sdk::nostr::event::Event::from_json(l).unwrap();
+    //     let url = "http://example.com".parse().unwrap();
+    //     sender.input(Msg::Event(url, ev));
+    // });
 
-    // let mut notif = nostr.notifications();
-    // while let Ok(nostr_sdk::RelayPoolNotification::Event(relay, event)) = notif.recv().await {
-    // sender.input(Msg::Event(relay, event));
-    // }
+    let mut notif = nostr.notifications();
+    loop {
+        let received = notif.recv().await;
+
+        if let Ok(nostr_sdk::RelayPoolNotification::Event(relay, event)) = received {
+            sender.input(Msg::Event(relay, event));
+        } else if let Ok(nostr_sdk::RelayPoolNotification::Message(
+            relay,
+            nostr_sdk::prelude::RelayMessage::Event { event, .. },
+        )) = received
+        {
+            sender.input(Msg::Event(relay, *event));
+        }
+    }
 }
 
 /// Regularly, and in the background, obtain information about relays.

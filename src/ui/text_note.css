@@ -172,3 +172,16 @@
     font-family: monospace;
     opacity: 0.5;
 }
+
+#writenote {
+    padding: 16px;
+}
+
+#writenote .label {
+    opacity: 0.7;
+}
+
+#writenote textview {
+    border: 2px solid lighter(lighter(@theme_bg_color));
+    border-radius: 6px;
+}

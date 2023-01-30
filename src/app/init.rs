@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 use directories::ProjectDirs;
 use nostr_sdk::prelude::*;
@@ -25,11 +25,7 @@ pub async fn make_gnostique() -> Arc<Gnostique> {
 
     tracing::subscriber::set_global_default(subscriber).unwrap();
 
-    let secret_key =
-        SecretKey::from_bech32("nsec1qh685ta6ht7emkn8nlggzjfl0h58zxntgsdjgxmvjz2kctv5puysjcmm03")
-            .unwrap();
-
-    // npub1mwe5spuec22ch97tun3znyn8vcwrt6zgpfvs7gmlysm0nqn3g5msr0653t
+    let secret_key = SecretKey::from_str(include_str!("../../.seckey")).unwrap();
     let keys = Keys::new(secret_key);
 
     let dirs = ProjectDirs::from("com.jirijakes", "", "Gnostique").unwrap();
@@ -51,17 +47,24 @@ pub async fn make_gnostique() -> Arc<Gnostique> {
     let client = Client::new(&keys);
     let gnostique = Arc::new(Gnostique { dirs, pool, client });
 
-    // gnostique
-    //     .client
-    //     .add_relays(vec![
-    //         ("wss://brb.io", None),
-    //         ("wss://relay.nostr.info", None),
-    //         ("wss://nostr-relay.wlvs.space", None),
-    //         ("wss://nostr.onsats.org", None),
-    //         ("wss://nostr.openchain.fr", None),
-    //     ])
-    //     .await
-    //     .unwrap();
+    gnostique
+        .client
+        .add_relays(vec![
+            ("ws://localhost:8080", None),
+            //     ("wss://brb.io", None),
+            //     ("wss://relay.nostr.info", None),
+            //     ("wss://nostr-relay.wlvs.space", None),
+            //     ("wss://nostr.onsats.org", None),
+            //     ("wss://nostr.openchain.fr", None),
+        ])
+        .await
+        .unwrap();
+
+    gnostique
+        .client
+        .subscribe(vec![SubscriptionFilter::new().kind(Kind::TextNote)])
+        .await
+        .unwrap();
 
     gnostique.client.connect().await;
 

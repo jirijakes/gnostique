@@ -77,6 +77,7 @@ pub enum LaneMsg {
 #[derive(Debug)]
 pub enum LaneOutput {
     ShowDetails(Details),
+    WriteNote,
 }
 
 #[relm4::factory(pub async)]
@@ -119,7 +120,10 @@ impl AsyncFactoryComponent for Lane {
         Self {
             kind: init,
             profile_box: Profilebox::builder().launch(()).detach(),
-            header: LaneHeader::builder().launch(()).detach(),
+            header: LaneHeader::builder()
+                .launch(())
+                .forward(sender.output_sender(), |_| LaneOutput::WriteNote),
+
             text_notes: FactoryVecDeque::new(
                 gtk::ListBox::builder()
                     .selection_mode(gtk::SelectionMode::None)
@@ -133,6 +137,7 @@ impl AsyncFactoryComponent for Lane {
     fn output_to_parent_input(output: Self::Output) -> Option<Self::ParentInput> {
         match output {
             LaneOutput::ShowDetails(details) => Some(Msg::ShowDetail(details)),
+            LaneOutput::WriteNote => Some(Msg::WriteNote),
         }
     }
 
