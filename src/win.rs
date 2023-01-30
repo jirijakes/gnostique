@@ -16,10 +16,9 @@ use tracing::info;
 use crate::lane::{Lane, LaneInit, LaneMsg};
 use crate::nostr::{EventExt, Persona};
 use crate::ui::details::*;
-use crate::ui::statusbar::StatusBar;
-use crate::ui::writenote::model::WriteNote;
-use crate::ui::writenote::model::WriteNoteInput;
-use crate::ui::writenote::model::WriteNoteResult;
+use crate::ui::editprofile::model::*;
+use crate::ui::statusbar::*;
+use crate::ui::writenote::model::*;
 use crate::Gnostique;
 
 pub struct Win {
@@ -28,6 +27,7 @@ pub struct Win {
     details: Controller<DetailsWindow>,
     status_bar: Controller<StatusBar>,
     write_note: Controller<WriteNote>,
+    edit_profile: Controller<EditProfile>,
 }
 
 #[derive(Debug)]
@@ -35,6 +35,8 @@ pub enum Msg {
     Event(Url, Event),
     ShowDetail(Details),
     WriteNote,
+    EditProfile,
+    UpdateProfile(Metadata),
     Send(String),
     Noop,
     MetadataBitmap {
@@ -105,6 +107,9 @@ impl AsyncComponent for Win {
             lanes: AsyncFactoryVecDeque::new(gtk::Box::default(), sender.input_sender()),
             details: DetailsWindow::builder().launch(()).detach(),
             status_bar: StatusBar::builder().launch(gnostique).detach(),
+            edit_profile: EditProfile::builder()
+                .launch(())
+                .forward(sender.input_sender(), forward_edit_profile),
             write_note: WriteNote::builder()
                 .launch(())
                 .forward(sender.input_sender(), |result| match result {
@@ -136,6 +141,11 @@ impl AsyncComponent for Win {
             .window
             .insert_action_group("author", Some(&crate::app::action::make_author_actions()));
 
+        widgets.window.insert_action_group(
+            "main",
+            Some(&crate::app::action::make_main_menu_actions(sender)),
+        );
+
         AsyncComponentParts { model, widgets }
     }
 
@@ -166,6 +176,16 @@ impl AsyncComponent for Win {
             Msg::WriteNote => self.write_note.emit(WriteNoteInput::Show),
 
             Msg::Noop => {}
+
+            Msg::EditProfile => self.edit_profile.emit(EditProfileInput::Show),
+
+            Msg::UpdateProfile(metadata) => {
+                let client = self.gnostique.client.clone();
+                relm4::spawn(async move { client.update_profile(metadata).await })
+                    .await
+                    .unwrap()
+                    .unwrap();
+            }
 
             Msg::Send(c) => {
                 let client = self.gnostique.client.clone();
@@ -405,4 +425,11 @@ async fn obtain_metadata_bitmap(dirs: ProjectDirs, pubkey: XOnlyPublicKey, url: 
     }
 
     WinCmd::MetadataBitmap { pubkey, url, file }
+}
+
+/// Translates result of [`edit profile`](editprofile::component) dialog to [`Msg`].
+fn forward_edit_profile(result: EditProfileResult) -> Msg {
+    match result {
+        EditProfileResult::Apply(metadata) => Msg::UpdateProfile(metadata),
+    }
 }

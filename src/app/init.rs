@@ -1,4 +1,5 @@
-use std::{str::FromStr, sync::Arc};
+use std::str::FromStr;
+use std::sync::Arc;
 
 use directories::ProjectDirs;
 use nostr_sdk::prelude::*;
@@ -62,7 +63,7 @@ pub async fn make_gnostique() -> Arc<Gnostique> {
 
     gnostique
         .client
-        .subscribe(vec![SubscriptionFilter::new().kind(Kind::TextNote)])
+        .subscribe(vec![SubscriptionFilter::new()])
         .await
         .unwrap();
 

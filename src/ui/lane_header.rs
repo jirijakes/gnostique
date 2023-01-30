@@ -1,6 +1,8 @@
 use gtk::prelude::*;
 use relm4::*;
 
+use crate::app::action::EditProfile;
+
 #[derive(Debug)]
 pub struct LaneHeader {}
 
@@ -42,9 +44,23 @@ impl SimpleComponent for LaneHeader {
             set_end_widget = &gtk::Box {
                 gtk::Button::from_icon_name("open-menu-symbolic") {
                     set_has_frame: false,
-                    set_tooltip_text: Some("Open menu to see list of actions")
+                    set_tooltip_text: Some("Open menu to see list of actions"),
+                    connect_clicked => move |b| {
+                        let popover = gtk::PopoverMenu::builder()
+                            .menu_model(&main_menu)
+                            .has_arrow(false)
+                            .build();
+                        popover.set_parent(b);
+                        popover.popup();
+                    }
                 }
             },
+        }
+    }
+
+    menu! {
+        main_menu: {
+            "Edit profile" => EditProfile
         }
     }
 

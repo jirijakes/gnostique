@@ -19,6 +19,7 @@ impl SimpleComponent for WriteNote {
 
             gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
+                add_css_class: "form",
 
                 gtk::Grid {
                     set_column_spacing: 16,
@@ -98,7 +99,9 @@ impl SimpleComponent for WriteNote {
                     .buffer
                     .text(&self.buffer.start_iter(), &self.buffer.end_iter(), true)
                     .to_string();
-                sender.output(WriteNoteResult::Send(content)).unwrap_or_default();
+                sender
+                    .output(WriteNoteResult::Send(content))
+                    .unwrap_or_default();
                 sender.input(WriteNoteInput::Hide)
             }
         }
