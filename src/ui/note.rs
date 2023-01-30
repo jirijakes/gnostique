@@ -14,9 +14,9 @@ use relm4::prelude::*;
 use super::author::Author;
 use super::details::Details;
 use super::replies::{Replies, RepliesInput};
+use crate::app::action::*;
 use crate::lane::LaneMsg;
 use crate::nostr::*;
-use crate::app::action::*;
 
 /// Initial
 pub struct NoteInit {
@@ -53,8 +53,9 @@ pub enum NoteInput {
     /// Show this note's details.
     ShowDetails,
     /// (New) avatar bitmap is available.
-    AvatarBitmap {
+    MetadataBitmap {
         pubkey: XOnlyPublicKey,
+        url: Url,
         bitmap: Arc<gdk::Texture>,
     },
     Reaction {
@@ -328,8 +329,12 @@ impl FactoryComponent for Note {
             }
             NoteInput::FocusIn => self.show_hidden_buttons = true,
             NoteInput::FocusOut => self.show_hidden_buttons = false,
-            NoteInput::AvatarBitmap { pubkey, bitmap } => {
-                if pubkey == self.author.pubkey {
+            NoteInput::MetadataBitmap {
+                pubkey,
+                url,
+                bitmap,
+            } => {
+                if self.author.pubkey == pubkey && self.author.avatar == Some(url) {
                     self.avatar = bitmap
                 }
             }

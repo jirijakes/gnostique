@@ -16,6 +16,9 @@ pub static ANONYMOUS_USER: Lazy<Arc<gdk::Texture>> = Lazy::new(|| {
 pub struct Persona {
     pub name: Option<String>,
     pub pubkey: XOnlyPublicKey,
+    pub avatar: Option<Url>,
+    pub banner: Option<Url>,
+    pub about: Option<String>,
     pub nip05: Option<String>,
     pub nip05_verified: bool,
 }
@@ -26,6 +29,9 @@ impl Persona {
             pubkey,
             name: None,
             nip05: None,
+            avatar: None,
+            banner: None,
+            about: None,
             nip05_verified: false,
         }
     }
@@ -40,6 +46,21 @@ impl Persona {
         self.nip05.is_some() && self.nip05_verified
     }
 
+    fn shortened(s: &str, chars: usize) -> String {
+        let (pre, tail) = s.split_at(chars + 5);
+        let pre = pre.replace("npub1", r#"<span alpha="50%">npub1</span>"#);
+        let (_, post) = tail.split_at(tail.len() - chars);
+        format!("{pre}…{post}")
+    }
+
+    pub fn short_bech32(&self, chars: usize) -> String {
+        Self::shortened(&self.pubkey.to_bech32().unwrap(), chars)
+    }
+
+    pub fn short_pubkey(&self, chars: usize) -> String {
+        Self::shortened(&self.pubkey.to_string(), chars)
+    }
+
     /// Format author's pubkey according to context (has or has not author name).
     pub fn format_pubkey(&self, short_len: usize, long_len: usize) -> String {
         let chars = if self.name.is_some() {
@@ -48,11 +69,7 @@ impl Persona {
             long_len
         };
 
-        let s = self.pubkey.to_bech32().unwrap();
-        let (pre, tail) = s.split_at(chars + 5);
-        let pre = pre.replace("npub1", r#"<span alpha="50%">npub1</span>"#);
-        let (_, post) = tail.split_at(tail.len() - chars);
-        format!("{pre}…{post}")
+        self.short_bech32(chars)
     }
 
     pub fn tooltip(&self) -> String {

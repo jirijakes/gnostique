@@ -13,7 +13,7 @@ use relm4::factory::AsyncFactoryVecDeque;
 use sqlx::{query, SqlitePool};
 use tracing::info;
 
-use crate::lane::{Lane, LaneMsg};
+use crate::lane::{Lane, LaneInit, LaneMsg};
 use crate::nostr::{EventExt, Persona};
 use crate::ui::details::*;
 use crate::ui::statusbar::StatusBar;
@@ -30,8 +30,9 @@ pub struct Win {
 pub enum Msg {
     Event(Url, Event),
     ShowDetail(Details),
-    AvatarBitmap {
+    MetadataBitmap {
         pubkey: XOnlyPublicKey,
+        url: Url,
         file: PathBuf,
     },
     Nip05Verified(XOnlyPublicKey),
@@ -39,8 +40,9 @@ pub enum Msg {
 
 #[derive(Debug)]
 pub enum WinCmd {
-    AvatarBitmap {
+    MetadataBitmap {
         pubkey: XOnlyPublicKey,
+        url: Url,
         file: PathBuf,
     },
     Nip05Verified(XOnlyPublicKey),
@@ -104,9 +106,13 @@ impl AsyncComponent for Win {
 
         {
             let mut guard = model.lanes.guard();
-            // Create one lane.
-            guard.push_back(None);
-            // guard.push_back(Some(
+
+            guard.push_back(LaneInit::Profile(
+                "febbaba219357c6c64adfa2e01789f274aa60e90c289938bfc80dd91facb2899"
+                    .parse()
+                    .unwrap(),
+            ));
+            // guard.push_back(LaneInit::Thread(
             // "b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b"
             // .parse()
             // .unwrap(),
@@ -127,8 +133,8 @@ impl AsyncComponent for Win {
         _root: &Self::Root,
     ) {
         match msg {
-            WinCmd::AvatarBitmap { pubkey, file } => {
-                sender.input(Msg::AvatarBitmap { pubkey, file })
+            WinCmd::MetadataBitmap { pubkey, url, file } => {
+                sender.input(Msg::MetadataBitmap { pubkey, url, file })
             }
             WinCmd::Nip05Verified(nip05) => sender.input(Msg::Nip05Verified(nip05)),
             WinCmd::Noop => {}
@@ -148,9 +154,10 @@ impl AsyncComponent for Win {
 
             Msg::Nip05Verified(nip05) => self.lanes.broadcast(LaneMsg::Nip05Verified(nip05)),
 
-            Msg::AvatarBitmap { pubkey, file } => {
-                self.lanes.broadcast(LaneMsg::AvatarBitmap {
+            Msg::MetadataBitmap { pubkey, url, file } => {
+                self.lanes.broadcast(LaneMsg::MetadataBitmap {
                     pubkey,
+                    url,
                     bitmap: Arc::new(gdk::Texture::from_filename(file).unwrap()),
                 });
             }
@@ -231,9 +238,21 @@ ON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event
         .await
         .unwrap();
 
-        // If the metadata contains valid URL, download it as an avatar.
-        if let Some(url) = metadata.picture.and_then(|p| Url::parse(&p).ok()) {
-            sender.oneshot_command(obtain_avatar(
+        let avatar_url = metadata.picture.as_ref().and_then(|p| Url::parse(p).ok());
+        let banner_url = metadata.banner.as_ref().and_then(|p| Url::parse(p).ok());
+
+        // If the metadata's picture contains valid URL, download it.
+        if let Some(url) = avatar_url.clone() {
+            sender.oneshot_command(obtain_metadata_bitmap(
+                self.gnostique.dirs.clone(),
+                event.pubkey,
+                url,
+            ));
+        }
+
+        // If the metadata's banner contains valid URL, download it.
+        if let Some(url) = banner_url.clone() {
+            sender.oneshot_command(obtain_metadata_bitmap(
                 self.gnostique.dirs.clone(),
                 event.pubkey,
                 url,
@@ -252,6 +271,9 @@ ON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event
             author: Persona {
                 pubkey: event.pubkey,
                 name: metadata.name,
+                avatar: avatar_url,
+                banner: banner_url,
+                about: metadata.about,
                 nip05: metadata.nip05,
                 nip05_verified: false,
             },
@@ -317,7 +339,7 @@ WHERE author = ?"#,
 
 /// Find `pubkey`'s avatar image either in cache or, if not available,
 /// download it from `url` and then cache.
-async fn obtain_avatar(dirs: ProjectDirs, pubkey: XOnlyPublicKey, url: Url) -> WinCmd {
+async fn obtain_metadata_bitmap(dirs: ProjectDirs, pubkey: XOnlyPublicKey, url: Url) -> WinCmd {
     let filename: PathBuf = pubkey.to_string().into();
 
     let cache = dirs.cache_dir().join("avatars");
@@ -333,7 +355,7 @@ async fn obtain_avatar(dirs: ProjectDirs, pubkey: XOnlyPublicKey, url: Url) -> W
         info!("Downloading {}", url_s);
 
         let mut f = tokio::fs::File::create(&file).await.unwrap();
-        let response = reqwest::get(url).await.unwrap();
+        let response = reqwest::get(url.clone()).await.unwrap();
         // let content_length = response.headers().get("content-length");
         let mut bytes = response.bytes_stream();
 
@@ -347,5 +369,5 @@ async fn obtain_avatar(dirs: ProjectDirs, pubkey: XOnlyPublicKey, url: Url) -> W
         info!("Avatar obtained from cache: {}", url_s);
     }
 
-    WinCmd::AvatarBitmap { pubkey, file }
+    WinCmd::MetadataBitmap { pubkey, url, file }
 }

@@ -6,10 +6,6 @@
     font-size: 1.3em;
 }
 
-.text-note .content {
-
-}
-
 .text-note .avatar {
     margin: 8px;
 }
@@ -37,7 +33,7 @@
  }
 
 .text-note .content {
-   font-size: 1.1em;
+   font-size: 1em;
 }
 
 .reactions {
@@ -122,4 +118,33 @@
 .statusbar .relaystatus button {
     padding: 0 8px;
     border: none;
+}
+
+.profilebox {
+    background-color: darker(@theme_bg_color);
+    border-bottom: 2px solid darker(darker(@theme_bg_color));
+    padding: 32px;
+}
+
+.profilebox label {
+    margin: 2px 0 2px 12px;
+}
+
+.profilebox label.nip05 {
+    opacity: 0.7;
+}
+
+.profilebox label.name {
+    font-size: 1.1em;
+    font-weight: bold;
+}
+
+.profilebox label.about {
+    margin-top: 6px;
+}
+
+.profilebox label.pubkey {
+    font-size: 0.85em;
+    font-family: monospace;
+    opacity: 0.5;
 }

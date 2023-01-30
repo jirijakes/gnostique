@@ -1,8 +1,8 @@
+mod app;
 mod lane;
 mod nostr;
 mod ui;
 mod win;
-mod app;
 
 use std::sync::Arc;
 

@@ -12,7 +12,7 @@ exclude = ["doc/"]
 chrono = "0.4.23"
 directories = "4.0.1"
 futures-util = "0.3.25"
-gtk = { package = "gtk4", version = "0.5.5", features = ["v4_6"] }
+gtk = { package = "gtk4", version = "0.5.5", features = ["v4_8"] }
 html-escape = "0.2.13"
 linkify = "0.9.0"
 nostr-sdk = { git = "https://github.com/jirijakes/nostr", branch = "nip11-scheme" }

@@ -1,5 +1,6 @@
+use gtk::gdk;
+use gtk::gio::SimpleActionGroup;
 use gtk::prelude::DisplayExt;
-use gtk::{gdk, gio::SimpleActionGroup};
 use relm4::actions::{RelmAction, RelmActionGroup};
 
 relm4::new_action_group!(pub AuthorActionGroup, "author");

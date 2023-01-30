@@ -16,13 +16,36 @@ use reqwest::Url;
 use crate::nostr::{EventExt, Persona};
 use crate::ui::details::Details;
 use crate::ui::note::{Note, NoteInit, NoteInput};
+use crate::ui::profilebox;
+use crate::ui::profilebox::model::Profilebox;
 use crate::win::Msg;
 
 #[derive(Debug)]
 pub struct Lane {
-    central_note: Option<Sha256Hash>,
+    kind: LaneInit,
     text_notes: FactoryVecDeque<Note>,
     hash_index: HashMap<Sha256Hash, DynamicIndex>,
+    profile_box: Controller<Profilebox>,
+}
+
+#[derive(Debug)]
+pub enum LaneInit {
+    Profile(XOnlyPublicKey),
+    Thread(Sha256Hash),
+}
+
+impl LaneInit {
+    pub fn is_thread(&self, event_id: &Sha256Hash) -> bool {
+        matches!(self, LaneInit::Thread(e) if e == event_id)
+    }
+
+    pub fn is_profile(&self, pubkey: &XOnlyPublicKey) -> bool {
+        matches!(self, LaneInit::Profile(p) if p == pubkey)
+    }
+
+    pub fn is_a_profile(&self) -> bool {
+        matches!(self, LaneInit::Profile(_))
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -36,8 +59,9 @@ pub enum LaneMsg {
         metadata_json: Arc<String>,
     },
     ShowDetails(Details),
-    AvatarBitmap {
+    MetadataBitmap {
         pubkey: XOnlyPublicKey,
+        url: Url,
         bitmap: Arc<gdk::Texture>,
     },
     Reaction {
@@ -55,7 +79,7 @@ pub enum LaneOutput {
 
 #[relm4::factory(pub async)]
 impl AsyncFactoryComponent for Lane {
-    type Init = Option<Sha256Hash>;
+    type Init = LaneInit;
     type Input = LaneMsg;
     type Output = LaneOutput;
     type CommandOutput = ();
@@ -63,22 +87,34 @@ impl AsyncFactoryComponent for Lane {
     type ParentWidget = gtk::Box;
 
     view! {
-        gtk::ScrolledWindow {
-            set_hscrollbar_policy: gtk::PolicyType::Never,
-            set_min_content_width: 600,
-            set_hexpand: true,
-            #[wrap(Some)]
-            set_child = self.text_notes.widget() {}
+        gtk::Box {
+            set_orientation: gtk::Orientation::Vertical,
+
+            // profile box
+            self.profile_box.widget() {
+                set_visible: self.kind.is_a_profile(),
+            },
+
+            // notes
+            gtk::ScrolledWindow {
+                set_hscrollbar_policy: gtk::PolicyType::Never,
+                set_min_content_width: 600,
+                set_hexpand: true,
+                set_vexpand: true,
+                #[wrap(Some)]
+                set_child = self.text_notes.widget() {}
+            }
         }
     }
 
     async fn init_model(
-        central_note: Self::Init,
+        init: Self::Init,
         _index: &DynamicIndex,
         sender: AsyncFactorySender<Self>,
     ) -> Self {
         Self {
-            central_note,
+            kind: init,
+            profile_box: Profilebox::builder().launch(()).detach(),
             text_notes: FactoryVecDeque::new(
                 gtk::ListBox::builder()
                     .selection_mode(gtk::SelectionMode::None)
@@ -104,14 +140,36 @@ impl AsyncFactoryComponent for Lane {
             LaneMsg::UpdatedProfile {
                 author,
                 metadata_json,
-            } => self.text_notes.broadcast(NoteInput::UpdatedProfile {
-                author,
-                metadata_json,
-            }),
+            } => {
+                if self.kind.is_profile(&author.pubkey) {
+                    self.profile_box.emit(profilebox::Input::UpdatedProfile {
+                        author: author.clone(),
+                    });
+                }
+                self.text_notes.broadcast(NoteInput::UpdatedProfile {
+                    author,
+                    metadata_json,
+                });
+            }
 
-            LaneMsg::AvatarBitmap { pubkey, bitmap } => self
-                .text_notes
-                .broadcast(NoteInput::AvatarBitmap { pubkey, bitmap }),
+            LaneMsg::MetadataBitmap {
+                pubkey,
+                url,
+                bitmap,
+            } => {
+                if self.kind.is_profile(&pubkey) {
+                    self.profile_box.emit(profilebox::Input::MetadataBitmap {
+                        url: url.clone(),
+                        bitmap: bitmap.clone(),
+                    })
+                };
+
+                self.text_notes.broadcast(NoteInput::MetadataBitmap {
+                    pubkey,
+                    url,
+                    bitmap,
+                });
+            }
 
             LaneMsg::Reaction { event, reaction } => self
                 .text_notes
@@ -145,7 +203,7 @@ impl Lane {
 
         // Add note iff it has not been added yet (they may arrive multiple times).
         if !self.hash_index.contains_key(&event.id) {
-            let is_central = self.central_note == Some(event_id);
+            let is_central = self.kind.is_thread(&event_id);
             let event_time = event.created_at;
 
             let init = NoteInit { event, is_central };
