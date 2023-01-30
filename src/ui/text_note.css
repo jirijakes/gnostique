@@ -2,6 +2,30 @@
     font-family: "Roboto", sans-serif;
 }
 
+.laneheader {
+    background-color: darker(darker(@theme_bg_color));
+    border-bottom: 2px solid black;
+    padding: 6px 6px;
+}
+
+.laneheader button {
+    border: none;
+    text-shadow: none;
+    padding: 0px;
+    box-shadow: none;
+    outline-offset: 0;
+    opacity: 0.7;
+}
+
+.laneheader .name {
+    font-weight: bold;
+}
+
+.laneheader .identity {
+    font-size: 0.9em;
+    opacity: 0.7;
+}
+
 .text-note.central .content {
     font-size: 1.3em;
 }

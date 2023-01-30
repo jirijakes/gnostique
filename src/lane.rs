@@ -15,6 +15,7 @@ use reqwest::Url;
 
 use crate::nostr::{EventExt, Persona};
 use crate::ui::details::Details;
+use crate::ui::lane_header::LaneHeader;
 use crate::ui::note::{Note, NoteInit, NoteInput};
 use crate::ui::profilebox;
 use crate::ui::profilebox::model::Profilebox;
@@ -26,6 +27,7 @@ pub struct Lane {
     text_notes: FactoryVecDeque<Note>,
     hash_index: HashMap<Sha256Hash, DynamicIndex>,
     profile_box: Controller<Profilebox>,
+    header: Controller<LaneHeader>,
 }
 
 #[derive(Debug)]
@@ -90,6 +92,8 @@ impl AsyncFactoryComponent for Lane {
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
 
+            self.header.widget() { },
+
             // profile box
             self.profile_box.widget() {
                 set_visible: self.kind.is_a_profile(),
@@ -115,6 +119,7 @@ impl AsyncFactoryComponent for Lane {
         Self {
             kind: init,
             profile_box: Profilebox::builder().launch(()).detach(),
+            header: LaneHeader::builder().launch(()).detach(),
             text_notes: FactoryVecDeque::new(
                 gtk::ListBox::builder()
                     .selection_mode(gtk::SelectionMode::None)
