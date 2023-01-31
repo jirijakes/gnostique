@@ -21,6 +21,7 @@ use crate::ui::lane::LaneMsg;
 /// Initial
 pub struct NoteInit {
     pub event: Rc<Event>,
+    pub relays: Vec<Url>,
     pub author: Option<Persona>,
     pub is_central: bool,
 }
@@ -37,6 +38,7 @@ pub struct Note {
     dislikes: u32,
     pub time: DateTime<Utc>,
     event: Rc<Event>,
+    relays: Vec<Url>,
     replies: AsyncController<Replies>,
 }
 
@@ -254,6 +256,13 @@ impl FactoryComponent for Note {
                     add_css_class: "status",
 
                     gtk::Label {
+                        set_label: &self.relays.iter().map(|u| u.domain().unwrap()).collect::<Vec<_>>().join("   "),
+                        set_visible: !self.relays.is_empty(),
+                        set_xalign: 1.0,
+                        add_css_class: "relays",
+                    },
+
+                    gtk::Label {
                         set_label?: &self.event.client().as_ref().map(|c| format!("Sent by {c}")),
                         set_xalign: 1.0,
                         set_visible: self.event.client().is_some(),
@@ -311,6 +320,7 @@ impl FactoryComponent for Note {
             dislikes: 0,
             time: Utc.timestamp_opt(init.event.created_at as i64, 0).unwrap(),
             event: init.event,
+            relays: init.relays,
             replies,
         }
     }

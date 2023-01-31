@@ -114,9 +114,13 @@ impl AsyncFactoryComponent for Lane {
                 self.text_notes.broadcast(NoteInput::Nip05Verified(pubkey))
             }
 
-            LaneMsg::NewTextNote { event, author } => {
+            LaneMsg::NewTextNote {
+                event,
+                relays,
+                author,
+            } => {
                 if self.kind.accepts(&event) {
-                    self.text_note_received(event, author)
+                    self.text_note_received(event, relays, author)
                 }
             }
             LaneMsg::LinkClicked(uri) => println!("Clicked: {uri}"),

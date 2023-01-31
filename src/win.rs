@@ -125,16 +125,18 @@ impl AsyncComponent for Win {
         {
             let mut guard = model.lanes.guard();
 
-            guard.push_back(LaneKind::Profile(
-                "febbaba219357c6c64adfa2e01789f274aa60e90c289938bfc80dd91facb2899"
-                    .parse()
-                    .unwrap(),
-            ));
-            guard.push_back(LaneKind::Thread(
-                "b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b"
-                    .parse()
-                    .unwrap(),
-            ));
+            guard.push_back(LaneKind::Sink);
+
+            // guard.push_back(LaneKind::Profile(
+            //     "febbaba219357c6c64adfa2e01789f274aa60e90c289938bfc80dd91facb2899"
+            //         .parse()
+            //         .unwrap(),
+            // ));
+            // guard.push_back(LaneKind::Thread(
+            //     "b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b"
+            //         .parse()
+            //         .unwrap(),
+            // ));
         }
 
         widgets
@@ -210,11 +212,13 @@ impl AsyncComponent for Win {
             Msg::Nip05Verified(nip05) => self.lanes.broadcast(LaneMsg::Nip05Verified(nip05)),
 
             Msg::MetadataBitmap { pubkey, url, file } => {
-                self.lanes.broadcast(LaneMsg::MetadataBitmap {
-                    pubkey,
-                    url,
-                    bitmap: Arc::new(gdk::Texture::from_filename(file).unwrap()),
-                });
+                if let Ok(bitmap) = gdk::Texture::from_filename(file) {
+                    self.lanes.broadcast(LaneMsg::MetadataBitmap {
+                        pubkey,
+                        url,
+                        bitmap: Arc::new(bitmap),
+                    });
+                }
             }
         }
     }
@@ -243,12 +247,15 @@ impl Win {
     }
 
     /// Processes an incoming text note.
-    async fn received_text_note(&self, _relay: Url, event: Event) {
+    async fn received_text_note(&self, relay: Url, event: Event) {
+        self.gnostique.store_event(&relay, &event).await;
+        let relays = self.gnostique.textnote_relays(event.id).await;
         let author = self.gnostique.get_persona(event.pubkey).await;
 
         // Send the event to all lanes, they will decide themselves what to do with it.
         self.lanes.broadcast(LaneMsg::NewTextNote {
             event: Rc::new(event),
+            relays,
             author,
         });
 

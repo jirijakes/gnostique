@@ -34,6 +34,24 @@
     },
     "query": "\nSELECT event, (unixepoch('now') - unixepoch(nip05_verified)) / 3600 AS \"nip05_hours: u16\"\nFROM metadata\nWHERE author = ?\n"
   },
+  "5b220dc4706cc098871f6f81659ac09d696802c06e183c4005e8baf10e5540bf": {
+    "describe": {
+      "columns": [
+        {
+          "name": "url",
+          "ordinal": 0,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "\nSELECT url FROM relays\nWHERE url IN (SELECT relay FROM textnotes_relays WHERE textnote = ?)"
+  },
   "5f8493e81f7cb2eb8cccc49522c237b7557bd46afb5d1e65a65834bddbd00583": {
     "describe": {
       "columns": [
@@ -52,6 +70,16 @@
     },
     "query": "\nSELECT (unixepoch('now') - unixepoch(nip05_verified)) / 60 / 60 AS \"hours?: u32\"\nFROM metadata WHERE author = ?"
   },
+  "6de5a37bc0c893a505bfd31903b39969363f2637f6406546bdf8bac48a05ef41": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "INSERT INTO textnotes (id, event) VALUES (?, ?)"
+  },
   "82b4c37a52dca01fef7840835c4eece80e2613021c9df4dcb2dfd8e23ca4d1a0": {
     "describe": {
       "columns": [],
@@ -61,6 +89,16 @@
       }
     },
     "query": "\nINSERT INTO relays(url, information, updated)\nVALUES (?, ?, CURRENT_TIMESTAMP)\nON CONFLICT(url) DO UPDATE SET\n  information = EXCLUDED.information,\n  updated = EXCLUDED.updated\n"
+  },
+  "9b7c9222313ff614369097339cb3d3faaa798a4f812c4b1aba97ea62feaed6cf": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "INSERT INTO textnotes_relays (textnote, relay) VALUES (?, ?)"
   },
   "c1649e400797f9eb38cd710b5d759c30d7b82d6c20c66af6b1845f396f021270": {
     "describe": {

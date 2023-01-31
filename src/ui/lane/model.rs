@@ -28,6 +28,7 @@ pub struct Lane {
 pub enum LaneKind {
     Profile(XOnlyPublicKey),
     Thread(Sha256Hash),
+    Sink,
 }
 
 impl LaneKind {
@@ -45,6 +46,7 @@ impl LaneKind {
 
     pub fn accepts(&self, event: &Event) -> bool {
         match self {
+            LaneKind::Sink => true,
             LaneKind::Profile(pubkey) => &event.pubkey == pubkey,
             LaneKind::Thread(id) => {
                 event.id == *id
@@ -59,6 +61,7 @@ impl LaneKind {
 pub enum LaneMsg {
     NewTextNote {
         event: Rc<Event>,
+        relays: Vec<Url>,
         author: Option<Persona>,
     },
     UpdatedProfile {
@@ -86,7 +89,12 @@ pub enum LaneOutput {
 
 impl Lane {
     /// New text note was received, let's handle it.
-    pub(super) fn text_note_received(&mut self, event: Rc<Event>, author: Option<Persona>) {
+    pub(super) fn text_note_received(
+        &mut self,
+        event: Rc<Event>,
+        relays: Vec<Url>,
+        author: Option<Persona>,
+    ) {
         let event_id = event.id;
 
         // If `event` is a reply to a note, deliver it to the note to which
@@ -107,6 +115,7 @@ impl Lane {
 
             let init = NoteInit {
                 event,
+                relays,
                 author,
                 is_central,
             };

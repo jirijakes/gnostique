@@ -49,19 +49,19 @@ pub async fn make_gnostique() -> Gnostique {
     gnostique
         .client()
         .add_relays(vec![
-            ("ws://localhost:8080", None),
-            //     ("wss://brb.io", None),
-            //     ("wss://relay.nostr.info", None),
-            //     ("wss://nostr-relay.wlvs.space", None),
-            //     ("wss://nostr.onsats.org", None),
-            //     ("wss://nostr.openchain.fr", None),
+            // ("ws://localhost:8080", None),
+            ("wss://brb.io", None),
+            ("wss://relay.nostr.info", None),
+            ("wss://nostr-relay.wlvs.space", None),
+            ("wss://nostr.onsats.org", None),
+            ("wss://nostr.openchain.fr", None),
         ])
         .await
         .unwrap();
 
     gnostique
         .client()
-        .subscribe(vec![SubscriptionFilter::new()])
+        .subscribe(vec![SubscriptionFilter::new().since(1675150000).limit(200)])
         .await
         .unwrap();
 
