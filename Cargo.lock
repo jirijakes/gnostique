@@ -1331,7 +1331,7 @@ dependencies = [
 [[package]]
 name = "nostr"
 version = "0.17.0"
-source = "git+https://github.com/jirijakes/nostr?branch=event_id_hash#ff633953f1be5ce6699ec6163ceaf965ed989c48"
+source = "git+https://github.com/rust-nostr/nostr#af9197ae56da8ee49e917bd3a88d004c8832a79f"
 dependencies = [
  "aes",
  "base64 0.21.0",
@@ -1352,7 +1352,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk"
 version = "0.17.0"
-source = "git+https://github.com/jirijakes/nostr?branch=event_id_hash#ff633953f1be5ce6699ec6163ceaf965ed989c48"
+source = "git+https://github.com/rust-nostr/nostr#af9197ae56da8ee49e917bd3a88d004c8832a79f"
 dependencies = [
  "futures-util",
  "log",
