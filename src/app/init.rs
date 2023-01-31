@@ -61,7 +61,9 @@ pub async fn make_gnostique() -> Gnostique {
 
     gnostique
         .client()
-        .subscribe(vec![SubscriptionFilter::new().since(1675150000).limit(200)])
+        .subscribe(vec![SubscriptionFilter::new()
+            .since(1675150000.into())
+            .limit(200)])
         .await
         .unwrap();
 

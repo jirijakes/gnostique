@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use directories::ProjectDirs;
 use nostr::Persona;
-use nostr_sdk::prelude::{Event, Metadata, Sha256Hash, XOnlyPublicKey};
+use nostr_sdk::prelude::{Event, EventId, Metadata, XOnlyPublicKey};
 use nostr_sdk::Client;
 use relm4::*;
 use reqwest::Url;
@@ -43,7 +43,7 @@ impl Gnostique {
     /// does nothing when already exist.
     pub async fn store_event(&self, relay: &Url, event: &Event) {
         let pool = self.0.pool.clone();
-        let id = event.id.to_vec();
+        let id = event.id.as_bytes().to_vec();
         let json = serde_json::to_string(event).unwrap();
 
         relm4::spawn(async move {
@@ -56,7 +56,7 @@ impl Gnostique {
         .unwrap();
 
         let pool = self.0.pool.clone();
-        let id = event.id.to_vec();
+        let id = event.id.as_bytes().to_vec();
         let relay_str = relay.to_string();
         relm4::spawn(async move {
             query!(
@@ -72,11 +72,11 @@ impl Gnostique {
         .unwrap();
     }
 
-    pub async fn textnote_relays(&self, event_id: Sha256Hash) -> Vec<Url> {
+    pub async fn textnote_relays(&self, event_id: EventId) -> Vec<Url> {
         let pool = self.0.pool.clone();
 
         relm4::spawn(async move {
-            let id: &[u8] = &event_id;
+            let id: &[u8] = event_id.as_bytes();
 
             query!(
                 r#"

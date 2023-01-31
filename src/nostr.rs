@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use nostr_sdk::nostr::prelude::*;
-use nostr_sdk::nostr::{Event, Sha256Hash, Tag};
+use nostr_sdk::nostr::{Event, EventId, Tag};
 use once_cell::sync::Lazy;
 use relm4::gtk::{gdk, glib};
 
@@ -110,13 +110,13 @@ pub trait EventExt {
 
     /// Find event ID to which the given event replies according to NIP-10.
     /// Returns `None` if the event is not of kind 1.
-    fn replies_to(&self) -> Option<Sha256Hash>;
+    fn replies_to(&self) -> Option<EventId>;
 
-    fn thread_root(&self) -> Option<Sha256Hash>;
+    fn thread_root(&self) -> Option<EventId>;
 
     /// Find event ID to which this event reacts to according to NIP-25.
     /// Returns `None` if the event is not of kind 7.
-    fn reacts_to(&self) -> Option<Sha256Hash>;
+    fn reacts_to(&self) -> Option<EventId>;
 
     fn as_metadata(&self) -> Option<Metadata>;
 
@@ -135,7 +135,7 @@ impl EventExt for Event {
         })
     }
 
-    fn replies_to(&self) -> Option<Sha256Hash> {
+    fn replies_to(&self) -> Option<EventId> {
         if self.kind != Kind::TextNote {
             None
         } else {
@@ -163,7 +163,7 @@ impl EventExt for Event {
         }
     }
 
-    fn thread_root(&self) -> Option<Sha256Hash> {
+    fn thread_root(&self) -> Option<EventId> {
         if self.kind != Kind::TextNote {
             None
         } else {
@@ -190,7 +190,7 @@ impl EventExt for Event {
         }
     }
 
-    fn reacts_to(&self) -> Option<Sha256Hash> {
+    fn reacts_to(&self) -> Option<EventId> {
         if self.kind != Kind::Reaction {
             None
         } else {

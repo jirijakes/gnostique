@@ -61,7 +61,7 @@ pub enum NoteInput {
         bitmap: Arc<gdk::Texture>,
     },
     Reaction {
-        event: Sha256Hash,
+        event: EventId,
         reaction: String,
     },
     Reply(Rc<Event>),
@@ -318,7 +318,9 @@ impl FactoryComponent for Note {
             avatar: ANONYMOUS_USER.clone(),
             likes: 0,
             dislikes: 0,
-            time: Utc.timestamp_opt(init.event.created_at as i64, 0).unwrap(),
+            time: Utc
+                .timestamp_opt(init.event.created_at.as_i64(), 0)
+                .unwrap(),
             event: init.event,
             relays: init.relays,
             replies,

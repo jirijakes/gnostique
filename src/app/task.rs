@@ -82,7 +82,7 @@ FROM relays
         };
 
         for url in old_info.union(&client_relays) {
-            if let Ok(info) = nip11::get_relay_information_document(url.clone(), None).await {
+            if let Ok(info) = nip11::RelayInformationDocument::get(url.clone(), None).await {
                 let url_s = url.to_string();
                 let info_json = serde_json::to_string(&info).unwrap();
                 let _ = query!(

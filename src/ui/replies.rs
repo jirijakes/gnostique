@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::rc::Rc;
 
 use gtk::prelude::*;
-use nostr_sdk::nostr::{Event, Sha256Hash};
+use nostr_sdk::nostr::{Event, EventId};
 use nostr_sdk::prelude::XOnlyPublicKey;
 use relm4::component::{AsyncComponentParts, SimpleAsyncComponent};
 use relm4::factory::{AsyncFactoryComponent, AsyncFactoryVecDeque};
@@ -15,7 +15,7 @@ use crate::nostr::Persona;
 /// Widget displaying list of replies to a text note.
 #[derive(Debug)]
 pub struct Replies {
-    reply_hashes: HashSet<Sha256Hash>,
+    reply_hashes: HashSet<EventId>,
     replies: AsyncFactoryVecDeque<Reply>,
 }
 

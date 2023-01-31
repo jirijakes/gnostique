@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use gtk::gdk;
 use nostr_sdk::nostr::secp256k1::XOnlyPublicKey;
-use nostr_sdk::nostr::{Event, Sha256Hash};
+use nostr_sdk::nostr::{Event, EventId};
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::*;
 use reqwest::Url;
@@ -19,7 +19,7 @@ use crate::ui::profilebox::model::Profilebox;
 pub struct Lane {
     pub(super) kind: LaneKind,
     pub(super) text_notes: FactoryVecDeque<Note>,
-    pub(super) hash_index: HashMap<Sha256Hash, DynamicIndex>,
+    pub(super) hash_index: HashMap<EventId, DynamicIndex>,
     pub(super) profile_box: Controller<Profilebox>,
     pub(super) header: Controller<LaneHeader>,
 }
@@ -27,12 +27,12 @@ pub struct Lane {
 #[derive(Copy, Clone, Debug)]
 pub enum LaneKind {
     Profile(XOnlyPublicKey),
-    Thread(Sha256Hash),
+    Thread(EventId),
     Sink,
 }
 
 impl LaneKind {
-    pub fn is_thread(&self, event_id: &Sha256Hash) -> bool {
+    pub fn is_thread(&self, event_id: &EventId) -> bool {
         matches!(self, LaneKind::Thread(e) if e == event_id)
     }
 
@@ -74,7 +74,7 @@ pub enum LaneMsg {
         bitmap: Arc<gdk::Texture>,
     },
     Reaction {
-        event: Sha256Hash,
+        event: EventId,
         reaction: String,
     },
     Nip05Verified(XOnlyPublicKey),
@@ -129,7 +129,7 @@ impl Lane {
                 let idx = self
                     .text_notes
                     .iter()
-                    .position(|tn| tn.time.timestamp() as u64 > event_time);
+                    .position(|tn| tn.time.timestamp() > event_time.as_i64());
 
                 if let Some(idx) = idx {
                     // Inserting somewhere in the middle.
