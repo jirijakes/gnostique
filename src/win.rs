@@ -221,21 +221,7 @@ impl AsyncComponent for Win {
 }
 
 impl Win {
-    async fn offer_relay_url(&self, relay: &Url) {
-        async fn go(pool: SqlitePool, relay_str: String) {
-            let _ = query!(
-                "INSERT INTO relays(url) VALUES (?) ON CONFLICT(url) DO NOTHING",
-                relay_str
-            )
-            .execute(&pool)
-            .await;
-        }
-
-        relm4::spawn(go(self.gnostique.pool.clone(), relay.to_string()))
-            .await
-            .unwrap();
-    }
-
+    /// Processes an incoming event, mostly delegates work to other methods.
     async fn received_event(
         &mut self,
         relay: Url,
@@ -256,10 +242,9 @@ impl Win {
         }
     }
 
+    /// Processes an incoming text note.
     async fn received_text_note(&self, _relay: Url, event: Event) {
-        let pubkey = event.pubkey;
-        let gn = self.gnostique.clone();
-        let author = gn.get_persona(pubkey).await;
+        let author = self.gnostique.get_persona(event.pubkey).await;
 
         // Send the event to all lanes, they will decide themselves what to do with it.
         self.lanes.broadcast(LaneMsg::NewTextNote {
@@ -267,7 +252,8 @@ impl Win {
             author,
         });
 
-        // TODO: if author is none, we have to retrieve his metadata
+        // TODO: If author is none, we have to retrieve his metadata
+        // TODO: Obtain bitmaps for author
     }
 
     async fn received_metadata(
@@ -322,7 +308,11 @@ ON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event
         }
 
         if let Some(nip05) = metadata.nip05.clone() {
-            sender.oneshot_command(verify_nip05(self.gnostique.pool.clone(), event.pubkey, nip05));
+            sender.oneshot_command(verify_nip05(
+                self.gnostique.pool.clone(),
+                event.pubkey,
+                nip05,
+            ));
         }
 
         self.lanes.broadcast(LaneMsg::UpdatedProfile {
@@ -346,6 +336,21 @@ ON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event
                 reaction: event.content,
             });
         }
+    }
+
+    async fn offer_relay_url(&self, relay: &Url) {
+        async fn go(pool: SqlitePool, relay_str: String) {
+            let _ = query!(
+                "INSERT INTO relays(url) VALUES (?) ON CONFLICT(url) DO NOTHING",
+                relay_str
+            )
+            .execute(&pool)
+            .await;
+        }
+
+        relm4::spawn(go(self.gnostique.pool.clone(), relay.to_string()))
+            .await
+            .unwrap();
     }
 }
 

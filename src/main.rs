@@ -6,10 +6,8 @@ mod win;
 
 use directories::ProjectDirs;
 use nostr::Persona;
-use nostr_sdk::{
-    prelude::{Event, Metadata, XOnlyPublicKey},
-    Client,
-};
+use nostr_sdk::prelude::{Event, Metadata, XOnlyPublicKey};
+use nostr_sdk::Client;
 use relm4::*;
 use sqlx::{query, SqlitePool};
 
@@ -24,17 +22,18 @@ impl Gnostique {
     /// Attempts to obtain [`Person`] from database for a given `pubkey`, runs
     /// in relm4 executor.
     pub async fn get_persona(&self, pubkey: XOnlyPublicKey) -> Option<Persona> {
-        let pubkey_vec = pubkey.serialize().to_vec();
         let pool = self.pool.clone();
 
         relm4::spawn(async move {
+            let pubkey: &[u8] = &pubkey.serialize();
+
             query!(
                 r#"
 SELECT event, (unixepoch('now') - unixepoch(nip05_verified)) / 3600 AS "nip05_hours: u16"
 FROM metadata
 WHERE author = ?
 "#,
-                pubkey_vec
+                pubkey
             )
             .fetch_optional(&pool)
             .await
