@@ -21,6 +21,7 @@ use crate::nostr::*;
 /// Initial
 pub struct NoteInit {
     pub event: Rc<Event>,
+    pub author: Option<Persona>,
     pub is_central: bool,
 }
 
@@ -44,7 +45,6 @@ pub enum NoteInput {
     /// Author profile has some new data.
     UpdatedProfile {
         author: Persona,
-        metadata_json: Arc<String>,
     },
     /// The text note comes into focus.
     FocusIn,
@@ -298,9 +298,10 @@ impl FactoryComponent for Note {
         );
 
         let replies = Replies::builder().launch(()).detach();
+        let author = init.author.unwrap_or(Persona::new(init.event.pubkey));
 
         Self {
-            author: Persona::new(init.event.pubkey),
+            author,
             is_central: init.is_central,
             content: init.event.augment_content(),
             show_hidden_buttons: false,
@@ -316,13 +317,9 @@ impl FactoryComponent for Note {
 
     fn update(&mut self, message: Self::Input, sender: FactorySender<Self>) {
         match message {
-            NoteInput::UpdatedProfile {
-                author,
-                metadata_json,
-            } => {
+            NoteInput::UpdatedProfile { author } => {
                 if self.author.pubkey == author.pubkey {
                     self.author = author.clone();
-                    self.metadata_json = Some(metadata_json);
                 };
 
                 self.replies.emit(RepliesInput::UpdatedProfile { author });

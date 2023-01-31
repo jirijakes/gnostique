@@ -249,18 +249,27 @@ impl Win {
         }
 
         match event.kind {
-            Kind::TextNote => self.received_text_note(relay, event),
+            Kind::TextNote => self.received_text_note(relay, event).await,
             Kind::Metadata => self.received_metadata(relay, event, sender).await,
             Kind::Reaction => self.received_reaction(relay, event),
             _ => {}
         }
     }
 
-    fn received_text_note(&self, _relay: Url, event: Event) {
+    async fn received_text_note(&self, _relay: Url, event: Event) {
+        let pubkey = event.pubkey;
+        let gn = self.gnostique.clone();
+        let author = relm4::spawn(async move { gn.get_persona(pubkey).await })
+            .await
+            .unwrap();
+
         // Send the event to all lanes, they will decide themselves what to do with it.
         self.lanes.broadcast(LaneMsg::NewTextNote {
             event: Rc::new(event),
-        })
+            author,
+        });
+
+        // TODO: if author is none, we have to retrieve his metadata
     }
 
     async fn received_metadata(
@@ -331,8 +340,8 @@ ON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event
                 about: metadata.about,
                 nip05: metadata.nip05,
                 nip05_verified: false,
+                metadata_json: json,
             },
-            metadata_json: Arc::new(json),
         });
     }
 

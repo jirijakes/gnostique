@@ -21,6 +21,7 @@ pub struct Persona {
     pub about: Option<String>,
     pub nip05: Option<String>,
     pub nip05_verified: bool,
+    pub metadata_json: String,
 }
 
 impl Persona {
@@ -32,6 +33,21 @@ impl Persona {
             avatar: None,
             banner: None,
             about: None,
+            metadata_json: String::new(),
+            nip05_verified: false,
+        }
+    }
+
+    pub fn from_metadata(pubkey: XOnlyPublicKey, metadata: Metadata) -> Persona {
+        let metadata_json = serde_json::to_string(&metadata).unwrap_or_default();
+        Persona {
+            pubkey,
+            name: metadata.name,
+            avatar: metadata.picture.and_then(|s| s.parse().ok()),
+            banner: metadata.banner.and_then(|s| s.parse().ok()),
+            about: metadata.about,
+            nip05: metadata.nip05,
+            metadata_json,
             nip05_verified: false,
         }
     }

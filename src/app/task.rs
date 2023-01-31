@@ -28,7 +28,7 @@ pub async fn receive_events(nostr: Client, sender: AsyncComponentSender<Win>) {
     let mut notif = nostr.notifications();
     loop {
         let received = notif.recv().await;
-
+        
         if let Ok(nostr_sdk::RelayPoolNotification::Event(relay, event)) = received {
             sender.input(Msg::Event(relay, event));
         } else if let Ok(nostr_sdk::RelayPoolNotification::Message(
@@ -36,7 +36,7 @@ pub async fn receive_events(nostr: Client, sender: AsyncComponentSender<Win>) {
             nostr_sdk::prelude::RelayMessage::Event { event, .. },
         )) = received
         {
-            sender.input(Msg::Event(relay, *event));
+            // sender.input(Msg::Event(relay, *event));
         }
     }
 }

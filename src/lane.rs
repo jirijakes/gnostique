@@ -6,6 +6,7 @@ use gtk::gdk;
 use gtk::prelude::*;
 use nostr_sdk::nostr::secp256k1::XOnlyPublicKey;
 use nostr_sdk::nostr::{Event, Sha256Hash};
+use nostr_sdk::prelude::Metadata;
 // use nostr_sdk::sqlite::model::Profile;
 use relm4::factory::AsyncFactoryComponent;
 use relm4::factory::FactoryVecDeque;
@@ -54,11 +55,10 @@ impl LaneInit {
 pub enum LaneMsg {
     NewTextNote {
         event: Rc<Event>,
-        // profile: Option<Profile>,
+        author: Option<Persona>,
     },
     UpdatedProfile {
         author: Persona,
-        metadata_json: Arc<String>,
     },
     ShowDetails(Details),
     MetadataBitmap {
@@ -147,19 +147,14 @@ impl AsyncFactoryComponent for Lane {
                 sender.output(LaneOutput::ShowDetails(details));
             }
 
-            LaneMsg::UpdatedProfile {
-                author,
-                metadata_json,
-            } => {
+            LaneMsg::UpdatedProfile { author } => {
                 if self.kind.is_profile(&author.pubkey) {
                     self.profile_box.emit(profilebox::Input::UpdatedProfile {
                         author: author.clone(),
                     });
                 }
-                self.text_notes.broadcast(NoteInput::UpdatedProfile {
-                    author,
-                    metadata_json,
-                });
+                self.text_notes
+                    .broadcast(NoteInput::UpdatedProfile { author });
             }
 
             LaneMsg::MetadataBitmap {
@@ -189,7 +184,7 @@ impl AsyncFactoryComponent for Lane {
                 self.text_notes.broadcast(NoteInput::Nip05Verified(pubkey))
             }
 
-            LaneMsg::NewTextNote { event } => self.text_note_received(event),
+            LaneMsg::NewTextNote { event, author } => self.text_note_received(event, author),
             LaneMsg::LinkClicked(uri) => println!("Clicked: {uri}"),
         }
     }
@@ -197,7 +192,7 @@ impl AsyncFactoryComponent for Lane {
 
 impl Lane {
     /// New text note was received, let's handle it.
-    fn text_note_received(&mut self, event: Rc<Event>) {
+    fn text_note_received(&mut self, event: Rc<Event>, author: Option<Persona>) {
         let event_id = event.id;
 
         // If `event` is a reply to a note, deliver it to the note to which
@@ -216,7 +211,11 @@ impl Lane {
             let is_central = self.kind.is_thread(&event_id);
             let event_time = event.created_at;
 
-            let init = NoteInit { event, is_central };
+            let init = NoteInit {
+                event,
+                author,
+                is_central,
+            };
 
             let di = if is_central {
                 // Central text note always goes first.

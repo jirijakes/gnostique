@@ -10,6 +10,30 @@
     },
     "query": "INSERT INTO relays(url) VALUES (?) ON CONFLICT(url) DO NOTHING"
   },
+  "581c9bdc7a76a831276f55ec43bac4c2faef7e8de4bc197d718ce6bf82a6768d": {
+    "describe": {
+      "columns": [
+        {
+          "name": "event",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "nip05_hours: u16",
+          "ordinal": 1,
+          "type_info": "Int"
+        }
+      ],
+      "nullable": [
+        false,
+        null
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "\nSELECT event, (unixepoch('now') - unixepoch(nip05_verified)) / 3600 AS \"nip05_hours: u16\"\nFROM metadata\nWHERE author = ?\n"
+  },
   "5f8493e81f7cb2eb8cccc49522c237b7557bd46afb5d1e65a65834bddbd00583": {
     "describe": {
       "columns": [
