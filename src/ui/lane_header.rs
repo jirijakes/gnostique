@@ -1,7 +1,8 @@
 use gtk::prelude::*;
 use relm4::*;
 
-use crate::{app::action::EditProfile, lane::LaneKind};
+use crate::app::action::EditProfile;
+use crate::ui::lane::LaneKind;
 
 #[derive(Debug)]
 pub struct LaneHeader {}

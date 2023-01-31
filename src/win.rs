@@ -13,10 +13,10 @@ use relm4::factory::AsyncFactoryVecDeque;
 use sqlx::{query, SqlitePool};
 use tracing::info;
 
-use crate::lane::{Lane, LaneKind, LaneMsg};
 use crate::nostr::{EventExt, Persona};
 use crate::ui::details::*;
 use crate::ui::editprofile::model::*;
+use crate::ui::lane::*;
 use crate::ui::statusbar::*;
 use crate::ui::writenote::model::*;
 use crate::Gnostique;

@@ -15,8 +15,8 @@ use super::author::Author;
 use super::details::Details;
 use super::replies::{Replies, RepliesInput};
 use crate::app::action::*;
-use crate::lane::LaneMsg;
 use crate::nostr::*;
+use crate::ui::lane::LaneMsg;
 
 /// Initial
 pub struct NoteInit {
