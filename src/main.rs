@@ -4,8 +4,6 @@ mod nostr;
 mod ui;
 mod win;
 
-use std::sync::Arc;
-
 use directories::ProjectDirs;
 use nostr::Persona;
 use nostr_sdk::{
@@ -17,26 +15,32 @@ use sqlx::{query, SqlitePool};
 
 #[derive(Debug)]
 pub struct Gnostique {
-    pool: Arc<SqlitePool>,
+    pool: SqlitePool,
     dirs: ProjectDirs,
     client: Client,
 }
 
 impl Gnostique {
-
-    /// Attempts to obtain [`Person`] from database for a given `pubkey`.
+    /// Attempts to obtain [`Person`] from database for a given `pubkey`, runs
+    /// in relm4 executor.
     pub async fn get_persona(&self, pubkey: XOnlyPublicKey) -> Option<Persona> {
         let pubkey_vec = pubkey.serialize().to_vec();
-        query!(
-            r#"
+        let pool = self.pool.clone();
+
+        relm4::spawn(async move {
+            query!(
+                r#"
 SELECT event, (unixepoch('now') - unixepoch(nip05_verified)) / 3600 AS "nip05_hours: u16"
 FROM metadata
 WHERE author = ?
 "#,
-            pubkey_vec
-        )
-        .fetch_optional(self.pool.as_ref())
+                pubkey_vec
+            )
+            .fetch_optional(&pool)
+            .await
+        })
         .await
+        .expect("Join handler had a problem")
         .ok()
         .flatten()
         .and_then(|record| {

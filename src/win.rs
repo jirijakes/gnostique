@@ -222,12 +222,12 @@ impl AsyncComponent for Win {
 
 impl Win {
     async fn offer_relay_url(&self, relay: &Url) {
-        async fn go(pool: Arc<SqlitePool>, relay_str: String) {
+        async fn go(pool: SqlitePool, relay_str: String) {
             let _ = query!(
                 "INSERT INTO relays(url) VALUES (?) ON CONFLICT(url) DO NOTHING",
                 relay_str
             )
-            .execute(pool.as_ref())
+            .execute(&pool)
             .await;
         }
 
@@ -259,9 +259,7 @@ impl Win {
     async fn received_text_note(&self, _relay: Url, event: Event) {
         let pubkey = event.pubkey;
         let gn = self.gnostique.clone();
-        let author = relm4::spawn(async move { gn.get_persona(pubkey).await })
-            .await
-            .unwrap();
+        let author = gn.get_persona(pubkey).await;
 
         // Send the event to all lanes, they will decide themselves what to do with it.
         self.lanes.broadcast(LaneMsg::NewTextNote {
@@ -278,7 +276,7 @@ impl Win {
         event: Event,
         sender: AsyncComponentSender<Self>,
     ) {
-        async fn insert(pool: Arc<SqlitePool>, pubkey_vec: Vec<u8>, json: String) {
+        async fn insert(pool: SqlitePool, pubkey_vec: Vec<u8>, json: String) {
             let _ = query!(
                 r#"
 INSERT INTO metadata (author, event) VALUES (?, ?)
@@ -287,7 +285,7 @@ ON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event
                 pubkey_vec,
                 json
             )
-            .execute(pool.as_ref())
+            .execute(&pool)
             .await;
         }
 
@@ -324,11 +322,7 @@ ON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event
         }
 
         if let Some(nip05) = metadata.nip05.clone() {
-            sender.oneshot_command(verify_nip05(
-                self.gnostique.pool.clone(),
-                event.pubkey,
-                nip05,
-            ));
+            sender.oneshot_command(verify_nip05(self.gnostique.pool.clone(), event.pubkey, nip05));
         }
 
         self.lanes.broadcast(LaneMsg::UpdatedProfile {
@@ -355,7 +349,7 @@ ON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event
     }
 }
 
-async fn verify_nip05(pool: Arc<SqlitePool>, pubkey: XOnlyPublicKey, nip05: String) -> WinCmd {
+async fn verify_nip05(pool: SqlitePool, pubkey: XOnlyPublicKey, nip05: String) -> WinCmd {
     let pubkey_bytes = pubkey.serialize().to_vec();
     // If the nip05 is already verified and not for too long, just confirm.
     let x = query!(
@@ -364,7 +358,7 @@ SELECT (unixepoch('now') - unixepoch(nip05_verified)) / 60 / 60 AS "hours?: u32"
 FROM metadata WHERE author = ?"#,
         pubkey_bytes
     )
-    .fetch_optional(pool.as_ref())
+    .fetch_optional(&pool)
     .await;
 
     if let Ok(result) = x {
@@ -385,7 +379,7 @@ UPDATE metadata SET nip05_verified = datetime('now')
 WHERE author = ?"#,
                         pubkey_bytes
                     )
-                    .execute(pool.as_ref())
+                    .execute(&pool)
                     .await;
 
                     info!("NIP05: {} verified.", nip05);

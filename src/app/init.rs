@@ -44,7 +44,6 @@ pub async fn make_gnostique() -> Arc<Gnostique> {
 
     sqlx::migrate!().run(&pool).await.unwrap();
 
-    let pool = Arc::new(pool);
     let client = Client::new(&keys);
     let gnostique = Arc::new(Gnostique { dirs, pool, client });
 

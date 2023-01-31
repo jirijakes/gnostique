@@ -58,7 +58,7 @@ SELECT
 FROM relays
 "#
         )
-        .fetch_all(gnostique.pool.as_ref())
+        .fetch_all(&gnostique.pool)
         .await;
 
         let old_info: HashSet<_> = if let Ok(rec) = old_info {
@@ -93,7 +93,7 @@ ON CONFLICT(url) DO UPDATE SET
                     url_s,
                     info_json
                 )
-                .execute(gnostique.pool.as_ref())
+                .execute(&gnostique.pool)
                 .await;
 
                 info!("Stored fresh relay information of {}", url);
