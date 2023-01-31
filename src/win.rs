@@ -13,7 +13,7 @@ use relm4::factory::AsyncFactoryVecDeque;
 use sqlx::{query, SqlitePool};
 use tracing::info;
 
-use crate::lane::{Lane, LaneInit, LaneMsg};
+use crate::lane::{Lane, LaneKind, LaneMsg};
 use crate::nostr::{EventExt, Persona};
 use crate::ui::details::*;
 use crate::ui::editprofile::model::*;
@@ -125,12 +125,12 @@ impl AsyncComponent for Win {
         {
             let mut guard = model.lanes.guard();
 
-            // guard.push_back(LaneInit::Profile(
-            // "febbaba219357c6c64adfa2e01789f274aa60e90c289938bfc80dd91facb2899"
-            // .parse()
-            // .unwrap(),
-            // ));
-            guard.push_back(LaneInit::Thread(
+            guard.push_back(LaneKind::Profile(
+                "febbaba219357c6c64adfa2e01789f274aa60e90c289938bfc80dd91facb2899"
+                    .parse()
+                    .unwrap(),
+            ));
+            guard.push_back(LaneKind::Thread(
                 "b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b"
                     .parse()
                     .unwrap(),

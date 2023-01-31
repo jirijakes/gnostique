@@ -1,7 +1,7 @@
 use gtk::prelude::*;
 use relm4::*;
 
-use crate::app::action::EditProfile;
+use crate::{app::action::EditProfile, lane::LaneKind};
 
 #[derive(Debug)]
 pub struct LaneHeader {}
@@ -9,7 +9,7 @@ pub struct LaneHeader {}
 #[relm4::component(pub)]
 impl SimpleComponent for LaneHeader {
     type Input = ();
-    type Init = ();
+    type Init = LaneKind;
     type Output = ();
 
     view! {
@@ -31,7 +31,7 @@ impl SimpleComponent for LaneHeader {
                 set_orientation: gtk::Orientation::Horizontal,
                 set_spacing: 10,
                 gtk::Label {
-                    set_text: "Feed",
+                    set_text: header,
                     add_css_class: "name"
                 },
                 gtk::Label {
@@ -65,11 +65,17 @@ impl SimpleComponent for LaneHeader {
     }
 
     fn init(
-        _init: Self::Init,
+        init: Self::Init,
         _root: &Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let model = LaneHeader {};
+
+        let header = match init {
+            LaneKind::Thread(_) => "Thread",
+            LaneKind::Profile(_) => "User profile",
+        };
+
         let widgets = view_output!();
 
         ComponentParts { model, widgets }

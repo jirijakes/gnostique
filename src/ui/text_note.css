@@ -4,7 +4,7 @@
 
 .laneheader {
     background-color: darker(darker(@theme_bg_color));
-    border-bottom: 2px solid black;
+    border: 2px solid black;
     padding: 6px 6px;
 }
 

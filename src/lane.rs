@@ -6,8 +6,6 @@ use gtk::gdk;
 use gtk::prelude::*;
 use nostr_sdk::nostr::secp256k1::XOnlyPublicKey;
 use nostr_sdk::nostr::{Event, Sha256Hash};
-use nostr_sdk::prelude::Metadata;
-// use nostr_sdk::sqlite::model::Profile;
 use relm4::factory::AsyncFactoryComponent;
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::*;
@@ -24,30 +22,41 @@ use crate::win::Msg;
 
 #[derive(Debug)]
 pub struct Lane {
-    kind: LaneInit,
+    kind: LaneKind,
     text_notes: FactoryVecDeque<Note>,
     hash_index: HashMap<Sha256Hash, DynamicIndex>,
     profile_box: Controller<Profilebox>,
     header: Controller<LaneHeader>,
 }
 
-#[derive(Debug)]
-pub enum LaneInit {
+#[derive(Copy, Clone, Debug)]
+pub enum LaneKind {
     Profile(XOnlyPublicKey),
     Thread(Sha256Hash),
 }
 
-impl LaneInit {
+impl LaneKind {
     pub fn is_thread(&self, event_id: &Sha256Hash) -> bool {
-        matches!(self, LaneInit::Thread(e) if e == event_id)
+        matches!(self, LaneKind::Thread(e) if e == event_id)
     }
 
     pub fn is_profile(&self, pubkey: &XOnlyPublicKey) -> bool {
-        matches!(self, LaneInit::Profile(p) if p == pubkey)
+        matches!(self, LaneKind::Profile(p) if p == pubkey)
     }
 
     pub fn is_a_profile(&self) -> bool {
-        matches!(self, LaneInit::Profile(_))
+        matches!(self, LaneKind::Profile(_))
+    }
+
+    pub fn accepts(&self, event: &Event) -> bool {
+        match self {
+            LaneKind::Profile(pubkey) => &event.pubkey == pubkey,
+            LaneKind::Thread(id) => {
+                event.id == *id
+                    || event.replies_to() == Some(*id)
+                    || event.thread_root() == Some(*id)
+            }
+        }
     }
 }
 
@@ -82,7 +91,7 @@ pub enum LaneOutput {
 
 #[relm4::factory(pub async)]
 impl AsyncFactoryComponent for Lane {
-    type Init = LaneInit;
+    type Init = LaneKind;
     type Input = LaneMsg;
     type Output = LaneOutput;
     type CommandOutput = ();
@@ -121,7 +130,7 @@ impl AsyncFactoryComponent for Lane {
             kind: init,
             profile_box: Profilebox::builder().launch(()).detach(),
             header: LaneHeader::builder()
-                .launch(())
+                .launch(init)
                 .forward(sender.output_sender(), |_| LaneOutput::WriteNote),
 
             text_notes: FactoryVecDeque::new(
@@ -184,7 +193,11 @@ impl AsyncFactoryComponent for Lane {
                 self.text_notes.broadcast(NoteInput::Nip05Verified(pubkey))
             }
 
-            LaneMsg::NewTextNote { event, author } => self.text_note_received(event, author),
+            LaneMsg::NewTextNote { event, author } => {
+                if self.kind.accepts(&event) {
+                    self.text_note_received(event, author)
+                }
+            }
             LaneMsg::LinkClicked(uri) => println!("Clicked: {uri}"),
         }
     }
