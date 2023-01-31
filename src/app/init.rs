@@ -1,5 +1,4 @@
 use std::str::FromStr;
-use std::sync::Arc;
 
 use directories::ProjectDirs;
 use nostr_sdk::prelude::*;
@@ -12,7 +11,7 @@ use crate::Gnostique;
 /// and all that and returns it all inside [`Gnostique`].
 ///
 /// Requires Tokio.
-pub async fn make_gnostique() -> Arc<Gnostique> {
+pub async fn make_gnostique() -> Gnostique {
     let subscriber = tracing_subscriber::FmtSubscriber::builder()
         // .pretty()
         .compact()
@@ -45,10 +44,10 @@ pub async fn make_gnostique() -> Arc<Gnostique> {
     sqlx::migrate!().run(&pool).await.unwrap();
 
     let client = Client::new(&keys);
-    let gnostique = Arc::new(Gnostique { dirs, pool, client });
+    let gnostique = Gnostique::new(pool, dirs, client);
 
     gnostique
-        .client
+        .client()
         .add_relays(vec![
             ("ws://localhost:8080", None),
             //     ("wss://brb.io", None),
@@ -61,15 +60,15 @@ pub async fn make_gnostique() -> Arc<Gnostique> {
         .unwrap();
 
     gnostique
-        .client
+        .client()
         .subscribe(vec![SubscriptionFilter::new()])
         .await
         .unwrap();
 
-    gnostique.client.connect().await;
+    gnostique.client().connect().await;
 
     // gnostique
-    //     .client
+    //     .client()
     //     .get_events_of(vec![
     //         SubscriptionFilter::new()
     //             .author(

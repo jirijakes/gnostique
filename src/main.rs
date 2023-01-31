@@ -3,6 +3,8 @@ mod nostr;
 mod ui;
 mod win;
 
+use std::sync::Arc;
+
 use directories::ProjectDirs;
 use nostr::Persona;
 use nostr_sdk::prelude::{Event, Metadata, XOnlyPublicKey};
@@ -10,18 +12,36 @@ use nostr_sdk::Client;
 use relm4::*;
 use sqlx::{query, SqlitePool};
 
-#[derive(Debug)]
-pub struct Gnostique {
+#[derive(Clone)]
+pub struct Gnostique(Arc<GnostiqueInner>);
+
+struct GnostiqueInner {
     pool: SqlitePool,
     dirs: ProjectDirs,
     client: Client,
 }
 
 impl Gnostique {
+    pub fn new(pool: SqlitePool, dirs: ProjectDirs, client: Client) -> Gnostique {
+        Gnostique(Arc::new(GnostiqueInner { pool, dirs, client }))
+    }
+
+    pub fn pool(&self) -> &SqlitePool {
+        &self.0.pool
+    }
+
+    pub fn client(&self) -> &Client {
+        &self.0.client
+    }
+
+    pub fn dirs(&self) -> &ProjectDirs {
+        &self.0.dirs
+    }
+
     /// Attempts to obtain [`Person`] from database for a given `pubkey`, runs
     /// in relm4 executor.
     pub async fn get_persona(&self, pubkey: XOnlyPublicKey) -> Option<Persona> {
-        let pool = self.pool.clone();
+        let pool = self.0.pool.clone();
 
         relm4::spawn(async move {
             let pubkey: &[u8] = &pubkey.serialize();

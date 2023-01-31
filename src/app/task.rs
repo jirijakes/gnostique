@@ -50,7 +50,7 @@ pub async fn refresh_relay_information(gnostique: Arc<Gnostique>) {
     loop {
         int.tick().await;
 
-        let client_relays = gnostique.client.relays().await;
+        let client_relays = gnostique.client().relays().await;
         let mut client_relays: HashSet<Url> = client_relays.keys().cloned().collect();
 
         let old_info = query!(
@@ -61,7 +61,7 @@ SELECT
 FROM relays
 "#
         )
-        .fetch_all(&gnostique.pool)
+        .fetch_all(gnostique.pool())
         .await;
 
         let old_info: HashSet<_> = if let Ok(rec) = old_info {
@@ -96,7 +96,7 @@ ON CONFLICT(url) DO UPDATE SET
                     url_s,
                     info_json
                 )
-                .execute(&gnostique.pool)
+                .execute(gnostique.pool())
                 .await;
 
                 info!("Stored fresh relay information of {}", url);

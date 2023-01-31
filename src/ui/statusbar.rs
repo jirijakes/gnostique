@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::sync::Arc;
 use std::time::Duration;
 
 use gtk::prelude::*;
@@ -32,7 +31,7 @@ pub enum StatusBarInput {
 impl SimpleComponent for StatusBar {
     type Input = StatusBarInput;
     type Output = ();
-    type Init = Arc<Gnostique>;
+    type Init = Gnostique;
 
     #[rusfmt::skip]
     view! {
@@ -67,7 +66,7 @@ impl SimpleComponent for StatusBar {
         root: &Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        relm4::spawn(update_relay_status(gnostique.client.clone(), sender));
+        relm4::spawn(update_relay_status(gnostique.client().clone(), sender));
 
         let model = StatusBar { relay_status: None };
         let widgets = view_output!();

@@ -22,7 +22,7 @@ use crate::ui::writenote::model::*;
 use crate::Gnostique;
 
 pub struct Win {
-    gnostique: Arc<Gnostique>,
+    gnostique: Gnostique,
     lanes: AsyncFactoryVecDeque<Lane>,
     details: Controller<DetailsWindow>,
     status_bar: Controller<StatusBar>,
@@ -98,7 +98,7 @@ impl AsyncComponent for Win {
         // ));
 
         relm4::spawn(crate::app::task::receive_events(
-            gnostique.client.clone(),
+            gnostique.client().clone(),
             sender.clone(),
         ));
 
@@ -180,7 +180,7 @@ impl AsyncComponent for Win {
             Msg::EditProfile => self.edit_profile.emit(EditProfileInput::Show),
 
             Msg::UpdateProfile(metadata) => {
-                let client = self.gnostique.client.clone();
+                let client = self.gnostique.client().clone();
                 relm4::spawn(async move { client.update_profile(metadata).await })
                     .await
                     .unwrap()
@@ -188,7 +188,7 @@ impl AsyncComponent for Win {
             }
 
             Msg::Send(c) => {
-                let client = self.gnostique.client.clone();
+                let client = self.gnostique.client().clone();
                 relm4::spawn(async move {
                     client
                         .publish_text_note(
@@ -279,7 +279,7 @@ ON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event
         let metadata = event.as_metadata().unwrap();
 
         relm4::spawn(insert(
-            self.gnostique.pool.clone(),
+            self.gnostique.pool().clone(),
             event.pubkey.serialize().to_vec(),
             json.clone(),
         ))
@@ -292,7 +292,7 @@ ON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event
         // If the metadata's picture contains valid URL, download it.
         if let Some(url) = avatar_url.clone() {
             sender.oneshot_command(obtain_metadata_bitmap(
-                self.gnostique.dirs.clone(),
+                self.gnostique.dirs().clone(),
                 event.pubkey,
                 url,
             ));
@@ -301,7 +301,7 @@ ON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event
         // If the metadata's banner contains valid URL, download it.
         if let Some(url) = banner_url.clone() {
             sender.oneshot_command(obtain_metadata_bitmap(
-                self.gnostique.dirs.clone(),
+                self.gnostique.dirs().clone(),
                 event.pubkey,
                 url,
             ));
@@ -309,7 +309,7 @@ ON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event
 
         if let Some(nip05) = metadata.nip05.clone() {
             sender.oneshot_command(verify_nip05(
-                self.gnostique.pool.clone(),
+                self.gnostique.pool().clone(),
                 event.pubkey,
                 nip05,
             ));
@@ -348,7 +348,7 @@ ON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event
             .await;
         }
 
-        relm4::spawn(go(self.gnostique.pool.clone(), relay.to_string()))
+        relm4::spawn(go(self.gnostique.pool().clone(), relay.to_string()))
             .await
             .unwrap();
     }
