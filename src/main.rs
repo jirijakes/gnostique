@@ -1,4 +1,5 @@
 mod app;
+mod download;
 mod nostr;
 mod ui;
 mod win;
@@ -6,6 +7,7 @@ mod win;
 use std::sync::Arc;
 
 use directories::ProjectDirs;
+use download::Download;
 use nostr::Persona;
 use nostr_sdk::prelude::{Event, EventId, Metadata, XOnlyPublicKey};
 use nostr_sdk::Client;
@@ -20,11 +22,21 @@ struct GnostiqueInner {
     pool: SqlitePool,
     dirs: ProjectDirs,
     client: Client,
+    download: Download,
 }
 
 impl Gnostique {
     pub fn new(pool: SqlitePool, dirs: ProjectDirs, client: Client) -> Gnostique {
-        Gnostique(Arc::new(GnostiqueInner { pool, dirs, client }))
+        Gnostique(Arc::new(GnostiqueInner {
+            pool,
+            dirs: dirs.clone(),
+            client,
+            download: Download::new(dirs),
+        }))
+    }
+
+    pub fn download(&self) -> &Download {
+        &self.0.download
     }
 
     pub fn pool(&self) -> &SqlitePool {

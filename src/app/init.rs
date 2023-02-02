@@ -46,28 +46,51 @@ pub async fn make_gnostique() -> Gnostique {
     let client = Client::new(&keys);
     let gnostique = Gnostique::new(pool, dirs, client);
 
-    gnostique
-        .client()
-        .add_relays(vec![
-            // ("ws://localhost:8080", None),
-            ("wss://brb.io", None),
-            ("wss://relay.nostr.info", None),
-            ("wss://nostr-relay.wlvs.space", None),
-            ("wss://nostr.onsats.org", None),
-            ("wss://nostr.openchain.fr", None),
-        ])
-        .await
-        .unwrap();
+    // gnostique
+    //     .client()
+    //     .add_relays(vec![
+    //         // ("ws://localhost:8080", None),
+    //         // ("wss://brb.io", None),
+    //         // ("wss://relay.nostr.info", None),
+    //         // ("wss://nostr-relay.wlvs.space", None),
+    //         // ("wss://nostr.onsats.org", None),
+    //         // ("wss://nostr.openchain.fr", None),
+    //         // ("wss://relay.damus.io", None),
+    //     ])
+    //     .await
+    //     .unwrap();
 
-    gnostique
-        .client()
-        .subscribe(vec![SubscriptionFilter::new()
-            .since(1675150000.into())
-            .limit(200)])
-        .await
-        .unwrap();
+    // gnostique
+    //     .client()
+    //     .subscribe(vec![
+    //         SubscriptionFilter::new()
+    //             .kind(Kind::TextNote)
+    //             .authors(
+    //                 [
+    //                     "npub10xmy0wn8cm6rfv6gujhsz8sfsjh3ffzekmvxl5z73uhw35eweryswxvlyf",
+    //                     "npub1az9xj85cmxv8e9j9y80lvqp97crsqdu2fpu3srwthd99qfu9qsgstam8y8",
+    //                 ]
+    //                 .iter()
+    //                 .map(|&s| XOnlyPublicKey::from_bech32(s).unwrap())
+    //                 .collect(),
+    //             )
+    //             // .since(1675150000.into())
+    //             .limit(5),
+    //         SubscriptionFilter::new().kind(Kind::Metadata).authors(
+    //             [
+    //                 "npub10xmy0wn8cm6rfv6gujhsz8sfsjh3ffzekmvxl5z73uhw35eweryswxvlyf",
+    //                 "npub1az9xj85cmxv8e9j9y80lvqp97crsqdu2fpu3srwthd99qfu9qsgstam8y8",
+    //             ]
+    //             .iter()
+    //             .map(|&s| XOnlyPublicKey::from_bech32(s).unwrap())
+    //             .collect(),
+    //         ), // .since(1675150000.into())
+    //            // .limit(100),
+    //     ])
+    //     .await
+    //     .unwrap();
 
-    gnostique.client().connect().await;
+    // gnostique.client().connect().await;
 
     // gnostique
     //     .client()

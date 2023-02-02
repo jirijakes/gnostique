@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use gtk::prelude::*;
 use nostr_sdk::nostr::Event;
 use relm4::prelude::*;
@@ -158,5 +156,5 @@ pub struct Details {
     pub event_json: String,
 
     /// Complete JSON of the author metadata.
-    pub metadata_json: Option<Arc<String>>,
+    pub metadata_json: Option<String>,
 }

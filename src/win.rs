@@ -2,7 +2,6 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use directories::ProjectDirs;
 use gtk::gdk;
 use gtk::prelude::*;
 use nostr_sdk::nostr::nips::nip05;
@@ -10,9 +9,11 @@ use nostr_sdk::nostr::prelude::*;
 use nostr_sdk::nostr::Event;
 use relm4::component::*;
 use relm4::factory::AsyncFactoryVecDeque;
+use relm4::{Sender, ShutdownReceiver};
 use sqlx::{query, SqlitePool};
-use tracing::info;
+use tracing::{info, warn};
 
+use crate::download::{Download, DownloadResult};
 use crate::nostr::{EventExt, Persona};
 use crate::ui::details::*;
 use crate::ui::editprofile::model::*;
@@ -211,15 +212,18 @@ impl AsyncComponent for Win {
 
             Msg::Nip05Verified(nip05) => self.lanes.broadcast(LaneMsg::Nip05Verified(nip05)),
 
-            Msg::MetadataBitmap { pubkey, url, file } => {
-                if let Ok(bitmap) = gdk::Texture::from_filename(file) {
+            Msg::MetadataBitmap { pubkey, url, file } => match gdk::Texture::from_filename(&file) {
+                Ok(bitmap) => {
                     self.lanes.broadcast(LaneMsg::MetadataBitmap {
                         pubkey,
                         url,
                         bitmap: Arc::new(bitmap),
                     });
                 }
-            }
+                Err(e) => {
+                    warn!("Could not load '{:?}': {}", file, e);
+                }
+            },
         }
     }
 }
@@ -263,6 +267,29 @@ impl Win {
         // TODO: Obtain bitmaps for author
     }
 
+    async fn download_command(
+        out: Sender<WinCmd>,
+        shutdown: ShutdownReceiver,
+        pubkey: XOnlyPublicKey,
+        download: Download,
+        url: Url,
+    ) {
+        shutdown
+            .register(async move {
+                match download.cached_file(&url).await {
+                    DownloadResult::File(file) => {
+                        out.send(WinCmd::MetadataBitmap { pubkey, url, file })
+                            .unwrap();
+                    }
+                    DownloadResult::Dowloading => {
+                        // do nothing when being dowloaded, it will arrive
+                    }
+                }
+            })
+            .drop_on_shutdown()
+            .await;
+    }
+
     async fn received_metadata(
         &self,
         _relay: Url,
@@ -298,21 +325,19 @@ ON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event
 
         // If the metadata's picture contains valid URL, download it.
         if let Some(url) = avatar_url.clone() {
-            sender.oneshot_command(obtain_metadata_bitmap(
-                self.gnostique.dirs().clone(),
-                event.pubkey,
-                url,
-            ));
+            let download = self.gnostique.download().clone();
+            sender.command(move |out, shutdown| {
+                Self::download_command(out, shutdown, event.pubkey, download, url)
+            })
         }
 
-        // If the metadata's banner contains valid URL, download it.
-        if let Some(url) = banner_url.clone() {
-            sender.oneshot_command(obtain_metadata_bitmap(
-                self.gnostique.dirs().clone(),
-                event.pubkey,
-                url,
-            ));
-        }
+        // // If the metadata's banner contains valid URL, download it.
+        // if let Some(url) = banner_url.clone() {
+        //     let download = self.gnostique.download().clone();
+        //     sender.command(move |out, shutdown| {
+        //         Self::download_command(out, shutdown, event.pubkey, download, url)
+        //     })
+        // }
 
         if let Some(nip05) = metadata.nip05.clone() {
             sender.oneshot_command(verify_nip05(
@@ -405,41 +430,6 @@ WHERE author = ?"#,
     } else {
         WinCmd::Noop
     }
-}
-
-/// Find `pubkey`'s avatar image either in cache or, if not available,
-/// download it from `url` and then cache.
-async fn obtain_metadata_bitmap(dirs: ProjectDirs, pubkey: XOnlyPublicKey, url: Url) -> WinCmd {
-    let filename: PathBuf = pubkey.to_string().into();
-
-    let cache = dirs.cache_dir().join("avatars");
-    tokio::fs::create_dir_all(&cache).await.unwrap();
-    let file = cache.join(&filename);
-
-    let url_s = url.to_string();
-
-    if !file.is_file() {
-        use futures_util::StreamExt;
-        use tokio::io::AsyncWriteExt;
-
-        info!("Downloading {}", url_s);
-
-        let mut f = tokio::fs::File::create(&file).await.unwrap();
-        let response = reqwest::get(url.clone()).await.unwrap();
-        // let content_length = response.headers().get("content-length");
-        let mut bytes = response.bytes_stream();
-
-        while let Some(chunk) = bytes.next().await {
-            let c = chunk.unwrap();
-            // println!("{}", c.len());
-            f.write_all(&c).await.unwrap();
-        }
-        info!("Finished downloading: {}", url_s);
-    } else {
-        info!("Avatar obtained from cache: {}", url_s);
-    }
-
-    WinCmd::MetadataBitmap { pubkey, url, file }
 }
 
 /// Translates result of [`edit profile`](editprofile::component) dialog to [`Msg`].

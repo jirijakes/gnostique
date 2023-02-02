@@ -32,7 +32,6 @@ pub struct Note {
     is_central: bool,
     author: Persona,
     show_hidden_buttons: bool,
-    metadata_json: Option<Arc<String>>,
     avatar: Arc<gdk::Texture>,
     likes: u32,
     dislikes: u32,
@@ -314,7 +313,6 @@ impl FactoryComponent for Note {
             is_central: init.is_central,
             content: init.event.augment_content(),
             show_hidden_buttons: false,
-            metadata_json: None,
             avatar: ANONYMOUS_USER.clone(),
             likes: 0,
             dislikes: 0,
@@ -369,7 +367,7 @@ impl FactoryComponent for Note {
             NoteInput::ShowDetails => {
                 let details = Details {
                     event_json: serde_json::to_string_pretty(self.event.as_ref()).unwrap(),
-                    metadata_json: self.metadata_json.clone(),
+                    metadata_json: Some(self.author.metadata_json.clone()),
                 };
                 sender.output(NoteOutput::ShowDetails(details));
             }
