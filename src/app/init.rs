@@ -19,7 +19,7 @@ pub async fn make_gnostique() -> Gnostique {
         .with_file(true)
         .with_line_number(true)
         .with_ansi(true)
-        .with_env_filter(EnvFilter::new("info,relm4=warn"))
+        .with_env_filter(EnvFilter::new("debug,hyper=info,relm4=warn"))
         .with_span_events(tracing_subscriber::fmt::format::FmtSpan::FULL)
         .finish();
 
@@ -52,8 +52,8 @@ pub async fn make_gnostique() -> Gnostique {
             // ("ws://localhost:8080", None),
             ("wss://brb.io", None),
             ("wss://relay.nostr.info", None),
-            ("wss://nostr-relay.wlvs.space", None),
-            ("wss://nostr.onsats.org", None),
+            ("wss://nostr.orangepill.dev", None),
+            ("wss://nostr-pub.wellorder.net", None),
             ("wss://nostr.openchain.fr", None),
             ("wss://relay.damus.io", None),
         ])

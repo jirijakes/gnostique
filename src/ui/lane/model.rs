@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -126,10 +127,14 @@ impl Lane {
             } else {
                 // Find index of first text note that was created later
                 // than the text note being inserted.
-                let idx = self
-                    .text_notes
-                    .iter()
-                    .position(|tn| tn.time.timestamp() > event_time.as_i64());
+                let idx = self.text_notes.iter().position(|tn| {
+                    let ord = tn.time.timestamp().cmp(&event_time.as_i64());
+                    match self.kind {
+                        LaneKind::Profile(_) => ord == Ordering::Greater,
+                        LaneKind::Thread(_) => ord == Ordering::Less,
+                        LaneKind::Sink => ord == Ordering::Less,
+                    }
+                });
 
                 if let Some(idx) = idx {
                     // Inserting somewhere in the middle.

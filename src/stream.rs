@@ -3,13 +3,13 @@ use std::time::Duration;
 
 use futures_util::*;
 use nostr_sdk::nostr::nips::nip05;
-use nostr_sdk::prelude::{Event, EventId, Kind, SubscriptionFilter, XOnlyPublicKey};
+use nostr_sdk::prelude::*;
 use nostr_sdk::RelayPoolNotification;
 use reqwest::Url;
 use sqlx::query;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::{BroadcastStream, ReceiverStream};
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::nostr::{EventExt, Persona};
 use crate::Gnostique;
@@ -50,6 +50,7 @@ pub fn x(gnostique: &Gnostique) -> impl Stream<Item = X> + '_ {
             if let Ok(RelayPoolNotification::Event(relay, event)) = r {
                 Some((relay, event))
             } else {
+                // println!("\n{r:?}\n");
                 None
             }
         })
@@ -69,6 +70,11 @@ async fn deal_with_feedback(gnostique: Gnostique, rx: mpsc::Receiver<Feedback>) 
         .for_each(|f| async {
             match f {
                 Feedback::NeedMetadata { relay, pubkey } => {
+                    debug!(
+                        "Requesting metadata for {} from {}",
+                        pubkey.to_bech32().unwrap(),
+                        relay
+                    );
                     // TODO: Batch requests?
                     let relays = gnostique.client().relays().await;
                     if let Some(r) = relays.get(&relay) {
@@ -125,7 +131,7 @@ ON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event
 
     // If the metadata's picture contains valid URL, download it.
     let avatar = if let Some(ref url) = avatar_url {
-        Some(gnostique.download().cached_file(url).await)
+        Some(gnostique.download().to_cached_file(url).await)
     } else {
         None
     };
@@ -163,15 +169,11 @@ async fn received_text_note(
     let author = gnostique.get_persona(event.pubkey).await;
 
     let avatar = match &author {
-        Some(Persona {
-            avatar: Some(url), ..
-        }) => {
-            // Author is known and has a cached avatar
-            gnostique.download().cached(url).await
-        }
-        Some(_) => {
-            // We know the author but he has no avatar
-            None
+        Some(Persona { avatar, .. }) => {
+            // Author is known, let's see if he has a cached avatar
+            avatar
+                .as_ref()
+                .and_then(|url| gnostique.download().cached(url))
         }
         None => {
             // If we do not know the author yet, let us request his metadata.

@@ -47,7 +47,7 @@ impl Download {
         }))
     }
 
-    pub async fn cached(&self, url: &Url) -> Option<PathBuf> {
+    pub fn cached(&self, url: &Url) -> Option<PathBuf> {
         let url_s = url.to_string();
         let filename = sha256::Hash::hash(url_s.as_bytes()).to_string();
         let file = self.0.dirs.cache_dir().join("bitmaps").join(filename);
@@ -59,7 +59,7 @@ impl Download {
         }
     }
 
-    pub async fn cached_file(&self, url: &Url) -> DownloadResult {
+    pub async fn to_cached_file(&self, url: &Url) -> DownloadResult {
         let url_s = url.to_string();
         let filename = sha256::Hash::hash(url_s.as_bytes()).to_string();
 
