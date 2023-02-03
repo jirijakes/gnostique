@@ -20,6 +20,15 @@ pub enum DownloadResult {
     Dowloading,
 }
 
+impl DownloadResult {
+    pub fn file(&self) -> Option<PathBuf> {
+        match self {
+            DownloadResult::File(f) => Some(f.clone()),
+            DownloadResult::Dowloading => None,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Download(Arc<DownloadInner>);
 
@@ -36,6 +45,18 @@ impl Download {
             http: Default::default(),
             status: Default::default(),
         }))
+    }
+
+    pub async fn cached(&self, url: &Url) -> Option<PathBuf> {
+        let url_s = url.to_string();
+        let filename = sha256::Hash::hash(url_s.as_bytes()).to_string();
+        let file = self.0.dirs.cache_dir().join("bitmaps").join(filename);
+
+        if file.is_file() {
+            Some(file)
+        } else {
+            None
+        }
     }
 
     pub async fn cached_file(&self, url: &Url) -> DownloadResult {

@@ -4,17 +4,11 @@ use std::sync::Arc;
 
 use gtk::gdk;
 use gtk::prelude::*;
-use nostr_sdk::nostr::nips::nip05;
 use nostr_sdk::nostr::prelude::*;
-use nostr_sdk::nostr::Event;
 use relm4::component::*;
 use relm4::factory::AsyncFactoryVecDeque;
-use relm4::{Sender, ShutdownReceiver};
-use sqlx::{query, SqlitePool};
-use tracing::{info, warn};
+use tracing::warn;
 
-use crate::download::{Download, DownloadResult};
-use crate::nostr::{EventExt, Persona};
 use crate::ui::details::*;
 use crate::ui::editprofile::model::*;
 use crate::ui::lane::*;
@@ -33,7 +27,7 @@ pub struct Win {
 
 #[derive(Debug)]
 pub enum Msg {
-    Event(Url, Event),
+    Event(crate::stream::X),
     ShowDetail(Details),
     WriteNote,
     EditProfile,
@@ -48,23 +42,12 @@ pub enum Msg {
     Nip05Verified(XOnlyPublicKey),
 }
 
-#[derive(Debug)]
-pub enum WinCmd {
-    MetadataBitmap {
-        pubkey: XOnlyPublicKey,
-        url: Url,
-        file: PathBuf,
-    },
-    Nip05Verified(XOnlyPublicKey),
-    Noop,
-}
-
 #[relm4::component(pub async)]
 impl AsyncComponent for Win {
     type Init = ();
     type Input = Msg;
     type Output = ();
-    type CommandOutput = WinCmd;
+    type CommandOutput = ();
 
     #[rustfmt::skip]
     view! {
@@ -99,7 +82,7 @@ impl AsyncComponent for Win {
         // ));
 
         relm4::spawn(crate::app::task::receive_events(
-            gnostique.client().clone(),
+            gnostique.clone(),
             sender.clone(),
         ));
 
@@ -152,21 +135,6 @@ impl AsyncComponent for Win {
         AsyncComponentParts { model, widgets }
     }
 
-    async fn update_cmd(
-        &mut self,
-        msg: Self::CommandOutput,
-        sender: AsyncComponentSender<Win>,
-        _root: &Self::Root,
-    ) {
-        match msg {
-            WinCmd::MetadataBitmap { pubkey, url, file } => {
-                sender.input(Msg::MetadataBitmap { pubkey, url, file })
-            }
-            WinCmd::Nip05Verified(nip05) => sender.input(Msg::Nip05Verified(nip05)),
-            WinCmd::Noop => {}
-        }
-    }
-
     async fn update(
         &mut self,
         msg: Self::Input,
@@ -174,7 +142,66 @@ impl AsyncComponent for Win {
         _root: &Self::Root,
     ) {
         match msg {
-            Msg::Event(relay, event) => self.received_event(relay, event, sender).await,
+            Msg::Event(crate::stream::X::TextNote {
+                event,
+                relays,
+                author,
+                avatar,
+            }) => {
+                let pubkey = event.pubkey;
+                let url = author.as_ref().and_then(|a| a.avatar.as_ref()).cloned();
+
+                self.lanes.broadcast(LaneMsg::NewTextNote {
+                    event: Rc::new(event),
+                    relays,
+                    author,
+                });
+
+                if let Some(ref file) = avatar {
+                    match gdk::Texture::from_filename(file) {
+                        Ok(bitmap) => {
+                            self.lanes.broadcast(LaneMsg::MetadataBitmap {
+                                pubkey,
+                                url: url.unwrap(),
+                                bitmap: Arc::new(bitmap),
+                            });
+                        }
+                        Err(e) => {
+                            warn!("Could not load '{:?}': {}", file, e);
+                        }
+                    }
+                }
+            }
+
+            Msg::Event(crate::stream::X::Reaction { event_id, content }) => {
+                self.lanes.broadcast(LaneMsg::Reaction {
+                    event: event_id,
+                    reaction: content,
+                })
+            }
+
+            Msg::Event(crate::stream::X::Metadata { persona, avatar }) => {
+                let url = persona.avatar.clone();
+                let pubkey = persona.pubkey;
+
+                self.lanes
+                    .broadcast(LaneMsg::UpdatedProfile { author: persona });
+
+                if let Some(ref file) = avatar {
+                    match gdk::Texture::from_filename(file) {
+                        Ok(bitmap) => {
+                            self.lanes.broadcast(LaneMsg::MetadataBitmap {
+                                pubkey,
+                                url: url.unwrap(),
+                                bitmap: Arc::new(bitmap),
+                            });
+                        }
+                        Err(e) => {
+                            warn!("Could not load '{:?}': {}", file, e);
+                        }
+                    }
+                }
+            }
 
             Msg::WriteNote => self.write_note.emit(WriteNoteInput::Show),
 
@@ -225,210 +252,6 @@ impl AsyncComponent for Win {
                 }
             },
         }
-    }
-}
-
-impl Win {
-    /// Processes an incoming event, mostly delegates work to other methods.
-    async fn received_event(
-        &mut self,
-        relay: Url,
-        event: Event,
-        sender: AsyncComponentSender<Self>,
-    ) {
-        self.offer_relay_url(&relay).await;
-
-        for r in event.collect_relays() {
-            self.offer_relay_url(&r).await
-        }
-
-        match event.kind {
-            Kind::TextNote => self.received_text_note(relay, event).await,
-            Kind::Metadata => self.received_metadata(relay, event, sender).await,
-            Kind::Reaction => self.received_reaction(relay, event),
-            _ => {}
-        }
-    }
-
-    /// Processes an incoming text note.
-    async fn received_text_note(&self, relay: Url, event: Event) {
-        self.gnostique.store_event(&relay, &event).await;
-        let relays = self.gnostique.textnote_relays(event.id).await;
-        let author = self.gnostique.get_persona(event.pubkey).await;
-
-        // Send the event to all lanes, they will decide themselves what to do with it.
-        self.lanes.broadcast(LaneMsg::NewTextNote {
-            event: Rc::new(event),
-            relays,
-            author,
-        });
-
-        // TODO: If author is none, we have to retrieve his metadata
-        // TODO: Obtain bitmaps for author
-    }
-
-    async fn download_command(
-        out: Sender<WinCmd>,
-        shutdown: ShutdownReceiver,
-        pubkey: XOnlyPublicKey,
-        download: Download,
-        url: Url,
-    ) {
-        shutdown
-            .register(async move {
-                match download.cached_file(&url).await {
-                    DownloadResult::File(file) => {
-                        out.send(WinCmd::MetadataBitmap { pubkey, url, file })
-                            .unwrap();
-                    }
-                    DownloadResult::Dowloading => {
-                        // do nothing when being dowloaded, it will arrive
-                    }
-                }
-            })
-            .drop_on_shutdown()
-            .await;
-    }
-
-    async fn received_metadata(
-        &self,
-        _relay: Url,
-        event: Event,
-        sender: AsyncComponentSender<Self>,
-    ) {
-        async fn insert(pool: SqlitePool, pubkey_vec: Vec<u8>, json: String) {
-            let _ = query!(
-                r#"
-INSERT INTO metadata (author, event) VALUES (?, ?)
-ON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event
-"#,
-                pubkey_vec,
-                json
-            )
-            .execute(&pool)
-            .await;
-        }
-
-        let json = event.as_pretty_json();
-        let metadata = event.as_metadata().unwrap();
-
-        relm4::spawn(insert(
-            self.gnostique.pool().clone(),
-            event.pubkey.serialize().to_vec(),
-            json.clone(),
-        ))
-        .await
-        .unwrap();
-
-        let avatar_url = metadata.picture.as_ref().and_then(|p| Url::parse(p).ok());
-        let banner_url = metadata.banner.as_ref().and_then(|p| Url::parse(p).ok());
-
-        // If the metadata's picture contains valid URL, download it.
-        if let Some(url) = avatar_url.clone() {
-            let download = self.gnostique.download().clone();
-            sender.command(move |out, shutdown| {
-                Self::download_command(out, shutdown, event.pubkey, download, url)
-            })
-        }
-
-        // // If the metadata's banner contains valid URL, download it.
-        // if let Some(url) = banner_url.clone() {
-        //     let download = self.gnostique.download().clone();
-        //     sender.command(move |out, shutdown| {
-        //         Self::download_command(out, shutdown, event.pubkey, download, url)
-        //     })
-        // }
-
-        if let Some(nip05) = metadata.nip05.clone() {
-            sender.oneshot_command(verify_nip05(
-                self.gnostique.pool().clone(),
-                event.pubkey,
-                nip05,
-            ));
-        }
-
-        self.lanes.broadcast(LaneMsg::UpdatedProfile {
-            author: Persona {
-                pubkey: event.pubkey,
-                name: metadata.name,
-                avatar: avatar_url,
-                banner: banner_url,
-                about: metadata.about,
-                nip05: metadata.nip05,
-                nip05_verified: false,
-                metadata_json: json,
-            },
-        });
-    }
-
-    fn received_reaction(&self, _relay: Url, event: Event) {
-        if let Some(to) = event.reacts_to() {
-            self.lanes.broadcast(LaneMsg::Reaction {
-                event: to,
-                reaction: event.content,
-            });
-        }
-    }
-
-    async fn offer_relay_url(&self, relay: &Url) {
-        async fn go(pool: SqlitePool, relay_str: String) {
-            let _ = query!(
-                "INSERT INTO relays(url) VALUES (?) ON CONFLICT(url) DO NOTHING",
-                relay_str
-            )
-            .execute(&pool)
-            .await;
-        }
-
-        relm4::spawn(go(self.gnostique.pool().clone(), relay.to_string()))
-            .await
-            .unwrap();
-    }
-}
-
-async fn verify_nip05(pool: SqlitePool, pubkey: XOnlyPublicKey, nip05: String) -> WinCmd {
-    let pubkey_bytes = pubkey.serialize().to_vec();
-    // If the nip05 is already verified and not for too long, just confirm.
-    let x = query!(
-        r#"
-SELECT (unixepoch('now') - unixepoch(nip05_verified)) / 60 / 60 AS "hours?: u32"
-FROM metadata WHERE author = ?"#,
-        pubkey_bytes
-    )
-    .fetch_optional(&pool)
-    .await;
-
-    if let Ok(result) = x {
-        let x = result.and_then(|r| r.hours);
-
-        match x {
-            Some(hours) if hours < 12 => {
-                info!("NIP05: {} verified {} hours ago", nip05, hours);
-                WinCmd::Nip05Verified(pubkey)
-            }
-            _ => {
-                info!("NIP05: Verifying {}.", nip05);
-                // If it's not yet verified or been verified for very long, update.
-                if nip05::verify(pubkey, &nip05, None).await.is_ok() {
-                    let _ = query!(
-                        r#"
-UPDATE metadata SET nip05_verified = datetime('now')
-WHERE author = ?"#,
-                        pubkey_bytes
-                    )
-                    .execute(&pool)
-                    .await;
-
-                    info!("NIP05: {} verified.", nip05);
-                    WinCmd::Nip05Verified(pubkey)
-                } else {
-                    info!("NIP05: {} verification failed.", nip05);
-                    WinCmd::Noop
-                }
-            }
-        }
-    } else {
-        WinCmd::Noop
     }
 }
 
