@@ -75,7 +75,7 @@ pub async fn make_gnostique() -> Gnostique {
                     .collect(),
                 )
                 // .since(1675150000.into())
-                .limit(50),
+                .limit(10),
             // SubscriptionFilter::new()
             //     .kind(Kind::Metadata)
             //     .authors(

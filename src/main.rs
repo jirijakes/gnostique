@@ -1,4 +1,5 @@
 mod app;
+mod demand;
 mod download;
 mod nostr;
 mod stream;
@@ -7,6 +8,7 @@ mod win;
 
 use std::sync::Arc;
 
+use demand::Demand;
 use directories::ProjectDirs;
 use download::Download;
 use nostr::Persona;
@@ -24,16 +26,22 @@ struct GnostiqueInner {
     dirs: ProjectDirs,
     client: Client,
     download: Download,
+    demand: Demand,
 }
 
 impl Gnostique {
     pub fn new(pool: SqlitePool, dirs: ProjectDirs, client: Client) -> Gnostique {
         Gnostique(Arc::new(GnostiqueInner {
-            pool,
-            dirs: dirs.clone(),
+            demand: Demand::new(client.clone()),
+            download: Download::new(dirs.clone()),
+            dirs,
             client,
-            download: Download::new(dirs),
+            pool,
         }))
+    }
+
+    pub fn demand(&self) -> &Demand {
+        &self.0.demand
     }
 
     pub fn download(&self) -> &Download {

@@ -52,7 +52,7 @@ impl LaneKind {
             LaneKind::Thread(id) => {
                 event.id == *id
                     || event.replies_to() == Some(*id)
-                    || event.thread_root() == Some(*id)
+                    || matches!(event.thread_root(), Some((i, _)) if i == *id)
             }
         }
     }
@@ -97,17 +97,6 @@ impl Lane {
         author: Option<Persona>,
     ) {
         let event_id = event.id;
-
-        // If `event` is a reply to a note, deliver it to the note to which
-        // it replies.
-        event
-            .replies_to()
-            .and_then(|hash| self.hash_index.get(&hash))
-            .iter()
-            .for_each(|&idx| {
-                self.text_notes
-                    .send(idx.current_index(), NoteInput::Reply(event.clone()))
-            });
 
         // Add note iff it has not been added yet (they may arrive multiple times).
         if !self.hash_index.contains_key(&event.id) {

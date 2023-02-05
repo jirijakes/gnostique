@@ -37,30 +37,42 @@ pub enum X {
 enum Feedback {
     /// Metadata for `pubkey` are requested from `relay`.
     NeedMetadata { relay: Url, pubkey: XOnlyPublicKey },
+    NeedNote {
+        event_id: EventId,
+        relay: Option<Url>,
+    },
 }
 
-pub fn x(gnostique: &Gnostique) -> impl Stream<Item = X> + '_ {
+pub fn x<'a>(
+    gnostique: &'a Gnostique,
+    a: Option<Box<impl Stream<Item = (Url, Event)> + 'a>>,
+) -> impl Stream<Item = X> + 'a {
     // A feedback from processing functions. If they need something,
     // they can ask by sending a message to `tx`.
     let (feedback, rx) = mpsc::channel(10);
     tokio::spawn(deal_with_feedback(gnostique.clone(), rx));
 
-    BroadcastStream::new(gnostique.client().notifications())
-        .filter_map(|r| async {
-            if let Ok(RelayPoolNotification::Event(relay, event)) = r {
-                Some((relay, event))
-            } else {
-                // println!("\n{r:?}\n");
-                None
-            }
-        })
-        .then(|(relay, event)| async {
-            offer_relays(gnostique, &relay, &event).await;
-            (relay, event)
-        })
-        .map(move |(relay, event)| received_event(gnostique, feedback.clone(), relay, event))
-        .buffer_unordered(64)
-        .filter_map(future::ready)
+    let sss = match a {
+        Some(s) => (*s).left_stream(),
+        None => BroadcastStream::new(gnostique.client().notifications())
+            .filter_map(|r| async {
+                if let Ok(RelayPoolNotification::Event(relay, event)) = r {
+                    Some((relay, event))
+                } else {
+                    // println!("\n{r:?}\n");
+                    None
+                }
+            })
+            .right_stream(),
+    };
+
+    sss.then(|(relay, event)| async {
+        offer_relays(gnostique, &relay, &event).await;
+        (relay, event)
+    })
+    .map(move |(relay, event)| received_event(gnostique, feedback.clone(), relay, event))
+    .buffer_unordered(64)
+    .filter_map(future::ready)
 }
 
 /// Listens to incoming messages asking for some additional actions or data
@@ -70,22 +82,10 @@ async fn deal_with_feedback(gnostique: Gnostique, rx: mpsc::Receiver<Feedback>) 
         .for_each(|f| async {
             match f {
                 Feedback::NeedMetadata { relay, pubkey } => {
-                    debug!(
-                        "Requesting metadata for {} from {}",
-                        pubkey.to_bech32().unwrap(),
-                        relay
-                    );
-                    // TODO: Batch requests?
-                    let relays = gnostique.client().relays().await;
-                    if let Some(r) = relays.get(&relay) {
-                        r.req_events_of(
-                            vec![SubscriptionFilter::new()
-                                .kind(Kind::Metadata)
-                                .author(pubkey)
-                                .limit(1)],
-                            Duration::from_secs(10),
-                        );
-                    }
+                    gnostique.demand().metadata(pubkey, relay).await;
+                }
+                Feedback::NeedNote { event_id, relay } => {
+                    gnostique.demand().text_note(event_id, relay).await;
                 }
             }
         })
@@ -167,6 +167,16 @@ async fn received_text_note(
 ) -> X {
     gnostique.store_event(&relay, &event).await;
     let author = gnostique.get_persona(event.pubkey).await;
+
+    if let Some((root, root_relay)) = event.thread_root() {
+        feedback
+            .send(Feedback::NeedNote {
+                event_id: root,
+                relay: root_relay,
+            })
+            .await
+            .unwrap_or_default();
+    };
 
     let avatar = match &author {
         Some(Persona { avatar, .. }) => {

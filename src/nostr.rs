@@ -112,7 +112,7 @@ pub trait EventExt {
     /// Returns `None` if the event is not of kind 1.
     fn replies_to(&self) -> Option<EventId>;
 
-    fn thread_root(&self) -> Option<EventId>;
+    fn thread_root(&self) -> Option<(EventId, Option<Url>)>;
 
     /// Find event ID to which this event reacts to according to NIP-25.
     /// Returns `None` if the event is not of kind 7.
@@ -163,7 +163,7 @@ impl EventExt for Event {
         }
     }
 
-    fn thread_root(&self) -> Option<EventId> {
+    fn thread_root(&self) -> Option<(EventId, Option<Url>)> {
         if self.kind != Kind::TextNote {
             None
         } else {
@@ -171,7 +171,9 @@ impl EventExt for Event {
             self.tags
                 .iter()
                 .find_map(|t| match t {
-                    Tag::Event(id, _, Some(Marker::Root)) => Some(*id),
+                    Tag::Event(id, relay, Some(Marker::Root)) => {
+                        Some((*id, relay.as_ref().and_then(|s| s.parse().ok())))
+                    }
                     _ => None,
                 })
                 .or_else(|| {
@@ -183,7 +185,9 @@ impl EventExt for Event {
                         .collect::<Vec<_>>();
 
                     match only_events.as_slice() {
-                        [_, .., Tag::Event(id, _, _)] => Some(*id),
+                        [_, .., Tag::Event(id, relay, _)] => {
+                            Some((*id, relay.as_ref().and_then(|s| s.parse().ok())))
+                        }
                         _ => None,
                     }
                 })

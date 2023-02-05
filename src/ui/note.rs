@@ -63,8 +63,13 @@ pub enum NoteInput {
         event: EventId,
         reaction: String,
     },
-    Reply(Rc<Event>),
+
     Nip05Verified(XOnlyPublicKey),
+    TextNote {
+        event: Rc<Event>,
+        relays: Vec<Url>,
+        author: Option<Persona>,
+    },
 }
 
 #[derive(Debug)]
@@ -345,9 +350,14 @@ impl FactoryComponent for Note {
                     self.avatar = bitmap
                 }
             }
-            NoteInput::Reply(event) => {
-                self.replies.emit(RepliesInput::NewReply(event));
-            }
+            // NoteInput::Reply(event) => {
+            // self.replies.emit(RepliesInput::NewReply(event));
+            // }
+            NoteInput::TextNote {
+                event,
+                relays,
+                author,
+            } => self.receive(event, relays, author),
             NoteInput::Nip05Verified(pubkey) => {
                 if pubkey == self.author.pubkey {
                     self.author.nip05_verified = true;
@@ -370,6 +380,34 @@ impl FactoryComponent for Note {
                     metadata_json: Some(self.author.metadata_json.clone()),
                 };
                 sender.output(NoteOutput::ShowDetails(details));
+            }
+        }
+    }
+}
+
+impl Note {
+    fn receive(&mut self, event: Rc<Event>, relays: Vec<Url>, author: Option<Persona>) {
+        // The newly arriving event is this text note. Assuming that
+        // it's all more up-to-date, so we can update notes state right away.
+        if event.id == self.event.id {
+            // update relays
+            self.relays = relays;
+
+            // update author
+            if let Some(a) = author {
+                self.author = a;
+            }
+        }
+
+        if event.replies_to() == Some(self.event.id) {
+            // The newly arriving event is a reply to this text note.
+            self.replies.emit(RepliesInput::NewReply(event.clone()));
+        }
+
+        if let Some((root, root_relay)) = self.event.thread_root() {
+            if root == event.id {
+                // The newly arriving event is thread root of this text note.
+                // println!(">>>>>> {:#?}", event);
             }
         }
     }

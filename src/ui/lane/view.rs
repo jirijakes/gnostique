@@ -119,6 +119,12 @@ impl AsyncFactoryComponent for Lane {
                 relays,
                 author,
             } => {
+                self.text_notes.broadcast(NoteInput::TextNote {
+                    event: event.clone(),
+                    relays: relays.clone(),
+                    author: author.clone(),
+                });
+
                 if self.kind.accepts(&event) {
                     self.text_note_received(event, relays, author)
                 }
