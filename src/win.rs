@@ -154,7 +154,7 @@ impl AsyncComponent for Win {
                 let url = author.as_ref().and_then(|a| a.avatar.as_ref()).cloned();
 
                 self.lanes.broadcast(LaneMsg::NewTextNote {
-                    event: Rc::new(event),
+                    event: Arc::new(event),
                     relays,
                     author,
                     repost,

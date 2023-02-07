@@ -1,4 +1,3 @@
-use std::rc::Rc;
 use std::sync::Arc;
 
 use gtk::gdk;
@@ -9,7 +8,7 @@ use crate::ui::details::Details;
 
 /// Initial
 pub struct NoteInit {
-    pub event: Rc<Event>,
+    pub event: Arc<Event>,
     pub relays: Vec<Url>,
     pub author: Option<Persona>,
     pub is_central: bool,
@@ -41,11 +40,12 @@ pub enum NoteInput {
 
     Nip05Verified(XOnlyPublicKey),
     TextNote {
-        event: Rc<Event>,
+        event: Arc<Event>,
         relays: Vec<Url>,
         author: Option<Persona>,
         repost: Option<Repost>,
     },
+    Tick,
 }
 
 #[derive(Debug)]

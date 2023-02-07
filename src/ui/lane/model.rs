@@ -62,7 +62,7 @@ impl LaneKind {
 #[derive(Clone, Debug)]
 pub enum LaneMsg {
     NewTextNote {
-        event: Rc<Event>,
+        event: Arc<Event>,
         relays: Vec<Url>,
         author: Option<Persona>,
         repost: Option<Repost>,
@@ -94,7 +94,7 @@ impl Lane {
     /// New text note was received, let's handle it.
     pub(super) fn text_note_received(
         &mut self,
-        event: Rc<Event>,
+        event: Arc<Event>,
         relays: Vec<Url>,
         author: Option<Persona>,
         repost: Option<Repost>,

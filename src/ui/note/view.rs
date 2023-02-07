@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use chrono::{TimeZone, Utc};
 use gtk::gdk;
 use gtk::pango::WrapMode;
@@ -83,6 +85,7 @@ impl FactoryComponent for Note {
 
                     // avatar
                     gtk::Box {
+                        set_orientation: gtk::Orientation::Vertical,
                         add_css_class: "avatar",
 
                         gtk::Image {
@@ -90,6 +93,16 @@ impl FactoryComponent for Note {
                             set_from_paintable: Some(self.avatar.as_ref()),
                             set_halign: gtk::Align::Center,
                             set_valign: gtk::Align::Start,
+                        },
+
+                        gtk::Box {
+                            #[watch] set_visible: self.show_hidden_buttons,
+                            add_css_class: "hidden-buttons",
+
+                            gtk::Button {
+                                set_label: "src",
+                                connect_clicked => NoteInput::ShowDetails
+                            }
                         }
                     }
                 },
@@ -139,17 +152,12 @@ impl FactoryComponent for Note {
                                 }
                             }
                         },
-                        add_overlay = &gtk::Box {
+                        add_overlay = &gtk::Label {
                             set_valign: gtk::Align::Start,
                             set_halign: gtk::Align::End,
-                            #[watch]
-                            set_visible: self.show_hidden_buttons,
-                            add_css_class: "hidden-buttons",
-
-                            gtk::Button {
-                                set_label: "src",
-                                connect_clicked => NoteInput::ShowDetails
-                            }
+                            set_tooltip_markup: Some(&self.format_age_tooltip()),
+                            add_css_class: "note-age",
+                            #[watch] set_label: &self.age,
                         }
                     },
 
@@ -253,14 +261,7 @@ impl FactoryComponent for Note {
                             set_xalign: 1.0,
                             set_visible: self.event.client().is_some(),
                             add_css_class: "client",
-                        },
-
-                        gtk::Label {
-                            set_label: &self.time.to_string(),
-                            set_xalign: 1.0,
-                            add_css_class: "time",
-                        }
-                    }
+                        }                    }
                 },
                 add_controller = &gtk::EventControllerMotion::new() {
                     connect_enter[sender] => move |_, _, _| { sender.input(NoteInput::FocusIn) },
@@ -284,7 +285,7 @@ impl FactoryComponent for Note {
         }
     }
 
-    fn init_model(init: Self::Init, _index: &DynamicIndex, _sender: FactorySender<Self>) -> Self {
+    fn init_model(init: Self::Init, _index: &DynamicIndex, sender: FactorySender<Self>) -> Self {
         let provider = gtk::CssProvider::new();
         provider.load_from_data(include_bytes!("text_note.css"));
         gtk::StyleContext::add_provider_for_display(
@@ -292,6 +293,14 @@ impl FactoryComponent for Note {
             &provider,
             gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
         );
+
+        relm4::spawn(async move {
+            let mut int = tokio::time::interval(Duration::from_secs(30));
+            loop {
+                int.tick().await;
+                sender.input(NoteInput::Tick);
+            }
+        });
 
         let replies = Replies::builder().launch(()).detach();
         let author = init.author.unwrap_or(Persona::new(init.event.pubkey));
@@ -317,6 +326,7 @@ impl FactoryComponent for Note {
             replies,
             repost_author,
             repost,
+            age: String::new(),
         }
     }
 
@@ -376,6 +386,7 @@ impl FactoryComponent for Note {
                 };
                 sender.output(NoteOutput::ShowDetails(details));
             }
+            NoteInput::Tick => self.age = self.format_age(),
         }
     }
 }

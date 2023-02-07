@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use gtk::prelude::*;
 use nostr_sdk::nostr::{Event, EventId};
@@ -21,7 +22,7 @@ pub struct Replies {
 
 #[derive(Debug)]
 pub enum RepliesInput {
-    NewReply(Rc<Event>),
+    NewReply(Arc<Event>),
     UpdatedProfile { author: Persona },
     Nip05Verified(XOnlyPublicKey),
 }
@@ -95,7 +96,7 @@ pub enum ReplyInput {
 
 #[relm4::factory(async pub)]
 impl AsyncFactoryComponent for Reply {
-    type Init = Rc<Event>;
+    type Init = Arc<Event>;
     type Input = ReplyInput;
     type Output = ();
     type CommandOutput = ();
