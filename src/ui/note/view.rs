@@ -232,13 +232,11 @@ impl FactoryComponent for Note {
                                 gtk::Button::from_icon_name("gnostique-repost-symbolic") { }
                             },
                         attach[4, 1, 1, 1] =
-                            &gtk::Box {
-                                set_orientation: gtk::Orientation::Horizontal,
-                                set_spacing: 4,
+                            &gtk::MenuButton {
                                 set_halign: gtk::Align::Center,
-
-                                gtk::Button::from_icon_name("content-loading-symbolic") { }
-                             }
+                                set_icon_name: "content-loading-symbolic",
+                                set_menu_model: Some(&note_menu)
+                            }
                     },
 
                     // status
@@ -275,6 +273,13 @@ impl FactoryComponent for Note {
         author_menu: {
             "Copy pubkey as hex" => Copy(self.author.pubkey.to_string()),
             "Copy pubkey as bech32" => Copy(self.author.pubkey.to_bech32().unwrap()),
+        },
+
+        note_menu: {
+            section! {
+                "Copy event ID as hex" => Copy(self.event.id.to_hex()),
+                "Copy event ID as bech32" => Copy(self.event.id.to_string())
+            }
         }
     }
 
