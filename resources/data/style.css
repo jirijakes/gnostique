@@ -213,3 +213,18 @@
     border: 2px solid lighter(lighter(@theme_bg_color));
     border-radius: 6px;
 }
+
+#password .passwordbox {
+    border: 1px solid black;
+    background-color: lighter(@theme_bg_color);
+    min-width: 300px;
+    padding: 16px;
+}
+
+#password .caption {
+    font-size: 1.2em;
+}
+
+#password .buttons {
+    margin-top: 12px;
+}

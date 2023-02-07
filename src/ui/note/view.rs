@@ -291,14 +291,6 @@ impl FactoryComponent for Note {
     }
 
     fn init_model(init: Self::Init, _index: &DynamicIndex, sender: FactorySender<Self>) -> Self {
-        let provider = gtk::CssProvider::new();
-        provider.load_from_data(include_bytes!("text_note.css"));
-        gtk::StyleContext::add_provider_for_display(
-            &gtk::gdk::Display::default().unwrap(),
-            &provider,
-            gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
-        );
-
         relm4::spawn(async move {
             let mut int = tokio::time::interval(Duration::from_secs(30));
             loop {

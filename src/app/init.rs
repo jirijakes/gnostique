@@ -13,6 +13,7 @@ use crate::Gnostique;
 ///
 /// Requires Tokio.
 pub async fn make_gnostique() -> Gnostique {
+    // Logging, tracing
     let subscriber = tracing_subscriber::FmtSubscriber::builder()
         // .pretty()
         .compact()
@@ -32,6 +33,7 @@ pub async fn make_gnostique() -> Gnostique {
     let dirs = ProjectDirs::from("com.jirijakes", "", "Gnostique").unwrap();
     tokio::fs::create_dir_all(dirs.data_dir()).await.unwrap();
 
+    // Database
     let pool = SqlitePoolOptions::new()
         .max_connections(5)
         .connect_with(
@@ -44,51 +46,28 @@ pub async fn make_gnostique() -> Gnostique {
 
     sqlx::migrate!().run(&pool).await.unwrap();
 
+    // Nostr
     let client = Client::new(&keys);
     let gnostique = Gnostique::new(pool, dirs, client);
 
-    gnostique
-        .client()
-        .add_relays(vec![
-            // ("ws://localhost:8080", None),
-            ("wss://brb.io", None),
-            ("wss://relay.nostr.info", None),
-            ("wss://nostr.orangepill.dev", None),
-            ("wss://nostr-pub.wellorder.net", None),
-            ("wss://nostr.openchain.fr", None),
-            ("wss://relay.damus.io", None),
-        ])
-        .await
-        .unwrap();
-
-    gnostique
-        .client()
-        .subscribe(vec![Follow::new().subscriptions()])
-        .await;
-
-    gnostique.client().connect().await;
+    // gnostique
+    //     .client()
+    //     .add_relays(vec![
+    //         // ("ws://localhost:8080", None),
+    //         ("wss://brb.io", None),
+    //         ("wss://relay.nostr.info", None),
+    //         ("wss://nostr.orangepill.dev", None),
+    //         ("wss://nostr-pub.wellorder.net", None),
+    //         ("wss://nostr.openchain.fr", None),
+    //         ("wss://relay.damus.io", None),
+    //     ])
+    //     .await
+    //     .unwrap();
 
     // gnostique
     //     .client()
-    //     .get_events_of(vec![
-    //         SubscriptionFilter::new()
-    //             .author(
-    //                 "febbaba219357c6c64adfa2e01789f274aa60e90c289938bfc80dd91facb2899"
-    //                     .parse()
-    //                     .unwrap(),
-    //             )
-    //             .limit(100),
-    //         SubscriptionFilter::new()
-    //             .pubkey(
-    //                 "febbaba219357c6c64adfa2e01789f274aa60e90c289938bfc80dd91facb2899"
-    //                     .parse()
-    //                     .unwrap(),
-    //             )
-    //             .limit(100),
-    //     ])
-    //     .await?
-    //     .iter()
-    //     .for_each(|a| println!("{}", a.as_json().unwrap()));
+    //     .subscribe(vec![Follow::new().subscriptions()])
+    //     .await;
 
     gnostique
 }

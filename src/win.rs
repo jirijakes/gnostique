@@ -34,6 +34,7 @@ pub enum Msg {
     UpdateProfile(Metadata),
     Send(String),
     Noop,
+    Quit,
     MetadataBitmap {
         pubkey: XOnlyPublicKey,
         url: Url,
@@ -56,16 +57,61 @@ impl AsyncComponent for Win {
             gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
 
-	        #[local_ref]
-	        lanes_box -> gtk::Box {
-                    set_orientation: gtk::Orientation::Horizontal,
-                    set_vexpand: true,
-	        },
+                gtk::Stack {
+                    gtk::Box {
+                        set_valign: gtk::Align::Center,
+                        set_halign: gtk::Align::Center,
+                        set_orientation: gtk::Orientation::Vertical,
+                        set_spacing: 18,
+                        set_widget_name: "password",
+
+                        gtk::Label {
+                            set_label: "Unlock Gnostique identity",
+                            add_css_class: "caption",
+                        },
+
+                        gtk::Box {
+                            set_orientation: gtk::Orientation::Vertical,
+                            set_spacing: 8,
+                            add_css_class: "passwordbox",
+                            
+                            gtk::Label {
+                                set_xalign: 0.0,
+                                set_label: "Enter password:"
+                            },
+                            gtk::PasswordEntry {
+                                set_hexpand: true,
+                                set_show_peek_icon: true
+                            },
+                            gtk::Box {
+                                set_halign: gtk::Align::End,
+                                set_spacing: 8,
+                                add_css_class: "buttons",
+
+                                gtk::Button {
+                                    add_css_class: "suggested-action",
+                                    set_label: "Unlock",
+                                },
+
+                                gtk::Button {
+                                    set_label: "Quit",
+                                    connect_clicked => Msg::Quit,
+                                }
+                            }
+                        }
+                    },
+
+                    #[local_ref]
+                    lanes_box -> gtk::Box {
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_vexpand: true,
+                    }
+                },
 
                 #[local_ref]
                 status_bar -> gtk::Box { }
             }
-	}
+        }
     }
 
     async fn init(
@@ -209,6 +255,10 @@ impl AsyncComponent for Win {
 
             Msg::Noop => {}
 
+            Msg::Quit => {
+                relm4::main_application().quit();
+            }
+            
             Msg::EditProfile => self.edit_profile.emit(EditProfileInput::Show),
 
             Msg::UpdateProfile(metadata) => {
