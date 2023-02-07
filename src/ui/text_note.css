@@ -2,6 +2,16 @@
     font-family: "Roboto", sans-serif;
 }
 
+.repost {
+    padding-left: 8px;
+    padding-top: 2px;
+}
+
+.repost .author .author-name {
+    opacity: .7;
+    font-size: .9em;
+}
+
 .laneheader {
     background-color: darker(darker(@theme_bg_color));
     border: 2px solid black;

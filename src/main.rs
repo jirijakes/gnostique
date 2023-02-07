@@ -1,6 +1,7 @@
 mod app;
 mod demand;
 mod download;
+mod follow;
 mod nostr;
 mod stream;
 mod ui;
@@ -136,7 +137,12 @@ WHERE author = ?
 }
 
 fn main() {
+    gtk::gio::resources_register_include!("gnostique.gresource").unwrap();
+
     let app = RelmApp::new("com.jirijakes.gnostique");
+
+    // let icon_theme = gtk::IconTheme::for_display(&gtk::gdk::Display::default().unwrap());
+    // icon_theme.add_resource_path("/com/jirijakes/gnostique/data");
 
     let settings = gtk::Settings::default().unwrap();
     settings.set_gtk_application_prefer_dark_theme(true);

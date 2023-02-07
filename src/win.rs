@@ -9,6 +9,7 @@ use relm4::component::*;
 use relm4::factory::AsyncFactoryVecDeque;
 use tracing::warn;
 
+use crate::follow::Follow;
 use crate::ui::details::*;
 use crate::ui::editprofile::model::*;
 use crate::ui::lane::*;
@@ -109,7 +110,7 @@ impl AsyncComponent for Win {
         {
             let mut guard = model.lanes.guard();
 
-            guard.push_back(LaneKind::Sink);
+            guard.push_back(LaneKind::Feed(Follow::new()));
 
             // guard.push_back(LaneKind::Profile(
             //     "febbaba219357c6c64adfa2e01789f274aa60e90c289938bfc80dd91facb2899"
@@ -147,6 +148,7 @@ impl AsyncComponent for Win {
                 relays,
                 author,
                 avatar,
+                repost,
             }) => {
                 let pubkey = event.pubkey;
                 let url = author.as_ref().and_then(|a| a.avatar.as_ref()).cloned();
@@ -155,6 +157,7 @@ impl AsyncComponent for Win {
                     event: Rc::new(event),
                     relays,
                     author,
+                    repost,
                 });
 
                 if let Some(ref file) = avatar {

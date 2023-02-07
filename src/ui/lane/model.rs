@@ -10,10 +10,11 @@ use relm4::factory::FactoryVecDeque;
 use relm4::prelude::*;
 use reqwest::Url;
 
-use crate::nostr::{EventExt, Persona};
+use crate::follow::Follow;
+use crate::nostr::{EventExt, Persona, Repost};
 use crate::ui::details::Details;
 use crate::ui::lane_header::LaneHeader;
-use crate::ui::note::{Note, NoteInit, NoteInput};
+use crate::ui::note::{Note, NoteInit};
 use crate::ui::profilebox::model::Profilebox;
 
 #[derive(Debug)]
@@ -25,11 +26,11 @@ pub struct Lane {
     pub(super) header: Controller<LaneHeader>,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub enum LaneKind {
     Profile(XOnlyPublicKey),
     Thread(EventId),
-    Sink,
+    Feed(Follow),
 }
 
 impl LaneKind {
@@ -47,7 +48,7 @@ impl LaneKind {
 
     pub fn accepts(&self, event: &Event) -> bool {
         match self {
-            LaneKind::Sink => true,
+            LaneKind::Feed(f) => f.follows(&event.pubkey) && event.replies_to().is_none(),
             LaneKind::Profile(pubkey) => &event.pubkey == pubkey,
             LaneKind::Thread(id) => {
                 event.id == *id
@@ -64,6 +65,7 @@ pub enum LaneMsg {
         event: Rc<Event>,
         relays: Vec<Url>,
         author: Option<Persona>,
+        repost: Option<Repost>,
     },
     UpdatedProfile {
         author: Persona,
@@ -95,6 +97,7 @@ impl Lane {
         event: Rc<Event>,
         relays: Vec<Url>,
         author: Option<Persona>,
+        repost: Option<Repost>,
     ) {
         let event_id = event.id;
 
@@ -108,6 +111,7 @@ impl Lane {
                 relays,
                 author,
                 is_central,
+                repost,
             };
 
             let di = if is_central {
@@ -121,7 +125,7 @@ impl Lane {
                     match self.kind {
                         LaneKind::Profile(_) => ord == Ordering::Greater,
                         LaneKind::Thread(_) => ord == Ordering::Less,
-                        LaneKind::Sink => ord == Ordering::Less,
+                        LaneKind::Feed(_) => ord == Ordering::Less,
                     }
                 });
 

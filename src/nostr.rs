@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use std::sync::Arc;
 
 use nostr_sdk::nostr::prelude::*;
@@ -11,6 +12,12 @@ pub static ANONYMOUS_USER: Lazy<Arc<gdk::Texture>> = Lazy::new(|| {
             .unwrap(),
     )
 });
+
+#[derive(Clone, Debug)]
+pub struct Repost {
+    pub event: Event,
+    pub author: Option<Persona>,
+}
 
 #[derive(Clone, Debug)]
 pub struct Persona {

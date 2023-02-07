@@ -11,6 +11,7 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::{BroadcastStream, ReceiverStream};
 use tracing::{debug, info};
 
+use crate::nostr::Repost;
 use crate::nostr::{EventExt, Persona};
 use crate::Gnostique;
 
@@ -21,6 +22,7 @@ pub enum X {
         relays: Vec<Url>,
         author: Option<Persona>,
         avatar: Option<PathBuf>,
+        repost: Option<Repost>,
     },
     Reaction {
         event_id: EventId,
@@ -99,12 +101,19 @@ async fn received_event(
     event: Event,
 ) -> Option<X> {
     match event.kind {
-        Kind::TextNote => Some(received_text_note(gnostique, feedback, relay, event).await),
+        Kind::TextNote => Some(received_text_note(gnostique, feedback, relay, event, None).await),
         Kind::Metadata => Some(received_metadata(gnostique, event).await),
         Kind::Reaction => event.reacts_to().map(|to| X::Reaction {
             event_id: to,
             content: event.content,
         }),
+        Kind::Repost => {
+            if let Ok(inner) = Event::from_json(&event.content) {
+                Some(received_text_note(gnostique, feedback, relay, inner, Some(event)).await)
+            } else {
+                None
+            }
+        }
         _ => None,
     }
 }
@@ -164,19 +173,20 @@ async fn received_text_note(
     feedback: mpsc::Sender<Feedback>,
     relay: Url,
     event: Event,
+    repost: Option<Event>,
 ) -> X {
     gnostique.store_event(&relay, &event).await;
     let author = gnostique.get_persona(event.pubkey).await;
 
-    if let Some((root, root_relay)) = event.thread_root() {
-        feedback
-            .send(Feedback::NeedNote {
-                event_id: root,
-                relay: root_relay,
-            })
-            .await
-            .unwrap_or_default();
-    };
+    // if let Some((root, root_relay)) = event.thread_root() {
+    //     feedback
+    //         .send(Feedback::NeedNote {
+    //             event_id: root,
+    //             relay: root_relay,
+    //         })
+    //         .await
+    //         .unwrap_or_default();
+    // };
 
     let avatar = match &author {
         Some(Persona { avatar, .. }) => {
@@ -200,11 +210,19 @@ async fn received_text_note(
 
     let relays = gnostique.textnote_relays(event.id).await;
 
+    let (event, repost) = if let Some(r) = repost {
+        let author = gnostique.get_persona(r.pubkey).await;
+        (event, Some(Repost { event: r, author }))
+    } else {
+        (event, None)
+    };
+
     X::TextNote {
         event,
         relays,
         author,
         avatar,
+        repost,
     }
 }
 

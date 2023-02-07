@@ -48,7 +48,7 @@ impl AsyncFactoryComponent for Lane {
         sender: AsyncFactorySender<Self>,
     ) -> Self {
         Self {
-            kind: init,
+            kind: init.clone(),
             profile_box: Profilebox::builder().launch(()).detach(),
             header: LaneHeader::builder()
                 .launch(init)
@@ -118,15 +118,22 @@ impl AsyncFactoryComponent for Lane {
                 event,
                 relays,
                 author,
+                repost,
             } => {
                 self.text_notes.broadcast(NoteInput::TextNote {
                     event: event.clone(),
                     relays: relays.clone(),
                     author: author.clone(),
+                    repost: repost.clone(),
                 });
 
-                if self.kind.accepts(&event) {
-                    self.text_note_received(event, relays, author)
+                if self.kind.accepts(&event)
+                    || repost
+                        .as_ref()
+                        .map(|r| self.kind.accepts(&r.event))
+                        .unwrap_or_default()
+                {
+                    self.text_note_received(event, relays, author, repost)
                 }
             }
             LaneMsg::LinkClicked(uri) => println!("Clicked: {uri}"),

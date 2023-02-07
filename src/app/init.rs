@@ -5,7 +5,7 @@ use nostr_sdk::prelude::*;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use tracing_subscriber::EnvFilter;
 
-use crate::Gnostique;
+use crate::{follow::Follow, Gnostique};
 
 /// Initializes the application, reads all the configurations and databases
 /// and all that and returns it all inside [`Gnostique`].
@@ -62,33 +62,7 @@ pub async fn make_gnostique() -> Gnostique {
 
     gnostique
         .client()
-        .subscribe(vec![
-            SubscriptionFilter::new()
-                .kinds(vec![Kind::TextNote, Kind::Reaction])
-                .pubkeys(
-                    [
-                        "npub10xmy0wn8cm6rfv6gujhsz8sfsjh3ffzekmvxl5z73uhw35eweryswxvlyf",
-                        "npub1az9xj85cmxv8e9j9y80lvqp97crsqdu2fpu3srwthd99qfu9qsgstam8y8",
-                    ]
-                    .iter()
-                    .map(|&s| XOnlyPublicKey::from_bech32(s).unwrap())
-                    .collect(),
-                )
-                // .since(1675150000.into())
-                .limit(10),
-            // SubscriptionFilter::new()
-            //     .kind(Kind::Metadata)
-            //     .authors(
-            //         [
-            //             "npub10xmy0wn8cm6rfv6gujhsz8sfsjh3ffzekmvxl5z73uhw35eweryswxvlyf",
-            //             "npub1az9xj85cmxv8e9j9y80lvqp97crsqdu2fpu3srwthd99qfu9qsgstam8y8",
-            //         ]
-            //         .iter()
-            //         .map(|&s| XOnlyPublicKey::from_bech32(s).unwrap())
-            //         .collect(),
-            //     ) // .since(1675150000.into())
-            //     .limit(20),
-        ])
+        .subscribe(vec![Follow::new().subscriptions()])
         .await
         .unwrap();
 

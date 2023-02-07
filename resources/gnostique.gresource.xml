@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/com/jirijakes/gnostique/">
+    <file>data/symbolic/gnostique-repost-symbolic.svg</file>
+  </gresource>
+</gresources>
