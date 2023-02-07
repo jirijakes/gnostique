@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use nostr_sdk::prelude::hex::*;
 use nostr_sdk::prelude::*;
@@ -56,7 +56,7 @@ impl Demand {
                             .kind(Kind::Metadata)
                             .author(pubkey)
                             .limit(1)],
-                        Duration::from_secs(10),
+                        None,
                     );
                 }
             }
@@ -92,15 +92,13 @@ impl Demand {
                         .event(event_id),
                 ];
 
-                let timeout = Duration::from_secs(10);
-
                 if let Some(r) = relay {
                     let relays = self.0.client.relays().await;
                     if let Some(r) = relays.get(&r) {
-                        r.req_events_of(sub, timeout);
+                        r.req_events_of(sub, None);
                     }
                 } else {
-                    self.0.client.req_events_of(sub, timeout).await;
+                    self.0.client.req_events_of(sub, None).await;
                 }
             }
         };

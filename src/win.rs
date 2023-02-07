@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use std::rc::Rc;
 use std::sync::Arc;
 
 use gtk::gdk;
@@ -214,7 +213,7 @@ impl AsyncComponent for Win {
 
             Msg::UpdateProfile(metadata) => {
                 let client = self.gnostique.client().clone();
-                relm4::spawn(async move { client.update_profile(metadata).await })
+                relm4::spawn(async move { client.set_metadata(metadata).await })
                     .await
                     .unwrap()
                     .unwrap();

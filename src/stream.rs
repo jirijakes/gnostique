@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use std::time::Duration;
 
 use futures_util::*;
 use nostr_sdk::nostr::nips::nip05;
@@ -9,7 +8,7 @@ use reqwest::Url;
 use sqlx::query;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::{BroadcastStream, ReceiverStream};
-use tracing::{debug, info};
+use tracing::info;
 
 use crate::nostr::{EventExt, Persona, Repost};
 use crate::Gnostique;

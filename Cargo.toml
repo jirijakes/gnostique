@@ -15,10 +15,10 @@ futures-util = "0.3.26"
 gtk = { package = "gtk4", version = "0.5.5", features = ["v4_8"] }
 html-escape = "0.2.13"
 linkify = "0.9.0"
-nostr-sdk = { git = "https://github.com/rust-nostr/nostr" }
+nostr-sdk = "0.18.0"
 once_cell = "1.17.0"
 regex = "1.7.1"
-relm4 = { git = "https://github.com/Relm4/Relm4" }
+relm4 = "0.5.0-rc.2"
 reqwest = { version = "0.11.14", features = ["stream"] }
 serde_json = "1.0.92"
 sqlx = { version = "0.6.2", features = ["sqlite", "runtime-tokio-native-tls", "chrono", "offline"] }
