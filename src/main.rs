@@ -6,6 +6,7 @@ mod nostr;
 mod stream;
 mod ui;
 mod win;
+mod identity;
 
 use std::sync::Arc;
 

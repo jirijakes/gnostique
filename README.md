@@ -23,6 +23,6 @@ cargo run
 When launched for the first time, avatars will be downloaded and saved to `~/.cache/gnostique/avatars`.
 Subsequent launches will use the cached images.
 
-## Screenshot
+## Screenshots
 
 ![](https://jirijakes.com/code/gnostique/doc/tip/doc/history/Screenshot_20230207_225951.png) ![](https://jirijakes.com/code/gnostique/doc/tip/doc/history/Screenshot_20230207_162525.png)

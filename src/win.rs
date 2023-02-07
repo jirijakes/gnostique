@@ -79,6 +79,8 @@ impl AsyncComponent for Win {
                                 set_xalign: 0.0,
                                 set_label: "Enter password:"
                             },
+
+                            #[name(password)]
                             gtk::PasswordEntry {
                                 set_hexpand: true,
                                 set_show_peek_icon: true
@@ -91,6 +93,9 @@ impl AsyncComponent for Win {
                                 gtk::Button {
                                     add_css_class: "suggested-action",
                                     set_label: "Unlock",
+                                    connect_clicked[password] => move |_| {
+                                        println!(">>>> {:?}", password.text());
+                                    }
                                 },
 
                                 gtk::Button {
