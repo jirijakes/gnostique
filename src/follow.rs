@@ -30,10 +30,7 @@ impl Follow {
     // TODO: Batch
     pub fn subscriptions(&self) -> SubscriptionFilter {
         SubscriptionFilter::new()
-            .kinds(vec![
-                Kind::TextNote,
-                Kind::Repost,
-            ])
+            .kinds(vec![Kind::TextNote, Kind::Repost])
             .authors(self.following.iter().copied().collect())
             .limit(30)
     }

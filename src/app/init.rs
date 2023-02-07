@@ -5,7 +5,8 @@ use nostr_sdk::prelude::*;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use tracing_subscriber::EnvFilter;
 
-use crate::{follow::Follow, Gnostique};
+use crate::follow::Follow;
+use crate::Gnostique;
 
 /// Initializes the application, reads all the configurations and databases
 /// and all that and returns it all inside [`Gnostique`].

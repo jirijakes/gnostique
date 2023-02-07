@@ -11,8 +11,7 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::{BroadcastStream, ReceiverStream};
 use tracing::{debug, info};
 
-use crate::nostr::Repost;
-use crate::nostr::{EventExt, Persona};
+use crate::nostr::{EventExt, Persona, Repost};
 use crate::Gnostique;
 
 #[derive(Debug)]

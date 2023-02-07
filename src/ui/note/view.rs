@@ -1,92 +1,25 @@
-use std::rc::Rc;
-use std::sync::Arc;
-
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{TimeZone, Utc};
 use gtk::gdk;
 use gtk::pango::WrapMode;
 use gtk::prelude::*;
-use nostr_sdk::nostr::secp256k1::XOnlyPublicKey;
-use nostr_sdk::nostr::*;
 use nostr_sdk::prelude::ToBech32;
-use relm4::component::{AsyncComponent, AsyncComponentController, AsyncController};
+use relm4::component::{AsyncComponent, AsyncComponentController};
 use relm4::prelude::*;
 
-use super::author::Author;
-use super::details::Details;
-use super::replies::{Replies, RepliesInput};
+use super::model::*;
+use super::msg::*;
 use crate::app::action::*;
 use crate::nostr::*;
+use crate::ui::author::Author;
+use crate::ui::details::Details;
 use crate::ui::lane::LaneMsg;
-
-/// Initial
-pub struct NoteInit {
-    pub event: Rc<Event>,
-    pub relays: Vec<Url>,
-    pub author: Option<Persona>,
-    pub is_central: bool,
-    pub repost: Option<Repost>,
-}
-
-#[derive(Debug)]
-pub struct Note {
-    content: String,
-    is_central: bool,
-    author: Persona,
-    show_hidden_buttons: bool,
-    avatar: Arc<gdk::Texture>,
-    likes: u32,
-    dislikes: u32,
-    pub time: DateTime<Utc>,
-    event: Rc<Event>,
-    relays: Vec<Url>,
-    replies: AsyncController<Replies>,
-    repost_author: Option<Persona>,
-    repost: Option<Event>,
-}
-
-#[derive(Clone, Debug)]
-pub enum NoteInput {
-    /// Author profile has some new data.
-    UpdatedProfile {
-        author: Persona,
-    },
-    /// The text note comes into focus.
-    FocusIn,
-    /// The text note loses focus.
-    FocusOut,
-    /// Show this note's details.
-    ShowDetails,
-    /// (New) avatar bitmap is available.
-    MetadataBitmap {
-        pubkey: XOnlyPublicKey,
-        url: Url,
-        bitmap: Arc<gdk::Texture>,
-    },
-    Reaction {
-        event: EventId,
-        reaction: String,
-    },
-
-    Nip05Verified(XOnlyPublicKey),
-    TextNote {
-        event: Rc<Event>,
-        relays: Vec<Url>,
-        author: Option<Persona>,
-        repost: Option<Repost>,
-    },
-}
-
-#[derive(Debug)]
-pub enum NoteOutput {
-    ShowDetails(Details),
-    LinkClicked(String),
-}
+use crate::ui::replies::{Replies, RepliesInput};
 
 /*
     +-------------------------------------+
-    |   AVATAR    |        REPOST         |
-    |             +-----------------------+
-    |             |        AUTHOR         |
+    | REPOST                              |
+    +-------------------------------------+
+    |   AVATAR    |        AUTHOR         |
     |             +-----------------------+
     |             |        CONTENT        |
     |             +-----------------------+
@@ -166,7 +99,7 @@ impl FactoryComponent for Note {
                     set_hexpand: true,
                     set_spacing: 10,
                     add_css_class: "right-column",
-                    
+
                     // author
                     gtk::Overlay {
                         #[template]
@@ -429,42 +362,6 @@ impl FactoryComponent for Note {
                     metadata_json: Some(self.author.metadata_json.clone()),
                 };
                 sender.output(NoteOutput::ShowDetails(details));
-            }
-        }
-    }
-}
-
-impl Note {
-    fn receive(
-        &mut self,
-        event: Rc<Event>,
-        relays: Vec<Url>,
-        author: Option<Persona>,
-        repost: Option<Repost>,
-    ) {
-        // The newly arriving event is this text note. Assuming that
-        // it's all more up-to-date, so we can update notes state right away.
-        if event.id == self.event.id {
-            // update relays
-            self.relays = relays;
-
-            // update author
-            if let Some(a) = author {
-                self.author = a;
-            }
-        }
-
-        if let Some(r) = repost {};
-
-        if event.replies_to() == Some(self.event.id) {
-            // The newly arriving event is a reply to this text note.
-            self.replies.emit(RepliesInput::NewReply(event.clone()));
-        }
-
-        if let Some((root, root_relay)) = self.event.thread_root() {
-            if root == event.id {
-                // The newly arriving event is thread root of this text note.
-                // println!(">>>>>> {:#?}", event);
             }
         }
     }
