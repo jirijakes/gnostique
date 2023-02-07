@@ -51,7 +51,8 @@ impl FactoryComponent for Note {
                 set_visible: self.repost_author.is_some(),
 
                 gtk::Image {
-                    set_from_resource: Some("/com/jirijakes/gnostique/data/symbolic/gnostique-repost-symbolic.svg"),
+                    set_icon_name: Some("gnostique-repost-symbolic"),
+                    set_pixel_size: 18,
                 },
 
                 #[template]
@@ -183,41 +184,51 @@ impl FactoryComponent for Note {
                         add_css_class: "reactions",
 
                         attach[1, 1, 1, 1] =
-                            &gtk::Box {
-                                set_orientation: gtk::Orientation::Horizontal,
-                                set_spacing: 4,
-                                set_halign: gtk::Align::Start,
-
-                                gtk::Label {
-                                    set_label: "♥"
-                                },
-
-                                gtk::Label {
-                                    #[watch]
-                                    set_label: &self.likes.to_string(),
-                                    #[watch]
-                                    set_visible: self.likes > 0
+                            &gtk::Button {
+                                gtk::Box {
+                                    set_orientation: gtk::Orientation::Horizontal,
+                                    set_spacing: 4,
+                                    gtk::Image {
+                                        set_icon_name: Some("emblem-favorite-symbolic"),
+                                        set_pixel_size: 12,
+                                    },
+                                    gtk::Label {
+                                        #[watch] set_label: &self.likes.to_string(),
+                                        #[watch] set_visible: self.likes > 0
+                                    }
                                 }
                             },
                         attach[2, 1, 1, 1] =
+                            &gtk::Button {
+                                gtk::Box {
+                                    set_orientation: gtk::Orientation::Horizontal,
+                                    set_spacing: 4,
+                                    gtk::Image {
+                                        set_icon_name: Some("gnostique-down-symbolic"),
+                                        set_pixel_size: 12,
+                                    },
+                                    gtk::Label {
+                                        #[watch] set_label: &self.dislikes.to_string(),
+                                        #[watch] set_visible: self.dislikes > 0
+                                    }
+                                }
+                            },
+                        attach[3, 1, 1, 1] =
                             &gtk::Box {
                                 set_orientation: gtk::Orientation::Horizontal,
                                 set_spacing: 4,
                                 set_halign: gtk::Align::Start,
 
-                                gtk::Label {
-                                    set_label: "👎"
-                                },
+                                gtk::Button::from_icon_name("gnostique-repost-symbolic") { }
+                            },
+                        attach[4, 1, 1, 1] =
+                            &gtk::Box {
+                                set_orientation: gtk::Orientation::Horizontal,
+                                set_spacing: 4,
+                                set_halign: gtk::Align::Start,
 
-                                gtk::Label {
-                                    #[watch]
-                                    set_label: &self.dislikes.to_string(),
-                                    #[watch]
-                                    set_visible: self.dislikes > 0,
-
-                                }
-                            }
-
+                                gtk::Button::from_icon_name("content-loading-symbolic") { }
+                             }
                     },
 
                     // status

@@ -7,6 +7,11 @@
     padding-top: 2px;
 }
 
+.repost image {
+    opacity: .7;
+    color: #00ff00;
+}
+
 .repost .author .author-name {
     opacity: .7;
     font-size: .9em;
@@ -72,6 +77,17 @@
 
 .reactions {
     padding: 5px 100px 0px 50px;
+}
+
+.reactions button {
+    border: none;
+    text-shadow: none;
+    padding: 0px;
+    box-shadow: none;
+    outline-offset: 0;
+    opacity: 0.5;
+    background-color: transparent;
+    background-image: none;
 }
 
 .reactions label {
