@@ -185,6 +185,7 @@ impl FactoryComponent for Note {
 
                         attach[1, 1, 1, 1] =
                             &gtk::Button {
+                                set_halign: gtk::Align::Center,
                                 gtk::Box {
                                     set_orientation: gtk::Orientation::Horizontal,
                                     set_spacing: 4,
@@ -200,6 +201,7 @@ impl FactoryComponent for Note {
                             },
                         attach[2, 1, 1, 1] =
                             &gtk::Button {
+                                set_halign: gtk::Align::Center,
                                 gtk::Box {
                                     set_orientation: gtk::Orientation::Horizontal,
                                     set_spacing: 4,
@@ -217,7 +219,7 @@ impl FactoryComponent for Note {
                             &gtk::Box {
                                 set_orientation: gtk::Orientation::Horizontal,
                                 set_spacing: 4,
-                                set_halign: gtk::Align::Start,
+                                set_halign: gtk::Align::Center,
 
                                 gtk::Button::from_icon_name("gnostique-repost-symbolic") { }
                             },
@@ -225,7 +227,7 @@ impl FactoryComponent for Note {
                             &gtk::Box {
                                 set_orientation: gtk::Orientation::Horizontal,
                                 set_spacing: 4,
-                                set_halign: gtk::Align::Start,
+                                set_halign: gtk::Align::Center,
 
                                 gtk::Button::from_icon_name("content-loading-symbolic") { }
                              }
