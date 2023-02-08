@@ -16,7 +16,7 @@ use crate::ui::statusbar::*;
 use crate::ui::writenote::model::*;
 use crate::Gnostique;
 
-pub struct Win {
+pub struct Main {
     gnostique: Gnostique,
     lanes: AsyncFactoryVecDeque<Lane>,
     details: Controller<DetailsWindow>,
@@ -26,7 +26,7 @@ pub struct Win {
 }
 
 #[derive(Debug)]
-pub enum Msg {
+pub enum MainInput {
     Event(crate::stream::X),
     ShowDetail(Details),
     WriteNote,
@@ -34,7 +34,6 @@ pub enum Msg {
     UpdateProfile(Metadata),
     Send(String),
     Noop,
-    Quit,
     MetadataBitmap {
         pubkey: XOnlyPublicKey,
         url: Url,
@@ -44,85 +43,33 @@ pub enum Msg {
 }
 
 #[relm4::component(pub async)]
-impl AsyncComponent for Win {
-    type Init = ();
-    type Input = Msg;
+impl AsyncComponent for Main {
+    type Init = Gnostique;
+    type Input = MainInput;
     type Output = ();
     type CommandOutput = ();
 
     #[rustfmt::skip]
     view! {
-        #[name(window)]
-        gtk::ApplicationWindow {
-            gtk::Box {
-                set_orientation: gtk::Orientation::Vertical,
+        gtk::Box {
+            set_orientation: gtk::Orientation::Vertical,
 
-                gtk::Stack {
-                    gtk::Box {
-                        set_valign: gtk::Align::Center,
-                        set_halign: gtk::Align::Center,
-                        set_orientation: gtk::Orientation::Vertical,
-                        set_spacing: 18,
-                        set_widget_name: "password",
+            #[local_ref]
+            lanes_box -> gtk::Box {
+                set_orientation: gtk::Orientation::Horizontal,
+                set_vexpand: true,
+            },
 
-                        gtk::Label {
-                            set_label: "Unlock Gnostique identity",
-                            add_css_class: "caption",
-                        },
-
-                        gtk::Box {
-                            set_orientation: gtk::Orientation::Vertical,
-                            set_spacing: 8,
-                            add_css_class: "passwordbox",
-                            
-                            gtk::Label {
-                                set_xalign: 0.0,
-                                set_label: "Enter password:"
-                            },
-                            gtk::PasswordEntry {
-                                set_hexpand: true,
-                                set_show_peek_icon: true
-                            },
-                            gtk::Box {
-                                set_halign: gtk::Align::End,
-                                set_spacing: 8,
-                                add_css_class: "buttons",
-
-                                gtk::Button {
-                                    add_css_class: "suggested-action",
-                                    set_label: "Unlock",
-                                },
-
-                                gtk::Button {
-                                    set_label: "Quit",
-                                    connect_clicked => Msg::Quit,
-                                }
-                            }
-                        }
-                    },
-
-                    #[local_ref]
-                    lanes_box -> gtk::Box {
-                        set_orientation: gtk::Orientation::Horizontal,
-                        set_vexpand: true,
-                    }
-                },
-
-                #[local_ref]
-                status_bar -> gtk::Box { }
-            }
+            #[local_ref]
+            status_bar -> gtk::Box { }
         }
     }
 
     async fn init(
-        _init: Self::Init,
+        gnostique: Self::Init,
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
-        let gnostique = relm4::spawn(crate::app::init::make_gnostique())
-            .await
-            .unwrap();
-
         // relm4::spawn(crate::app::task::refresh_relay_information(
         //     gnostique.clone(),
         // ));
@@ -132,7 +79,7 @@ impl AsyncComponent for Win {
             sender.clone(),
         ));
 
-        let mut model = Win {
+        let mut model = Main {
             gnostique: gnostique.clone(),
             lanes: AsyncFactoryVecDeque::new(gtk::Box::default(), sender.input_sender()),
             details: DetailsWindow::builder().launch(()).detach(),
@@ -143,8 +90,8 @@ impl AsyncComponent for Win {
             write_note: WriteNote::builder()
                 .launch(())
                 .forward(sender.input_sender(), |result| match result {
-                    WriteNoteResult::Send(c) => Msg::Send(c),
-                    _ => Msg::Noop,
+                    WriteNoteResult::Send(c) => MainInput::Send(c),
+                    _ => MainInput::Noop,
                 }),
         };
 
@@ -169,26 +116,27 @@ impl AsyncComponent for Win {
             // ));
         }
 
-        widgets
-            .window
-            .insert_action_group("author", Some(&crate::app::action::make_author_actions()));
+        // widgets
+        //     .window
+        //     .insert_action_group("author", Some(&crate::app::action::make_author_actions()));
 
-        widgets.window.insert_action_group(
-            "main",
-            Some(&crate::app::action::make_main_menu_actions(sender)),
-        );
+        // widgets.window.insert_action_group(
+        //     "main",
+        //     Some(&crate::app::action::make_main_menu_actions(sender)),
+        // );
 
         AsyncComponentParts { model, widgets }
     }
 
-    async fn update(
+    async fn update_with_view(
         &mut self,
+        widgets: &mut Self::Widgets,
         msg: Self::Input,
         sender: AsyncComponentSender<Self>,
         _root: &Self::Root,
     ) {
         match msg {
-            Msg::Event(crate::stream::X::TextNote {
+            MainInput::Event(crate::stream::X::TextNote {
                 event,
                 relays,
                 author,
@@ -221,14 +169,14 @@ impl AsyncComponent for Win {
                 }
             }
 
-            Msg::Event(crate::stream::X::Reaction { event_id, content }) => {
+            MainInput::Event(crate::stream::X::Reaction { event_id, content }) => {
                 self.lanes.broadcast(LaneMsg::Reaction {
                     event: event_id,
                     reaction: content,
                 })
             }
 
-            Msg::Event(crate::stream::X::Metadata { persona, avatar }) => {
+            MainInput::Event(crate::stream::X::Metadata { persona, avatar }) => {
                 let url = persona.avatar.clone();
                 let pubkey = persona.pubkey;
 
@@ -251,17 +199,13 @@ impl AsyncComponent for Win {
                 }
             }
 
-            Msg::WriteNote => self.write_note.emit(WriteNoteInput::Show),
+            MainInput::WriteNote => self.write_note.emit(WriteNoteInput::Show),
 
-            Msg::Noop => {}
+            MainInput::Noop => {}
 
-            Msg::Quit => {
-                relm4::main_application().quit();
-            }
-            
-            Msg::EditProfile => self.edit_profile.emit(EditProfileInput::Show),
+            MainInput::EditProfile => self.edit_profile.emit(EditProfileInput::Show),
 
-            Msg::UpdateProfile(metadata) => {
+            MainInput::UpdateProfile(metadata) => {
                 let client = self.gnostique.client().clone();
                 relm4::spawn(async move { client.set_metadata(metadata).await })
                     .await
@@ -269,7 +213,7 @@ impl AsyncComponent for Win {
                     .unwrap();
             }
 
-            Msg::Send(c) => {
+            MainInput::Send(c) => {
                 let client = self.gnostique.client().clone();
                 relm4::spawn(async move {
                     client
@@ -287,29 +231,33 @@ impl AsyncComponent for Win {
                 .unwrap();
             }
 
-            Msg::ShowDetail(details) => self.details.emit(DetailsWindowInput::Show(details)),
+            MainInput::ShowDetail(details) => self.details.emit(DetailsWindowInput::Show(details)),
 
-            Msg::Nip05Verified(nip05) => self.lanes.broadcast(LaneMsg::Nip05Verified(nip05)),
+            MainInput::Nip05Verified(nip05) => self.lanes.broadcast(LaneMsg::Nip05Verified(nip05)),
 
-            Msg::MetadataBitmap { pubkey, url, file } => match gdk::Texture::from_filename(&file) {
-                Ok(bitmap) => {
-                    self.lanes.broadcast(LaneMsg::MetadataBitmap {
-                        pubkey,
-                        url,
-                        bitmap: Arc::new(bitmap),
-                    });
+            MainInput::MetadataBitmap { pubkey, url, file } => {
+                match gdk::Texture::from_filename(&file) {
+                    Ok(bitmap) => {
+                        self.lanes.broadcast(LaneMsg::MetadataBitmap {
+                            pubkey,
+                            url,
+                            bitmap: Arc::new(bitmap),
+                        });
+                    }
+                    Err(e) => {
+                        warn!("Could not load '{:?}': {}", file, e);
+                    }
                 }
-                Err(e) => {
-                    warn!("Could not load '{:?}': {}", file, e);
-                }
-            },
-        }
+            }
+        };
+
+        self.update_view(widgets, sender);
     }
 }
 
 /// Translates result of [`edit profile`](editprofile::component) dialog to [`Msg`].
-fn forward_edit_profile(result: EditProfileResult) -> Msg {
+fn forward_edit_profile(result: EditProfileResult) -> MainInput {
     match result {
-        EditProfileResult::Apply(metadata) => Msg::UpdateProfile(metadata),
+        EditProfileResult::Apply(metadata) => MainInput::UpdateProfile(metadata),
     }
 }

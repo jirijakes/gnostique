@@ -5,10 +5,10 @@ use relm4::{gtk, AsyncFactorySender};
 
 use crate::ui::lane::model::*;
 use crate::ui::lane_header::LaneHeader;
+use crate::ui::main::MainInput;
 use crate::ui::note::NoteInput;
 use crate::ui::profilebox;
 use crate::ui::profilebox::model::Profilebox;
-use crate::win::Msg;
 
 #[relm4::factory(pub async)]
 impl AsyncFactoryComponent for Lane {
@@ -16,7 +16,7 @@ impl AsyncFactoryComponent for Lane {
     type Input = LaneMsg;
     type Output = LaneOutput;
     type CommandOutput = ();
-    type ParentInput = Msg;
+    type ParentInput = MainInput;
     type ParentWidget = gtk::Box;
 
     view! {
@@ -64,12 +64,13 @@ impl AsyncFactoryComponent for Lane {
         }
     }
 
-    fn output_to_parent_input(output: Self::Output) -> Option<Self::ParentInput> {
-        match output {
-            LaneOutput::ShowDetails(details) => Some(Msg::ShowDetail(details)),
-            LaneOutput::WriteNote => Some(Msg::WriteNote),
-        }
-    }
+    // fn output_to_parent_input(output: Self::Output) -> Option<Self::ParentInput> {
+    //     match output {
+    //         _ => Some(())
+    //         // LaneOutput::ShowDetails(details) => Some(Msg::ShowDetail(details)),
+    //         // LaneOutput::WriteNote => Some(Msg::WriteNote),
+    //     }
+    // }
 
     async fn update(&mut self, msg: Self::Input, sender: AsyncFactorySender<Self>) {
         match msg {

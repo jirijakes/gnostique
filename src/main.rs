@@ -2,11 +2,12 @@ mod app;
 mod demand;
 mod download;
 mod follow;
+mod identity;
 mod nostr;
 mod stream;
 mod ui;
-mod win;
 
+use std::fmt::Debug;
 use std::sync::Arc;
 
 use demand::Demand;
@@ -21,6 +22,12 @@ use sqlx::{query, SqlitePool};
 
 #[derive(Clone)]
 pub struct Gnostique(Arc<GnostiqueInner>);
+
+impl Debug for Gnostique {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Gnostique").field(&self.0.dirs).finish()
+    }
+}
 
 struct GnostiqueInner {
     pool: SqlitePool,
@@ -158,5 +165,5 @@ fn main() {
     let settings = gtk::Settings::default().unwrap();
     settings.set_gtk_application_prefer_dark_theme(true);
 
-    app.run_async::<crate::win::Win>(());
+    app.run::<crate::ui::app::App>(());
 }

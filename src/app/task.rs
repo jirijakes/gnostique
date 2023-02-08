@@ -10,11 +10,11 @@ use reqwest::Url;
 use sqlx::query;
 use tracing::info;
 
-use crate::win::{Msg, Win};
+use crate::ui::main::{Main, MainInput};
 use crate::Gnostique;
 
 /// Obtains Nostr events and forwards them to the provided `sender`.
-pub async fn receive_events(gnostique: Gnostique, sender: AsyncComponentSender<Win>) {
+pub async fn receive_events(gnostique: Gnostique, sender: AsyncComponentSender<Main>) {
     // let url: Url = "http://example.com".parse().unwrap();
     // let s = Some(Box::new(futures_util::stream::iter(
     //     (String::new()
@@ -35,7 +35,7 @@ pub async fn receive_events(gnostique: Gnostique, sender: AsyncComponentSender<W
 
     crate::stream::x(&gnostique, s)
         .for_each(|received| {
-            sender.input(Msg::Event(received));
+            sender.input(MainInput::Event(received));
 
             future::ready(())
         })
