@@ -25,24 +25,8 @@ pub struct Main {
     edit_profile: Controller<EditProfile>,
 }
 
-// impl Main {
-//     fn broadcast(&self, msg: LaneMsg) {
-//         if let Some(lanes) = &self.lanes {
-//             lanes.sender().emit(msg);
-//         }
-//     }
-
-//     fn make_lanes(&mut self, stack: &gtk::Stack) {
-//         if self.lanes.is_none() {
-//             let x = Lanes::builder().launch(()).detach();
-//             stack.add_named(x.widget(), Some("lanes"));
-//             self.lanes = Some(x);
-//         }
-//     }
-// }
-
 #[derive(Debug)]
-pub enum Msg {
+pub enum MainInput {
     Event(crate::stream::X),
     ShowDetail(Details),
     WriteNote,
@@ -60,8 +44,8 @@ pub enum Msg {
 
 #[relm4::component(pub async)]
 impl AsyncComponent for Main {
-    type Init = ();
-    type Input = Msg;
+    type Init = Gnostique;
+    type Input = MainInput;
     type Output = ();
     type CommandOutput = ();
 
@@ -82,14 +66,10 @@ impl AsyncComponent for Main {
     }
 
     async fn init(
-        _init: Self::Init,
+        gnostique: Self::Init,
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
-        let gnostique = relm4::spawn(crate::app::init::make_gnostique())
-            .await
-            .unwrap();
-
         // relm4::spawn(crate::app::task::refresh_relay_information(
         //     gnostique.clone(),
         // ));
@@ -110,8 +90,8 @@ impl AsyncComponent for Main {
             write_note: WriteNote::builder()
                 .launch(())
                 .forward(sender.input_sender(), |result| match result {
-                    WriteNoteResult::Send(c) => Msg::Send(c),
-                    _ => Msg::Noop,
+                    WriteNoteResult::Send(c) => MainInput::Send(c),
+                    _ => MainInput::Noop,
                 }),
         };
 
@@ -156,7 +136,7 @@ impl AsyncComponent for Main {
         _root: &Self::Root,
     ) {
         match msg {
-            Msg::Event(crate::stream::X::TextNote {
+            MainInput::Event(crate::stream::X::TextNote {
                 event,
                 relays,
                 author,
@@ -189,14 +169,14 @@ impl AsyncComponent for Main {
                 }
             }
 
-            Msg::Event(crate::stream::X::Reaction { event_id, content }) => {
+            MainInput::Event(crate::stream::X::Reaction { event_id, content }) => {
                 self.lanes.broadcast(LaneMsg::Reaction {
                     event: event_id,
                     reaction: content,
                 })
             }
 
-            Msg::Event(crate::stream::X::Metadata { persona, avatar }) => {
+            MainInput::Event(crate::stream::X::Metadata { persona, avatar }) => {
                 let url = persona.avatar.clone();
                 let pubkey = persona.pubkey;
 
@@ -218,13 +198,13 @@ impl AsyncComponent for Main {
                 }
             }
 
-            Msg::WriteNote => self.write_note.emit(WriteNoteInput::Show),
+            MainInput::WriteNote => self.write_note.emit(WriteNoteInput::Show),
 
-            Msg::Noop => {}
+            MainInput::Noop => {}
 
-            Msg::EditProfile => self.edit_profile.emit(EditProfileInput::Show),
+            MainInput::EditProfile => self.edit_profile.emit(EditProfileInput::Show),
 
-            Msg::UpdateProfile(metadata) => {
+            MainInput::UpdateProfile(metadata) => {
                 let client = self.gnostique.client().clone();
                 relm4::spawn(async move { client.set_metadata(metadata).await })
                     .await
@@ -232,7 +212,7 @@ impl AsyncComponent for Main {
                     .unwrap();
             }
 
-            Msg::Send(c) => {
+            MainInput::Send(c) => {
                 let client = self.gnostique.client().clone();
                 relm4::spawn(async move {
                     client
@@ -250,11 +230,11 @@ impl AsyncComponent for Main {
                 .unwrap();
             }
 
-            Msg::ShowDetail(details) => self.details.emit(DetailsWindowInput::Show(details)),
+            MainInput::ShowDetail(details) => self.details.emit(DetailsWindowInput::Show(details)),
 
-            Msg::Nip05Verified(nip05) => self.lanes.broadcast(LaneMsg::Nip05Verified(nip05)),
+            MainInput::Nip05Verified(nip05) => self.lanes.broadcast(LaneMsg::Nip05Verified(nip05)),
 
-            Msg::MetadataBitmap { pubkey, url, file } => match gdk::Texture::from_filename(&file) {
+            MainInput::MetadataBitmap { pubkey, url, file } => match gdk::Texture::from_filename(&file) {
                 Ok(bitmap) => {
                     self.lanes.broadcast(LaneMsg::MetadataBitmap {
                         pubkey,
@@ -273,8 +253,8 @@ impl AsyncComponent for Main {
 }
 
 /// Translates result of [`edit profile`](editprofile::component) dialog to [`Msg`].
-fn forward_edit_profile(result: EditProfileResult) -> Msg {
+fn forward_edit_profile(result: EditProfileResult) -> MainInput {
     match result {
-        EditProfileResult::Apply(metadata) => Msg::UpdateProfile(metadata),
+        EditProfileResult::Apply(metadata) => MainInput::UpdateProfile(metadata),
     }
 }

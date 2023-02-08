@@ -1,3 +1,4 @@
+use futures_util::FutureExt;
 use gtk::prelude::*;
 use relm4::component::*;
 use relm4::*;
@@ -13,13 +14,13 @@ impl Component for App {
     type Init = ();
     type Input = AppInput;
     type Output = ();
-    type CommandOutput = ();
+    type CommandOutput = AppCmd;
 
     view! {
         #[name(window)]
         gtk::ApplicationWindow {
             set_default_widget: Some(&unlock),
-            
+
             #[name(stack)]
             gtk::Stack {
                 set_hexpand: true,
@@ -75,6 +76,26 @@ impl Component for App {
                         }
                     }
                 },
+
+                #[name(spinner)]
+                gtk::Box {
+                    set_orientation: gtk::Orientation::Vertical,
+                    set_spacing: 12,
+                    set_valign: gtk::Align::Center,
+                    set_halign: gtk::Align::Center,
+
+                    gtk::Spinner {
+                        set_spinning: true,
+                        set_halign: gtk::Align::Center,
+                        set_width_request: 32,
+                        set_height_request: 32,
+                    },
+
+                    gtk::Label {
+                        set_halign: gtk::Align::Center,
+                        set_label: "Connecting to Nostr…",
+                    }
+                }
             }
         }
     }
@@ -99,6 +120,23 @@ impl Component for App {
         ComponentParts { model, widgets }
     }
 
+    fn update_cmd_with_view(
+        &mut self,
+        widgets: &mut Self::Widgets,
+        message: Self::CommandOutput,
+        _sender: ComponentSender<Self>,
+        _root: &Self::Root,
+    ) {
+        match message {
+            AppCmd::Unlocked(gn) => {
+                let main = Main::builder().launch(gn).detach();
+                widgets.stack.add_named(main.widget(), Some("main"));
+                self.main = Some(main);
+                widgets.stack.set_visible_child_name("main");
+            }
+        }
+    }
+
     fn update_with_view(
         &mut self,
         widgets: &mut Self::Widgets,
@@ -109,12 +147,9 @@ impl Component for App {
         match message {
             AppInput::Quit => relm4::main_application().quit(),
             AppInput::Unlock(password) => {
-                if self.main.is_none() {
-                    let main = Main::builder().launch(()).detach();
-                    widgets.stack.add_named(main.widget(), Some("main"));
-                    self.main = Some(main);
-                    widgets.stack.set_visible_child_name("main");
-                }
+                widgets.password.set_text("");
+                widgets.stack.set_visible_child(&widgets.spinner);
+                sender.oneshot_command(crate::app::init::make_gnostique().map(AppCmd::Unlocked));
             }
         }
 

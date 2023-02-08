@@ -4,7 +4,7 @@ use gtk::prelude::DisplayExt;
 use relm4::actions::{RelmAction, RelmActionGroup};
 use relm4::AsyncComponentSender;
 
-use crate::ui::main::{Msg, Main};
+use crate::ui::main::{MainInput, Main};
 
 relm4::new_action_group!(pub AuthorActionGroup, "author");
 relm4::new_stateful_action!(pub Copy, AuthorActionGroup, "copy-hex", String, ());
@@ -37,5 +37,5 @@ pub fn make_main_menu_actions(sender: AsyncComponentSender<Main>) -> SimpleActio
 }
 
 fn profile_action(sender: AsyncComponentSender<Main>) -> RelmAction<EditProfile> {
-    RelmAction::new_stateless(move |_| sender.input(Msg::EditProfile))
+    RelmAction::new_stateless(move |_| sender.input(MainInput::EditProfile))
 }

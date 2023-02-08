@@ -50,26 +50,26 @@ pub async fn make_gnostique() -> Gnostique {
     let client = Client::new(&keys);
     let gnostique = Gnostique::new(pool, dirs, client);
 
-    // gnostique
-    //     .client()
-    //     .add_relays(vec![
-    //         // ("ws://localhost:8080", None),
-    //         ("wss://brb.io", None),
-    //         ("wss://relay.nostr.info", None),
-    //         ("wss://nostr.orangepill.dev", None),
-    //         ("wss://nostr-pub.wellorder.net", None),
-    //         ("wss://nostr.openchain.fr", None),
-    //         ("wss://relay.damus.io", None),
-    //     ])
-    //     .await
-    //     .unwrap();
+    gnostique
+        .client()
+        .add_relays(vec![
+            // ("ws://localhost:8080", None),
+            ("wss://brb.io", None),
+            ("wss://relay.nostr.info", None),
+            ("wss://nostr.orangepill.dev", None),
+            ("wss://nostr-pub.wellorder.net", None),
+            ("wss://nostr.openchain.fr", None),
+            ("wss://relay.damus.io", None),
+        ])
+        .await
+        .unwrap();
 
-    // gnostique.client().connect().await;
+    gnostique.client().connect().await;
     
-    // gnostique
-    //     .client()
-    //     .subscribe(vec![Follow::new().subscriptions()])
-    //     .await;
+    gnostique
+        .client()
+        .subscribe(vec![Follow::new().subscriptions()])
+        .await;
 
     gnostique
 }

@@ -8,7 +8,7 @@ use crate::ui::lane_header::LaneHeader;
 use crate::ui::note::NoteInput;
 use crate::ui::profilebox;
 use crate::ui::profilebox::model::Profilebox;
-use crate::ui::main::Msg;
+use crate::ui::main::MainInput;
 
 #[relm4::factory(pub async)]
 impl AsyncFactoryComponent for Lane {
@@ -16,7 +16,7 @@ impl AsyncFactoryComponent for Lane {
     type Input = LaneMsg;
     type Output = LaneOutput;
     type CommandOutput = ();
-    type ParentInput = Msg;
+    type ParentInput = MainInput;
     type ParentWidget = gtk::Box;
 
     view! {
