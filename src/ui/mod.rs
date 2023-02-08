@@ -9,4 +9,5 @@ pub(crate) mod note;
 pub mod profilebox;
 pub(crate) mod replies;
 pub(crate) mod statusbar;
+mod unlock;
 pub mod writenote;
