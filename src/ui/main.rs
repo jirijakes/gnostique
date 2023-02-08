@@ -16,7 +16,7 @@ use crate::ui::statusbar::*;
 use crate::ui::writenote::model::*;
 use crate::Gnostique;
 
-pub struct Win {
+pub struct Main {
     gnostique: Gnostique,
     lanes: AsyncFactoryVecDeque<Lane>,
     details: Controller<DetailsWindow>,
@@ -24,6 +24,22 @@ pub struct Win {
     write_note: Controller<WriteNote>,
     edit_profile: Controller<EditProfile>,
 }
+
+// impl Main {
+//     fn broadcast(&self, msg: LaneMsg) {
+//         if let Some(lanes) = &self.lanes {
+//             lanes.sender().emit(msg);
+//         }
+//     }
+
+//     fn make_lanes(&mut self, stack: &gtk::Stack) {
+//         if self.lanes.is_none() {
+//             let x = Lanes::builder().launch(()).detach();
+//             stack.add_named(x.widget(), Some("lanes"));
+//             self.lanes = Some(x);
+//         }
+//     }
+// }
 
 #[derive(Debug)]
 pub enum Msg {
@@ -34,7 +50,6 @@ pub enum Msg {
     UpdateProfile(Metadata),
     Send(String),
     Noop,
-    Quit,
     MetadataBitmap {
         pubkey: XOnlyPublicKey,
         url: Url,
@@ -44,7 +59,7 @@ pub enum Msg {
 }
 
 #[relm4::component(pub async)]
-impl AsyncComponent for Win {
+impl AsyncComponent for Main {
     type Init = ();
     type Input = Msg;
     type Output = ();
@@ -52,70 +67,17 @@ impl AsyncComponent for Win {
 
     #[rustfmt::skip]
     view! {
-        #[name(window)]
-        gtk::ApplicationWindow {
-            gtk::Box {
-                set_orientation: gtk::Orientation::Vertical,
-
-                gtk::Stack {
-                    gtk::Box {
-                        set_valign: gtk::Align::Center,
-                        set_halign: gtk::Align::Center,
-                        set_orientation: gtk::Orientation::Vertical,
-                        set_spacing: 18,
-                        set_widget_name: "password",
-
-                        gtk::Label {
-                            set_label: "Unlock Gnostique identity",
-                            add_css_class: "caption",
-                        },
-
-                        gtk::Box {
-                            set_orientation: gtk::Orientation::Vertical,
-                            set_spacing: 8,
-                            add_css_class: "passwordbox",
-                            
-                            gtk::Label {
-                                set_xalign: 0.0,
-                                set_label: "Enter password:"
-                            },
-
-                            #[name(password)]
-                            gtk::PasswordEntry {
-                                set_hexpand: true,
-                                set_show_peek_icon: true
-                            },
-                            gtk::Box {
-                                set_halign: gtk::Align::End,
-                                set_spacing: 8,
-                                add_css_class: "buttons",
-
-                                gtk::Button {
-                                    add_css_class: "suggested-action",
-                                    set_label: "Unlock",
-                                    connect_clicked[password] => move |_| {
-                                        println!(">>>> {:?}", password.text());
-                                    }
-                                },
-
-                                gtk::Button {
-                                    set_label: "Quit",
-                                    connect_clicked => Msg::Quit,
-                                }
-                            }
-                        }
-                    },
-
-                    #[local_ref]
-                    lanes_box -> gtk::Box {
-                        set_orientation: gtk::Orientation::Horizontal,
-                        set_vexpand: true,
-                    }
-                },
-
-                #[local_ref]
-                status_bar -> gtk::Box { }
-            }
+        gtk::Box {
+            set_orientation: gtk::Orientation::Vertical,
+            
+            #[local_ref]
+            lanes_box -> gtk::Box {
+                set_orientation: gtk::Orientation::Horizontal,
+                set_vexpand: true,
+            },
+                        
+            #[local_ref]
+            status_bar -> gtk::Box { }
         }
     }
 
@@ -137,7 +99,7 @@ impl AsyncComponent for Win {
             sender.clone(),
         ));
 
-        let mut model = Win {
+        let mut model = Main {
             gnostique: gnostique.clone(),
             lanes: AsyncFactoryVecDeque::new(gtk::Box::default(), sender.input_sender()),
             details: DetailsWindow::builder().launch(()).detach(),
@@ -174,20 +136,21 @@ impl AsyncComponent for Win {
             // ));
         }
 
-        widgets
-            .window
-            .insert_action_group("author", Some(&crate::app::action::make_author_actions()));
+        // widgets
+        //     .window
+        //     .insert_action_group("author", Some(&crate::app::action::make_author_actions()));
 
-        widgets.window.insert_action_group(
-            "main",
-            Some(&crate::app::action::make_main_menu_actions(sender)),
-        );
+        // widgets.window.insert_action_group(
+        //     "main",
+        //     Some(&crate::app::action::make_main_menu_actions(sender)),
+        // );
 
         AsyncComponentParts { model, widgets }
     }
 
-    async fn update(
+    async fn update_with_view(
         &mut self,
+        widgets: &mut Self::Widgets,
         msg: Self::Input,
         sender: AsyncComponentSender<Self>,
         _root: &Self::Root,
@@ -237,8 +200,7 @@ impl AsyncComponent for Win {
                 let url = persona.avatar.clone();
                 let pubkey = persona.pubkey;
 
-                self.lanes
-                    .broadcast(LaneMsg::UpdatedProfile { author: persona });
+                self.lanes.broadcast(LaneMsg::UpdatedProfile { author: persona });
 
                 if let Some(ref file) = avatar {
                     match gdk::Texture::from_filename(file) {
@@ -260,10 +222,6 @@ impl AsyncComponent for Win {
 
             Msg::Noop => {}
 
-            Msg::Quit => {
-                relm4::main_application().quit();
-            }
-            
             Msg::EditProfile => self.edit_profile.emit(EditProfileInput::Show),
 
             Msg::UpdateProfile(metadata) => {
@@ -308,7 +266,9 @@ impl AsyncComponent for Win {
                     warn!("Could not load '{:?}': {}", file, e);
                 }
             },
-        }
+        };
+
+        self.update_view(widgets, sender);
     }
 }
 

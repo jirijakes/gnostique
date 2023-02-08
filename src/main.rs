@@ -5,7 +5,6 @@ mod follow;
 mod nostr;
 mod stream;
 mod ui;
-mod win;
 mod identity;
 
 use std::sync::Arc;
@@ -159,5 +158,5 @@ fn main() {
     let settings = gtk::Settings::default().unwrap();
     settings.set_gtk_application_prefer_dark_theme(true);
 
-    app.run_async::<crate::win::Win>(());
+    app.run::<crate::ui::app::App>(());
 }

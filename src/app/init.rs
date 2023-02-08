@@ -64,6 +64,8 @@ pub async fn make_gnostique() -> Gnostique {
     //     .await
     //     .unwrap();
 
+    // gnostique.client().connect().await;
+    
     // gnostique
     //     .client()
     //     .subscribe(vec![Follow::new().subscriptions()])

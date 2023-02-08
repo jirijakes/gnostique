@@ -8,7 +8,7 @@ use crate::ui::lane_header::LaneHeader;
 use crate::ui::note::NoteInput;
 use crate::ui::profilebox;
 use crate::ui::profilebox::model::Profilebox;
-use crate::win::Msg;
+use crate::ui::main::Msg;
 
 #[relm4::factory(pub async)]
 impl AsyncFactoryComponent for Lane {
@@ -64,12 +64,13 @@ impl AsyncFactoryComponent for Lane {
         }
     }
 
-    fn output_to_parent_input(output: Self::Output) -> Option<Self::ParentInput> {
-        match output {
-            LaneOutput::ShowDetails(details) => Some(Msg::ShowDetail(details)),
-            LaneOutput::WriteNote => Some(Msg::WriteNote),
-        }
-    }
+    // fn output_to_parent_input(output: Self::Output) -> Option<Self::ParentInput> {
+    //     match output {
+    //         _ => Some(())
+    //         // LaneOutput::ShowDetails(details) => Some(Msg::ShowDetail(details)),
+    //         // LaneOutput::WriteNote => Some(Msg::WriteNote),
+    //     }
+    // }
 
     async fn update(&mut self, msg: Self::Input, sender: AsyncFactorySender<Self>) {
         match msg {
