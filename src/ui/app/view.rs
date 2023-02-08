@@ -4,6 +4,7 @@ use relm4::component::*;
 use relm4::*;
 use secrecy::Secret;
 
+use crate::app::init::make_gnostique;
 use crate::ui::main::Main;
 
 use super::model::*;
@@ -84,6 +85,7 @@ impl Component for App {
                     set_valign: gtk::Align::Center,
                     set_halign: gtk::Align::Center,
 
+                    #[name(sp)]
                     gtk::Spinner {
                         set_spinning: true,
                         set_halign: gtk::Align::Center,
@@ -134,6 +136,10 @@ impl Component for App {
                 self.main = Some(main);
                 widgets.stack.set_visible_child_name("main");
             }
+
+            AppCmd::Error(e) => {
+                println!(">>>>>>> {e}");
+            }
         }
     }
 
@@ -149,7 +155,11 @@ impl Component for App {
             AppInput::Unlock(password) => {
                 widgets.password.set_text("");
                 widgets.stack.set_visible_child(&widgets.spinner);
-                sender.oneshot_command(crate::app::init::make_gnostique().map(AppCmd::Unlocked));
+                widgets.sp.start();
+                sender.oneshot_command(make_gnostique(password).map(|result| match result {
+                    Ok(gn) => AppCmd::Unlocked(gn),
+                    Err(e) => AppCmd::Error(e),
+                }));
             }
         }
 

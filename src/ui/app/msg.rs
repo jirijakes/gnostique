@@ -11,5 +11,6 @@ pub enum AppInput {
 
 #[derive(Debug)]
 pub enum AppCmd {
-    Unlocked(Gnostique),    
+    Unlocked(Gnostique),
+    Error(String),
 }

@@ -1,18 +1,19 @@
-use std::str::FromStr;
-
+use age::Decryptor;
 use directories::ProjectDirs;
 use nostr_sdk::prelude::*;
+use secrecy::SecretString;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use tracing_subscriber::EnvFilter;
 
 use crate::follow::Follow;
+use crate::identity::Identity;
 use crate::Gnostique;
 
 /// Initializes the application, reads all the configurations and databases
 /// and all that and returns it all inside [`Gnostique`].
 ///
 /// Requires Tokio.
-pub async fn make_gnostique() -> Gnostique {
+pub async fn make_gnostique(password: SecretString) -> Result<Gnostique, String> {
     // Logging, tracing
     let subscriber = tracing_subscriber::FmtSubscriber::builder()
         // .pretty()
@@ -27,8 +28,20 @@ pub async fn make_gnostique() -> Gnostique {
 
     tracing::subscriber::set_global_default(subscriber).unwrap();
 
-    let secret_key = SecretKey::from_str(include_str!("../../.seckey")).unwrap();
-    let keys = Keys::new(secret_key);
+    use std::io::prelude::*;
+
+    let ciph = std::fs::File::open("key");
+    let mut buf = Vec::new();
+    ciph.unwrap()
+        .read_to_end(&mut buf)
+        .map_err(|e| e.to_string())?;
+
+    let id: Identity = if let Ok(Decryptor::Passphrase(d)) = Decryptor::new(buf.as_slice()) {
+        let rea = d.decrypt(&password, Some(18)).map_err(|e| e.to_string())?;
+        serde_json::from_reader(rea).map_err(|e| e.to_string())?
+    } else {
+        Err("Can't".to_string())?
+    };
 
     let dirs = ProjectDirs::from("com.jirijakes", "", "Gnostique").unwrap();
     tokio::fs::create_dir_all(dirs.data_dir()).await.unwrap();
@@ -47,7 +60,7 @@ pub async fn make_gnostique() -> Gnostique {
     sqlx::migrate!().run(&pool).await.unwrap();
 
     // Nostr
-    let client = Client::new(&keys);
+    let client = Client::new(&id.nostr_key());
     let gnostique = Gnostique::new(pool, dirs, client);
 
     gnostique
@@ -65,11 +78,11 @@ pub async fn make_gnostique() -> Gnostique {
         .unwrap();
 
     gnostique.client().connect().await;
-    
+
     gnostique
         .client()
         .subscribe(vec![Follow::new().subscriptions()])
         .await;
 
-    gnostique
+    Ok(gnostique)
 }
