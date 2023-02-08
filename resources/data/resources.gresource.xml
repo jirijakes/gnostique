@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gresources>
-  <gresource prefix="/com/jirijakes/gnostique/icons">
+  <gresource prefix="/com/jirijakes/gnostique">
     <file>icons/scalable/actions/gnostique-repost-symbolic.svg</file>
     <file>icons/scalable/actions/gnostique-down-symbolic.svg</file>
   </gresource>
