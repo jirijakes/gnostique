@@ -4,11 +4,10 @@ use relm4::component::*;
 use relm4::*;
 use secrecy::Secret;
 
-use crate::app::init::make_gnostique;
-use crate::ui::main::Main;
-
 use super::model::*;
 use super::msg::*;
+use crate::app::init::make_gnostique;
+use crate::ui::main::Main;
 
 #[relm4::component(pub)]
 impl Component for App {

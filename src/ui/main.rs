@@ -53,13 +53,13 @@ impl AsyncComponent for Main {
     view! {
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
-            
+
             #[local_ref]
             lanes_box -> gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
                 set_vexpand: true,
             },
-                        
+
             #[local_ref]
             status_bar -> gtk::Box { }
         }
@@ -180,7 +180,8 @@ impl AsyncComponent for Main {
                 let url = persona.avatar.clone();
                 let pubkey = persona.pubkey;
 
-                self.lanes.broadcast(LaneMsg::UpdatedProfile { author: persona });
+                self.lanes
+                    .broadcast(LaneMsg::UpdatedProfile { author: persona });
 
                 if let Some(ref file) = avatar {
                     match gdk::Texture::from_filename(file) {
@@ -234,18 +235,20 @@ impl AsyncComponent for Main {
 
             MainInput::Nip05Verified(nip05) => self.lanes.broadcast(LaneMsg::Nip05Verified(nip05)),
 
-            MainInput::MetadataBitmap { pubkey, url, file } => match gdk::Texture::from_filename(&file) {
-                Ok(bitmap) => {
-                    self.lanes.broadcast(LaneMsg::MetadataBitmap {
-                        pubkey,
-                        url,
-                        bitmap: Arc::new(bitmap),
-                    });
+            MainInput::MetadataBitmap { pubkey, url, file } => {
+                match gdk::Texture::from_filename(&file) {
+                    Ok(bitmap) => {
+                        self.lanes.broadcast(LaneMsg::MetadataBitmap {
+                            pubkey,
+                            url,
+                            bitmap: Arc::new(bitmap),
+                        });
+                    }
+                    Err(e) => {
+                        warn!("Could not load '{:?}': {}", file, e);
+                    }
                 }
-                Err(e) => {
-                    warn!("Could not load '{:?}': {}", file, e);
-                }
-            },
+            }
         };
 
         self.update_view(widgets, sender);

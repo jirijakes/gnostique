@@ -10,7 +10,7 @@ use reqwest::Url;
 use sqlx::query;
 use tracing::info;
 
-use crate::ui::main::{MainInput, Main};
+use crate::ui::main::{Main, MainInput};
 use crate::Gnostique;
 
 /// Obtains Nostr events and forwards them to the provided `sender`.

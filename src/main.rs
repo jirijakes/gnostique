@@ -2,10 +2,10 @@ mod app;
 mod demand;
 mod download;
 mod follow;
+mod identity;
 mod nostr;
 mod stream;
 mod ui;
-mod identity;
 
 use std::fmt::Debug;
 use std::sync::Arc;

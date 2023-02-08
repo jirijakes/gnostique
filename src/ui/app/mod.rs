@@ -7,7 +7,7 @@
 //! redirects all life into [`Main`](crate::ui::main).
 
 mod model;
-mod view;
 mod msg;
+mod view;
 
 pub use model::App;

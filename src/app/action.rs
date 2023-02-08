@@ -4,7 +4,7 @@ use gtk::prelude::DisplayExt;
 use relm4::actions::{RelmAction, RelmActionGroup};
 use relm4::AsyncComponentSender;
 
-use crate::ui::main::{MainInput, Main};
+use crate::ui::main::{Main, MainInput};
 
 relm4::new_action_group!(pub AuthorActionGroup, "author");
 relm4::new_stateful_action!(pub Copy, AuthorActionGroup, "copy-hex", String, ());
