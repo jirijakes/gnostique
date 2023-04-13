@@ -118,7 +118,7 @@ async fn received_event(
 
 async fn received_metadata(gnostique: &Gnostique, event: Event) -> X {
     let pubkey_vec = event.pubkey.serialize().to_vec();
-    let json = event.as_json().unwrap();
+    let json = event.as_json();
 
     let _ = query!(
         r#"

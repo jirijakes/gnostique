@@ -47,15 +47,12 @@ impl Demand {
             _ => {
                 self.0.metadata.lock().await.insert(pubkey, Instant::now());
 
-                info!("Requesting metadata {}.", pubkey.to_hex());
+                info!("Requesting metadata {pubkey:x}.");
 
                 let relays = self.0.client.relays().await;
                 if let Some(r) = relays.get(&relay) {
                     r.req_events_of(
-                        vec![SubscriptionFilter::new()
-                            .kind(Kind::Metadata)
-                            .author(pubkey)
-                            .limit(1)],
+                        vec![Filter::new().kind(Kind::Metadata).author(pubkey).limit(1)],
                         None,
                     );
                 }
@@ -84,12 +81,8 @@ impl Demand {
                 info!("Requesting note {}.", event_id.to_hex());
 
                 let sub = vec![
-                    SubscriptionFilter::new()
-                        .kind(Kind::TextNote)
-                        .id(event_id.to_hex()),
-                    SubscriptionFilter::new()
-                        .kind(Kind::TextNote)
-                        .event(event_id),
+                    Filter::new().kind(Kind::TextNote).id(event_id.to_hex()),
+                    Filter::new().kind(Kind::TextNote).event(event_id),
                 ];
 
                 if let Some(r) = relay {
