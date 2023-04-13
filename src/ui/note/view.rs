@@ -138,7 +138,7 @@ impl FactoryComponent for Note {
                                 #[watch] set_visible: self.author.show_nip05(),
                             },
 
-                            add_controller = &gtk::GestureClick::new() {
+                            add_controller = gtk::GestureClick::new() {
                                 set_button: 3,
                                 connect_pressed[author] => move |_, _, x, y| {
                                     let popover = gtk::PopoverMenu::builder()
@@ -261,7 +261,7 @@ impl FactoryComponent for Note {
                             add_css_class: "client",
                         }                    }
                 },
-                add_controller = &gtk::EventControllerMotion::new() {
+                add_controller = gtk::EventControllerMotion::new() {
                     connect_enter[sender] => move |_, _, _| { sender.input(NoteInput::FocusIn) },
                     connect_leave[sender] => move |_| { sender.input(NoteInput::FocusOut) }
                 }
