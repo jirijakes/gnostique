@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::rc::Rc;
 use std::sync::Arc;
 
 use gtk::prelude::*;
@@ -10,8 +9,8 @@ use relm4::factory::{AsyncFactoryComponent, AsyncFactoryVecDeque};
 use relm4::prelude::*;
 use relm4::{gtk, AsyncComponentSender, AsyncFactorySender};
 
-use super::author::Author;
 use crate::nostr::Persona;
+use crate::ui::widgets::author::Author;
 
 /// Widget displaying list of replies to a text note.
 #[derive(Debug)]
@@ -23,7 +22,7 @@ pub struct Replies {
 #[derive(Debug)]
 pub enum RepliesInput {
     NewReply(Arc<Event>),
-    UpdatedProfile { author: Persona },
+    UpdatedProfile { author: Arc<Persona> },
     Nip05Verified(XOnlyPublicKey),
 }
 
@@ -85,12 +84,13 @@ impl SimpleAsyncComponent for Replies {
 #[derive(Debug)]
 pub struct Reply {
     content: String,
-    author: Persona,
+    author: Arc<Persona>,
+    nip05_verified: bool,
 }
 
 #[derive(Clone, Debug)]
 pub enum ReplyInput {
-    UpdatedProfile { author: Persona },
+    UpdatedProfile { author: Arc<Persona> },
     Nip05Verified(XOnlyPublicKey),
 }
 
@@ -110,26 +110,9 @@ impl AsyncFactoryComponent for Reply {
             set_hexpand: true,
             add_css_class: "reply",
 
-            #[template]
-            Author {
-                #[watch]
-                set_tooltip_markup: Some(&self.author.tooltip()),
-
-                #[template_child]
-                author_name {
-                    #[watch] set_label?: self.author.name.as_ref(),
-                    #[watch] set_visible: self.author.name.is_some(),
-                },
-                #[template_child]
-                author_pubkey {
-                    #[watch] set_label: &self.author.format_pubkey(8, 8),
-                    #[watch] set_visible: !self.author.show_nip05(),
-                },
-                #[template_child]
-                author_nip05 {
-                    #[watch] set_label?: &self.author.format_nip05(),
-                    #[watch] set_visible: self.author.show_nip05(),
-                }
+            Author::with_pubkey(self.author.pubkey) {
+                #[watch] set_persona: &self.author,
+                #[watch] set_nip05_verified: self.nip05_verified,
             },
 
             gtk::Label {
@@ -151,7 +134,8 @@ impl AsyncFactoryComponent for Reply {
     ) -> Self {
         Reply {
             content: init.as_ref().content.to_string(),
-            author: Persona::new(init.pubkey),
+            author: Arc::new(Persona::new(init.pubkey)),
+            nip05_verified: false,
         }
     }
 
@@ -159,12 +143,13 @@ impl AsyncFactoryComponent for Reply {
         match message {
             ReplyInput::UpdatedProfile { author } => {
                 if self.author.pubkey == author.pubkey {
+                    self.nip05_verified = author.nip05_preverified;
                     self.author = author;
                 }
             }
             ReplyInput::Nip05Verified(pubkey) => {
                 if pubkey == self.author.pubkey {
-                    self.author.nip05_verified = true;
+                    self.nip05_verified = true;
                 }
             }
         }

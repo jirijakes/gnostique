@@ -8,7 +8,7 @@ use relm4::prelude::*;
 use reqwest::Url;
 use tokio::time::interval;
 
-use crate::Gnostique;
+use crate::gnostique::Gnostique;
 
 #[derive(Debug)]
 pub struct RelayStatus {

@@ -1,14 +1,23 @@
-use std::sync::Arc;
+pub mod content;
+mod parse;
+
+pub use std::sync::Arc;
 
 use nostr_sdk::nostr::prelude::*;
 use nostr_sdk::nostr::{Event, EventId, Tag};
+use nostr_sdk::prelude::rand::rngs::OsRng;
+use nostr_sdk::prelude::rand::*;
 use once_cell::sync::Lazy;
 use relm4::gtk::{gdk, glib};
 
+use self::content::Content;
+
 pub static ANONYMOUS_USER: Lazy<Arc<gdk::Texture>> = Lazy::new(|| {
     Arc::new(
-        gdk::Texture::from_bytes(&glib::Bytes::from(include_bytes!("../resources/user.svg")))
-            .unwrap(),
+        gdk::Texture::from_bytes(&glib::Bytes::from(include_bytes!(
+            "../../resources/user.svg"
+        )))
+        .unwrap(),
     )
 });
 
@@ -21,12 +30,13 @@ pub struct Repost {
 #[derive(Clone, Debug)]
 pub struct Persona {
     pub name: Option<String>,
+    pub display_name: Option<String>,
     pub pubkey: XOnlyPublicKey,
     pub avatar: Option<Url>,
     pub banner: Option<Url>,
     pub about: Option<String>,
     pub nip05: Option<String>,
-    pub nip05_verified: bool,
+    pub nip05_preverified: bool,
     pub metadata_json: String,
 }
 
@@ -35,12 +45,13 @@ impl Persona {
         Persona {
             pubkey,
             name: None,
+            display_name: None,
             nip05: None,
             avatar: None,
             banner: None,
             about: None,
             metadata_json: String::new(),
-            nip05_verified: false,
+            nip05_preverified: false,
         }
     }
 
@@ -49,12 +60,13 @@ impl Persona {
         Persona {
             pubkey,
             name: metadata.name,
+            display_name: metadata.display_name,
             avatar: metadata.picture.and_then(|s| s.parse().ok()),
             banner: metadata.banner.and_then(|s| s.parse().ok()),
             about: metadata.about,
             nip05: metadata.nip05,
             metadata_json,
-            nip05_verified: false,
+            nip05_preverified: false,
         }
     }
 
@@ -62,10 +74,6 @@ impl Persona {
         self.nip05
             .clone()
             .map(|n| format!("✅ {}", n.strip_prefix("_@").unwrap_or(&n)))
-    }
-
-    pub fn show_nip05(&self) -> bool {
-        self.nip05.is_some() && self.nip05_verified
     }
 
     fn shortened(s: &str, chars: usize) -> String {
@@ -93,21 +101,6 @@ impl Persona {
 
         self.short_bech32(chars)
     }
-
-    pub fn tooltip(&self) -> String {
-        format!(
-            r###"<span alpha="70%">Pubkey hex:</span> <span color="yellow">{}</span>
-<span alpha="70%">Pubkey bech32:</span> <span color="#00FF00">{}</span>
-<span alpha="70%">Name:</span> <b>{}</b>
-<span alpha="70%">NIP-05:</span> <span color="cyan">{}</span>
-<span alpha="70%">NIP-05 verified: </span> {}"###,
-            self.pubkey,
-            self.pubkey.to_bech32().unwrap_or("?".to_string()),
-            self.name.as_ref().unwrap_or(&"?".to_string()),
-            self.nip05.as_ref().unwrap_or(&"?".to_string()),
-            self.nip05_verified
-        )
-    }
 }
 
 pub trait EventExt {
@@ -118,19 +111,22 @@ pub trait EventExt {
     /// Returns `None` if the event is not of kind 1.
     fn replies_to(&self) -> Option<EventId>;
 
+    /// If this event is a text note and part of a thread, finds its root.
     fn thread_root(&self) -> Option<(EventId, Option<Url>)>;
 
     /// Find event ID to which this event reacts to according to NIP-25.
     /// Returns `None` if the event is not of kind 7.
     fn reacts_to(&self) -> Option<EventId>;
 
+    /// If this event is metadata, tries to parse it.
     fn as_metadata(&self) -> Option<Metadata>;
 
     fn as_pretty_json(&self) -> String;
 
-    fn augment_content(&self) -> String;
+    fn prepare_content(&self) -> Content;
 
-    fn collect_relays(&self) -> Vec<Url>;
+    /// Find all relays in this event.
+    fn collect_relays(&self) -> Vec<UncheckedUrl>;
 }
 
 impl EventExt for Event {
@@ -178,7 +174,7 @@ impl EventExt for Event {
                 .iter()
                 .find_map(|t| match t {
                     Tag::Event(id, relay, Some(Marker::Root)) => {
-                        Some((*id, relay.as_ref().and_then(|s| s.parse().ok())))
+                        Some((*id, relay.as_ref().and_then(|s| s.clone().try_into().ok())))
                     }
                     _ => None,
                 })
@@ -192,7 +188,7 @@ impl EventExt for Event {
 
                     match only_events.as_slice() {
                         [_, .., Tag::Event(id, relay, _)] => {
-                            Some((*id, relay.as_ref().and_then(|s| s.parse().ok())))
+                            Some((*id, relay.as_ref().and_then(|s| s.clone().try_into().ok())))
                         }
                         _ => None,
                     }
@@ -219,68 +215,31 @@ impl EventExt for Event {
         serde_json::to_string_pretty(self).expect("Could not serialize Event?")
     }
 
-    /// Takes content of the event and replaces links by appropriate `<a>` tags.
-    ///
-    /// The method does not care about the content of the content. It is responsibility
-    /// of the caller to assure that the content is supposed to be plain text.
-    fn augment_content(&self) -> String {
-        use linkify::*;
-
-        let content = &self.content;
-
-        // Replace web links by normal web link.
-        let www: String = LinkFinder::new()
-            .spans(&html_escape::encode_text(content.trim()))
-            .map(|span| {
-                let s = span.as_str();
-                match span.kind() {
-                    Some(LinkKind::Url) => {
-                        format!(r#"<a href="{s}" title="{s}">{s}</a>"#)
-                    }
-                    _ => s.to_string(),
-                }
-            })
-            .collect();
-
-        // Replace hashtags by internal nostr URL.
-        let tags = regex::Regex::new("#(?P<tag>[a-zA-Z0-9]+)")
-            .unwrap()
-            .replace_all(&www, |caps: &regex::Captures| {
-                format!(
-                    r###"<a href="nostr:search?t={}" title="#{}">#{}</a>"###,
-                    caps["tag"].to_lowercase(),
-                    caps["tag"].to_lowercase(),
-                    &caps["tag"]
-                )
-            });
-
-        // Replace mentions. This has to be made much more sofisticated.
-        regex::Regex::new("#\\[(?P<idx>\\d+)\\]")
-            .unwrap()
-            .replace_all(&tags, |caps: &regex::Captures| {
-                let idx: usize = caps["idx"].parse().unwrap();
-                let id = match self.tags.get(idx) {
-                    Some(Tag::Event(id, _, _)) => id.to_string(),
-                    Some(Tag::PubKey(pubkey, _)) => pubkey.to_string(),
-                    _ => caps["idx"].to_string(),
-                };
-                format!(r#"<a href="nostr:{id}">{id}</a>"#)
-            })
-            .into()
+    fn prepare_content(&self) -> Content {
+        parse::parse_content(self)
     }
 
-    fn collect_relays(&self) -> Vec<Url> {
+    fn collect_relays(&self) -> Vec<UncheckedUrl> {
         self.tags
             .iter()
             .filter_map(|t| match t {
-                Tag::Event(_, Some(r), _) => r.parse().ok(),
-                Tag::PubKey(_, Some(r)) => r.parse().ok(),
+                Tag::Event(_, Some(r), _) => r.clone().try_into().ok(),
+                Tag::PubKey(_, Some(r)) => r.clone().try_into().ok(),
                 Tag::ContactList {
                     relay_url: Some(r), ..
-                } => r.parse().ok(),
+                } => r.clone().try_into().ok(),
                 Tag::Relay(url) => Some(url.clone()),
                 _ => None,
             })
             .collect()
     }
+}
+
+pub fn mnemonic() {
+    let m = Mnemonic::from_entropy(&OsRng.gen::<[u8; 32]>()).unwrap();
+    m.word_iter().for_each(|w| print!("{w} "));
+    println!();
+    let m = Mnemonic::from_entropy(&OsRng.gen::<[u8; 32]>()).unwrap();
+    m.word_iter().for_each(|w| print!("{w} "));
+    println!();
 }

@@ -11,9 +11,9 @@ relm4::new_stateful_action!(pub Copy, AuthorActionGroup, "copy-hex", String, ())
 
 /// Creates a GTK action group for author-related actions.
 pub fn make_author_actions() -> SimpleActionGroup {
-    let group = RelmActionGroup::<AuthorActionGroup>::new();
+    let mut group = RelmActionGroup::<AuthorActionGroup>::new();
 
-    group.add_action(&copy_action());
+    group.add_action(copy_action());
     group.into_action_group()
 }
 
@@ -30,9 +30,9 @@ relm4::new_action_group!(pub MainMenuActionGroup, "main");
 relm4::new_stateless_action!(pub EditProfile, MainMenuActionGroup, "profile");
 
 pub fn make_main_menu_actions(sender: AsyncComponentSender<Main>) -> SimpleActionGroup {
-    let group = RelmActionGroup::<MainMenuActionGroup>::new();
+    let mut group = RelmActionGroup::<MainMenuActionGroup>::new();
 
-    group.add_action(&profile_action(sender));
+    group.add_action(profile_action(sender));
     group.into_action_group()
 }
 

@@ -8,6 +8,7 @@ use nostr_sdk::nostr::{Event, EventId};
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::*;
 use reqwest::Url;
+use tracing::trace;
 
 use crate::follow::Follow;
 use crate::nostr::{EventExt, Persona, Repost};
@@ -30,6 +31,7 @@ pub enum LaneKind {
     Profile(XOnlyPublicKey),
     Thread(EventId),
     Feed(Follow),
+    Sink,
 }
 
 impl LaneKind {
@@ -47,6 +49,7 @@ impl LaneKind {
 
     pub fn accepts(&self, event: &Event) -> bool {
         match self {
+            LaneKind::Sink => true,
             LaneKind::Feed(f) => f.follows(&event.pubkey) && event.replies_to().is_none(),
             LaneKind::Profile(pubkey) => &event.pubkey == pubkey,
             LaneKind::Thread(id) => {
@@ -63,11 +66,11 @@ pub enum LaneMsg {
     NewTextNote {
         event: Arc<Event>,
         relays: Vec<Url>,
-        author: Option<Persona>,
+        author: Option<Arc<Persona>>,
         repost: Option<Repost>,
     },
     UpdatedProfile {
-        author: Persona,
+        author: Arc<Persona>,
     },
     ShowDetails(Details),
     MetadataBitmap {
@@ -95,7 +98,7 @@ impl Lane {
         &mut self,
         event: Arc<Event>,
         relays: Vec<Url>,
-        author: Option<Persona>,
+        author: Option<Arc<Persona>>,
         repost: Option<Repost>,
     ) {
         let event_id = event.id;
@@ -125,6 +128,7 @@ impl Lane {
                         LaneKind::Profile(_) => ord == Ordering::Greater,
                         LaneKind::Thread(_) => ord == Ordering::Less,
                         LaneKind::Feed(_) => ord == Ordering::Less,
+                        LaneKind::Sink => ord == Ordering::Less,
                     }
                 });
 
@@ -139,6 +143,21 @@ impl Lane {
 
             // At the end, let's remember (event_id -> dynamic index) pair.
             self.hash_index.insert(event_id, di);
+        }
+
+        // Remove oldest notes if there are too many already.
+        //
+        // TODO: The maximum number of notes to show should be configurable.
+        {
+            let mut g = self.text_notes.guard();
+
+            if g.len() > 10 {
+                trace!("Lane {:?} has {} notes, removing some.", self.kind, g.len());
+            };
+
+            while g.len() > 10 {
+                let _ = g.pop_back();
+            }
         }
     }
 }

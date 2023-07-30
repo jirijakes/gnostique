@@ -5,15 +5,19 @@ use gtk::gdk;
 use nostr_sdk::nostr::*;
 use relm4::component::{AsyncComponentController, AsyncController};
 use relm4::prelude::*;
+use relm4::JoinHandle;
+use tracing::trace;
 
+use crate::nostr::content::Content;
 use crate::nostr::*;
 use crate::ui::replies::{Replies, RepliesInput};
 
 #[derive(Debug)]
 pub struct Note {
-    pub(super) content: String,
+    pub(super) content: Content,
     pub(super) is_central: bool,
-    pub(super) author: Persona,
+    pub(super) author: Arc<Persona>,
+    pub(super) nip05_verified: bool,
     pub(super) show_hidden_buttons: bool,
     pub(super) avatar: Arc<gdk::Texture>,
     pub(super) likes: u32,
@@ -25,6 +29,20 @@ pub struct Note {
     pub(super) repost_author: Option<Persona>,
     pub(super) repost: Option<Event>,
     pub(super) age: String,
+
+    /// Holds join handle of a background task that regularly updates
+    /// age of note. It is cancelled when this note is dropped.
+    pub(super) tick_handle: JoinHandle<()>,
+}
+
+impl Drop for Note {
+    fn drop(&mut self) {
+        // Each note holds a join handle to a tick task (for updating note's age).
+        // The background task has to be cancelled when the note is removed from lane
+        // or dropped for any other reason.
+        trace!("Note {} dropped, aborting its tick.", self.event.id);
+        self.tick_handle.abort();
+    }
 }
 
 impl Note {
@@ -32,8 +50,8 @@ impl Note {
         &mut self,
         event: Arc<Event>,
         relays: Vec<Url>,
-        author: Option<Persona>,
-        repost: Option<Repost>,
+        author: Option<Arc<Persona>>,
+        _repost: Option<Repost>,
     ) {
         // The newly arriving event is this text note. Assuming that
         // it's all more up-to-date, so we can update notes state right away.
@@ -47,14 +65,14 @@ impl Note {
             }
         }
 
-        if let Some(r) = repost {};
+        // if let Some(r) = repost {};
 
         if event.replies_to() == Some(self.event.id) {
             // The newly arriving event is a reply to this text note.
             self.replies.emit(RepliesInput::NewReply(event.clone()));
         }
 
-        if let Some((root, root_relay)) = self.event.thread_root() {
+        if let Some((root, _root_relay)) = self.event.thread_root() {
             if root == event.id {
                 // The newly arriving event is thread root of this text note.
                 // println!(">>>>>> {:#?}", event);

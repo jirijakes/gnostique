@@ -1,7 +1,7 @@
+use std::sync::Arc;
 use std::time::Duration;
 
 use chrono::{TimeZone, Utc};
-use gtk::gdk;
 use gtk::pango::WrapMode;
 use gtk::prelude::*;
 use nostr_sdk::prelude::ToBech32;
@@ -12,10 +12,10 @@ use super::model::*;
 use super::msg::*;
 use crate::app::action::*;
 use crate::nostr::*;
-use crate::ui::author::Author;
 use crate::ui::details::Details;
 use crate::ui::lane::LaneMsg;
 use crate::ui::replies::{Replies, RepliesInput};
+use crate::ui::widgets::author::Author;
 
 /*
     +-------------------------------------+
@@ -45,34 +45,8 @@ impl FactoryComponent for Note {
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
 
-            // reposter
-            gtk::Box {
-                set_orientation: gtk::Orientation::Horizontal,
-                set_spacing: 10,
-                add_css_class: "repost",
-                set_visible: self.repost_author.is_some(),
-
-                gtk::Image {
-                    set_icon_name: Some("gnostique-repost-symbolic"),
-                    set_pixel_size: 18,
-                },
-
-                #[template]
-                #[name(reposter)]
-                Author {
-                    #[template_child]
-                    author_name {
-                        #[watch] set_label?: self.repost_author.as_ref().and_then(|a| a.name.as_ref()),
-                        #[watch] set_visible: self.repost_author.as_ref().and_then(|a| a.name.as_ref()).is_some(),
-                    },
-                    #[template_child]
-                    author_pubkey {
-                        #[watch] set_label?: &self.repost_author.as_ref().map(|a| a.format_pubkey(8, 16)),
-                        #[watch] set_visible: self.repost_author.as_ref().and_then(|a| a.name.as_ref()).is_none(),
-                    },
-                },
-            },
-
+            // REPOSTER may be prepended here
+            
             gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
                 set_hexpand: true,
@@ -116,41 +90,10 @@ impl FactoryComponent for Note {
 
                     // author
                     gtk::Overlay {
-                        #[template]
-                        #[name(author)]
-                        Author {
-                            #[watch]
-                            set_tooltip_markup: Some(&self.author.tooltip()),
-
-                            #[template_child]
-                            author_name {
-                                #[watch] set_label?: self.author.name.as_ref(),
-                                #[watch] set_visible: self.author.name.is_some(),
-                            },
-                            #[template_child]
-                            author_pubkey {
-                                #[watch] set_label: &self.author.format_pubkey(8, 16),
-                                #[watch] set_visible: !self.author.show_nip05(),
-                            },
-                            #[template_child]
-                            author_nip05 {
-                                #[watch] set_label?: &self.author.format_nip05(),
-                                #[watch] set_visible: self.author.show_nip05(),
-                            },
-
-                            add_controller = gtk::GestureClick::new() {
-                                set_button: 3,
-                                connect_pressed[author] => move |_, _, x, y| {
-                                    let popover = gtk::PopoverMenu::builder()
-                                        .menu_model(&author_menu)
-                                        .has_arrow(false)
-                                        .pointing_to(&gdk::Rectangle::new(x as i32, y as i32, 1, 1))
-                                        .build();
-
-                                    popover.set_parent(author.widget_ref());
-                                    popover.popup();
-                                }
-                            }
+                        Author::with_pubkey(self.author.pubkey) {
+                            set_context_menu: Some(&author_menu),
+                            #[watch] set_persona: &self.author,
+                            #[watch] set_nip05_verified: self.nip05_verified,
                         },
                         add_overlay = &gtk::Label {
                             set_valign: gtk::Align::Start,
@@ -161,10 +104,11 @@ impl FactoryComponent for Note {
                         }
                     },
 
+                    // content
                     #[name(content)]
                     gtk::Label {
                         #[watch]
-                        set_markup: &self.content,
+                        set_markup: self.content.augment(&self.event.content).trim(),
                         set_wrap: true,
                         set_wrap_mode: WrapMode::WordChar,
                         set_halign: gtk::Align::Start,
@@ -175,7 +119,7 @@ impl FactoryComponent for Note {
                         add_css_class: "content",
 
                         connect_activate_link[sender] => move |_, uri| {
-                            if uri.starts_with("nostr") {
+                            if uri.starts_with("nostr") || uri.starts_with("gnostique") {
                                 sender.output(NoteOutput::LinkClicked(uri.to_string()));
                                 gtk::Inhibit(true)
                             } else { gtk::Inhibit(false) }
@@ -283,7 +227,7 @@ impl FactoryComponent for Note {
         }
     }
 
-    fn output_to_parent_input(output: Self::Output) -> Option<Self::ParentInput> {
+    fn forward_to_parent(output: Self::Output) -> Option<Self::ParentInput> {
         match output {
             NoteOutput::ShowDetails(details) => Some(LaneMsg::ShowDetails(details)),
             NoteOutput::LinkClicked(uri) => uri.parse().map(LaneMsg::LinkClicked).ok(),
@@ -291,7 +235,7 @@ impl FactoryComponent for Note {
     }
 
     fn init_model(init: Self::Init, _index: &DynamicIndex, sender: FactorySender<Self>) -> Self {
-        relm4::spawn(async move {
+        let tick_handle = relm4::spawn(async move {
             let mut int = tokio::time::interval(Duration::from_secs(30));
             loop {
                 int.tick().await;
@@ -300,7 +244,9 @@ impl FactoryComponent for Note {
         });
 
         let replies = Replies::builder().launch(()).detach();
-        let author = init.author.unwrap_or(Persona::new(init.event.pubkey));
+        let author = init
+            .author
+            .unwrap_or(Arc::new(Persona::new(init.event.pubkey)));
         let repost_author = init
             .repost
             .as_ref()
@@ -308,9 +254,10 @@ impl FactoryComponent for Note {
         let repost = init.repost.map(|r| r.event);
 
         Self {
+            nip05_verified: author.nip05_preverified,
             author,
             is_central: init.is_central,
-            content: init.event.augment_content(),
+            content: init.event.prepare_content(),
             show_hidden_buttons: false,
             avatar: ANONYMOUS_USER.clone(),
             likes: 0,
@@ -324,7 +271,44 @@ impl FactoryComponent for Note {
             repost_author,
             repost,
             age: String::new(),
+            tick_handle
         }
+    }
+
+    fn init_widgets(
+        &mut self,
+        _index: &DynamicIndex,
+        root: &Self::Root,
+        _returned_widget: &gtk::ListBoxRow,
+        sender: FactorySender<Self>,
+    ) -> Self::Widgets {
+        let widgets = view_output!();
+
+        if let Some(reposter) = &self.repost_author {
+            relm4::view! {
+                #[name = "reposter_box"]
+                gtk::Box {
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_spacing: 10,
+                    add_css_class: "repost",
+                    set_visible: self.repost_author.is_some(),
+
+                    Author::with_pubkey(reposter.pubkey) {
+                        //TODO: Does the watch work here?
+                        #[watch] set_persona?: &self.repost_author,
+                        // set_context_menu: Some(&reposter_menu),
+                        set_icon = &gtk::Image {
+                            set_icon_name: Some("gnostique-repost-symbolic"),
+                            set_pixel_size: 18,
+                        }
+                    }
+                }
+            }
+
+            root.prepend(&reposter_box);
+        }
+
+        widgets
     }
 
     fn update(&mut self, message: Self::Input, sender: FactorySender<Self>) {
@@ -332,8 +316,9 @@ impl FactoryComponent for Note {
             NoteInput::UpdatedProfile { author } => {
                 if self.author.pubkey == author.pubkey {
                     self.author = author.clone();
+                    self.nip05_verified = author.nip05_preverified;
                 };
-
+                self.content.provide(&author);
                 self.replies.emit(RepliesInput::UpdatedProfile { author });
             }
             NoteInput::FocusIn => self.show_hidden_buttons = true,
@@ -358,11 +343,10 @@ impl FactoryComponent for Note {
             } => self.receive(event, relays, author, repost),
             NoteInput::Nip05Verified(pubkey) => {
                 if pubkey == self.author.pubkey {
-                    self.author.nip05_verified = true;
+                    self.nip05_verified = true;
                 }
                 self.replies.emit(RepliesInput::Nip05Verified(pubkey));
             }
-
             NoteInput::Reaction { event, reaction } => {
                 if self.event.id == event {
                     if reaction == "+" || reaction == "🤙" {

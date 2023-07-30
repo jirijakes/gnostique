@@ -7,7 +7,7 @@ use crate::nostr::{Persona, ANONYMOUS_USER};
 
 #[derive(Debug)]
 pub struct Profilebox {
-    pub author: Option<Persona>,
+    pub author: Option<Arc<Persona>>,
     pub avatar: Arc<Texture>,
     pub banner: Option<Arc<Texture>>,
 }
@@ -24,6 +24,6 @@ impl Profilebox {
 
 #[derive(Debug)]
 pub enum Input {
-    UpdatedProfile { author: Persona },
+    UpdatedProfile { author: Arc<Persona> },
     MetadataBitmap { url: Url, bitmap: Arc<Texture> },
 }

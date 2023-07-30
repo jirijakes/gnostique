@@ -9,12 +9,12 @@ use relm4::factory::AsyncFactoryVecDeque;
 use tracing::warn;
 
 use crate::follow::Follow;
+use crate::gnostique::Gnostique;
 use crate::ui::details::*;
 use crate::ui::editprofile::model::*;
 use crate::ui::lane::*;
 use crate::ui::statusbar::*;
 use crate::ui::writenote::model::*;
-use crate::Gnostique;
 
 pub struct Main {
     gnostique: Gnostique,
@@ -102,7 +102,9 @@ impl AsyncComponent for Main {
         {
             let mut guard = model.lanes.guard();
 
-            guard.push_back(LaneKind::Feed(Follow::new()));
+            // guard.push_back(LaneKind::Feed(Follow::new()));
+
+            guard.push_back(LaneKind::Sink);
 
             // guard.push_back(LaneKind::Profile(
             //     "febbaba219357c6c64adfa2e01789f274aa60e90c289938bfc80dd91facb2899"
@@ -149,7 +151,7 @@ impl AsyncComponent for Main {
                 self.lanes.broadcast(LaneMsg::NewTextNote {
                     event: Arc::new(event),
                     relays,
-                    author,
+                    author: author.map(Arc::new),
                     repost,
                 });
 
@@ -180,8 +182,9 @@ impl AsyncComponent for Main {
                 let url = persona.avatar.clone();
                 let pubkey = persona.pubkey;
 
-                self.lanes
-                    .broadcast(LaneMsg::UpdatedProfile { author: persona });
+                self.lanes.broadcast(LaneMsg::UpdatedProfile {
+                    author: Arc::new(persona),
+                });
 
                 if let Some(ref file) = avatar {
                     match gdk::Texture::from_filename(file) {

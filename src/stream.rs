@@ -10,8 +10,8 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::{BroadcastStream, ReceiverStream};
 use tracing::info;
 
+use crate::gnostique::Gnostique;
 use crate::nostr::{EventExt, Persona, Repost};
-use crate::Gnostique;
 
 #[derive(Debug)]
 pub enum X {
@@ -152,11 +152,12 @@ ON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event
     let p = Persona {
         pubkey: event.pubkey,
         name: metadata.name,
+        display_name: metadata.display_name,
         avatar: avatar_url,
         banner: banner_url,
         about: metadata.about,
         nip05: metadata.nip05,
-        nip05_verified: verified,
+        nip05_preverified: verified,
         metadata_json: json,
     };
 
@@ -225,14 +226,14 @@ async fn received_text_note(
 }
 
 async fn offer_relays(gnostique: &Gnostique, relay: &Url, event: &Event) {
-    offer_relay_url(gnostique, relay).await;
+    offer_relay_url(gnostique, &UncheckedUrl::new(relay.to_string())).await;
 
     for r in event.collect_relays() {
         offer_relay_url(gnostique, &r).await
     }
 }
 
-async fn offer_relay_url(gnostique: &Gnostique, relay: &Url) {
+async fn offer_relay_url(gnostique: &Gnostique, relay: &UncheckedUrl) {
     let url_s = relay.to_string();
     let _ = query!(
         "INSERT INTO relays(url) VALUES (?) ON CONFLICT(url) DO NOTHING",

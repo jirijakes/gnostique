@@ -2,6 +2,10 @@
     font-family: "Roboto", sans-serif;
 }
 
+.monospace {
+    font-family: monospace;
+}
+
 .repost {
     padding-left: 8px;
     padding-top: 2px;
@@ -12,7 +16,7 @@
     color: #00ff00;
 }
 
-.repost .author .author-name {
+.repost author .author-name {
     opacity: .7;
     font-size: .9em;
 }
@@ -114,8 +118,9 @@
     border-bottom: 0;
 }
 
-.replies .reply .author {
+.replies .reply author {
     margin-bottom: 6px;
+    font-size: 0.9em;
 }
 
 .hidden-buttons button {
@@ -128,7 +133,12 @@
     /* outline-offset: 0; */
 }
 
-.author button.author-name {
+
+/*        AUTHOR
+ *       ========
+ */
+
+author button.author-name {
     font-weight: bold;
     background-image: none;
     background-color: transparent;
@@ -142,17 +152,17 @@
     font-size: 1.1em;
 }
 
-.author button.author-name:hover {
+author button.author-name:hover {
     color: @fg_color;
 }
 
-.author label.author-pubkey {
+author label.author-pubkey {
     font-size: 0.9em;
     font-family: monospace;
     opacity: 0.7;
 }
 
-.author label.author-nip05 {
+author label.author-nip05 {
     opacity: 0.7;
 }
 
@@ -214,7 +224,7 @@
     border-radius: 6px;
 }
 
-#password .passwordbox {
+.formbox {
     border: 1px solid black;
     background-color: lighter(@theme_bg_color);
     min-width: 300px;
@@ -227,4 +237,82 @@
 
 #password .buttons {
     margin-top: 12px;
+}
+
+/*****************************
+*                            *
+*      S E T T I N G S       *
+*                            *
+*****************************/
+
+
+/*        GENERAL
+ *       =========
+ */
+
+#settings stacksidebar row {
+    margin: 0;
+    min-height: 2em;
+    min-width: 12em;
+}
+
+#settings button {
+    padding: 0.24em 0.56em;
+    border-radius: 0.12em;
+    min-height: 0;
+}
+
+#settings button.flat {
+    border: none;
+    text-shadow: none;
+    padding: 0;
+    box-shadow: none;
+    outline-offset: 0;
+}
+
+#settings button label {
+    margin: 0;
+    padding: 0;
+}
+
+/*       IDENTITIES
+ *      ============
+ */
+
+#settings #identities {
+    min-width: 200px;
+    padding: 24px;
+}
+
+#settings #identity-list {
+    background-color: lighter(@theme_bg_color);
+    padding: 12px;
+    border: 1px solid darker(@theme_bg_color);
+    margin: 0 12px;
+    min-height: 360px;
+}
+
+#settings .identity {
+    border: 1px solid darker(@theme_bg_color);
+    background-color: lighter(lighter(@theme_bg_color));
+    padding: 8px 12px;
+    border-radius: 8px;
+}
+
+#settings .identity editablelabel {
+    margin-left: 8px;
+}
+
+#settings .identity button {
+    border: none;
+    text-shadow: none;
+    padding: 0px;
+    box-shadow: none;
+    outline-offset: 0;
+    opacity: 0.7;
+}
+
+#settings .identity switch slider {
+    min-height: 8px;
+    min-width: 8px;
 }

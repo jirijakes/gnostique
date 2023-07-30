@@ -11,3 +11,5 @@ pub(crate) mod replies;
 pub(crate) mod statusbar;
 mod unlock;
 pub mod writenote;
+pub mod settings;
+pub mod widgets;

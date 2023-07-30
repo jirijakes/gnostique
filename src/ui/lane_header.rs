@@ -76,6 +76,7 @@ impl SimpleComponent for LaneHeader {
             LaneKind::Feed(_) => "Feed",
             LaneKind::Thread(_) => "Thread",
             LaneKind::Profile(_) => "User profile",
+            LaneKind::Sink => "All",
         };
 
         let widgets = view_output!();

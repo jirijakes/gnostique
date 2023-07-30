@@ -1,29 +1,73 @@
-use std::str::FromStr;
-
-use nostr_sdk::prelude::{Keys, SecretKey};
+use nostr_sdk::{
+    prelude::{FromMnemonic, Keys},
+    secp256k1::rand::{rngs::OsRng, Rng},
+};
 use secrecy::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Key(String);
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Identity {
-    pub secret_key: Secret<Key>,
-}
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct Mnemonic(String);
 
-impl Identity {
-    pub fn nostr_key(&self) -> Keys {
-        Keys::new(SecretKey::from_str(&self.secret_key.expose_secret().0).unwrap())
+impl Mnemonic {
+    pub fn reveal(&self) -> &str {
+        &self.0
     }
 }
 
-impl Zeroize for Key {
+/// Identity of a Nostr user containing
+/// all the secrets and identity-specific settings.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Identity {
+    /// Mnemonic used to create secret key.
+    mnemonic: Secret<Mnemonic>,
+
+    /// Name of the identity.
+    name: String,
+}
+
+impl Identity {
+    pub fn new_random(name: &str) -> Identity {
+        Identity {
+            name: name.to_string(),
+            mnemonic: Secret::new(Mnemonic(
+                bip39::Mnemonic::from_entropy(&OsRng.gen::<[_; 32]>())
+                    .unwrap()
+                    .to_string(),
+            )),
+        }
+    }
+
+    pub fn from_bip39_mnemonic(name: &str, mnemonic: &bip39::Mnemonic) -> Identity {
+        Identity {
+            mnemonic: Secret::new(Mnemonic(mnemonic.to_string())),
+            name: name.to_string(),
+        }
+    }
+
+    /// Name of the identity.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Mnemonic of the identity.
+    pub fn mnemonic(&self) -> &Secret<Mnemonic> {
+        &self.mnemonic
+    }
+
+    pub fn nostr_key(&self) -> Keys {
+        Keys::from_mnemonic(self.mnemonic.expose_secret().reveal(), None).unwrap()
+    }
+}
+
+impl Zeroize for Mnemonic {
     fn zeroize(&mut self) {
         self.0.zeroize();
     }
 }
 
-impl DebugSecret for Key {}
-impl CloneableSecret for Key {}
-impl SerializableSecret for Key {}
+impl DebugSecret for Mnemonic {}
+impl CloneableSecret for Mnemonic {}
+impl SerializableSecret for Mnemonic {}

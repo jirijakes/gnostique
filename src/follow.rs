@@ -31,7 +31,7 @@ impl Follow {
     pub fn subscriptions(&self) -> Filter {
         Filter::new()
             .kinds(vec![Kind::TextNote, Kind::Repost])
-            .authors(self.following.iter().copied().collect())
+            .authors(self.following.iter().map(|pk| pk.to_string()).collect())
             .limit(30)
     }
 

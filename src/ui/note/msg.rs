@@ -10,7 +10,7 @@ use crate::ui::details::Details;
 pub struct NoteInit {
     pub event: Arc<Event>,
     pub relays: Vec<Url>,
-    pub author: Option<Persona>,
+    pub author: Option<Arc<Persona>>,
     pub is_central: bool,
     pub repost: Option<Repost>,
 }
@@ -19,7 +19,7 @@ pub struct NoteInit {
 pub enum NoteInput {
     /// Author profile has some new data.
     UpdatedProfile {
-        author: Persona,
+        author: Arc<Persona>,
     },
     /// The text note comes into focus.
     FocusIn,
@@ -42,7 +42,7 @@ pub enum NoteInput {
     TextNote {
         event: Arc<Event>,
         relays: Vec<Url>,
-        author: Option<Persona>,
+        author: Option<Arc<Persona>>,
         repost: Option<Repost>,
     },
     Tick,

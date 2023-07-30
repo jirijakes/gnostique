@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 
-use nostr_sdk::prelude::hex::*;
 use nostr_sdk::prelude::*;
 use reqwest::Url;
 use tokio::sync::Mutex;
@@ -52,8 +51,12 @@ impl Demand {
                 let relays = self.0.client.relays().await;
                 if let Some(r) = relays.get(&relay) {
                     r.req_events_of(
-                        vec![Filter::new().kind(Kind::Metadata).author(pubkey).limit(1)],
+                        vec![Filter::new()
+                            .kind(Kind::Metadata)
+                            .author(pubkey.to_string())
+                            .limit(1)],
                         None,
+                        FilterOptions::ExitOnEOSE,
                     );
                 }
             }
@@ -88,7 +91,7 @@ impl Demand {
                 if let Some(r) = relay {
                     let relays = self.0.client.relays().await;
                     if let Some(r) = relays.get(&r) {
-                        r.req_events_of(sub, None);
+                        r.req_events_of(sub, None, FilterOptions::ExitOnEOSE);
                     }
                 } else {
                     self.0.client.req_events_of(sub, None).await;

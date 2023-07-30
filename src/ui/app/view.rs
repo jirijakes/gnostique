@@ -4,7 +4,10 @@ use relm4::*;
 
 use super::model::*;
 use super::msg::*;
+use crate::gnostique::Gnostique;
 use crate::ui::main::Main;
+use crate::ui::settings::Settings;
+use crate::ui::settings::SettingsInput;
 use crate::ui::unlock::{Unlock, UnlockResult};
 
 #[relm4::component(pub)]
@@ -41,7 +44,13 @@ impl Component for App {
                 UnlockResult::Unlocked(gn) => AppInput::Unlocked(gn),
             });
 
-        let model = App { main: None, unlock };
+        let settings = Settings::builder().launch(()).detach();
+
+        let model = App {
+            main: None,
+            unlock,
+            settings,
+        };
 
         let unlock = model.unlock.widget();
 
@@ -74,6 +83,10 @@ impl Component for App {
                 self.main = Some(main);
                 widgets.stack.set_visible_child_name("main");
             }
+            // AppInput::ShowSettings => self
+                // .settings
+                // .emit(SettingsInput::Show(self.gnostique.identities())),
+
         }
 
         self.update_view(widgets, sender);
