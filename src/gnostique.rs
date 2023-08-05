@@ -105,6 +105,19 @@ WHERE url IN (SELECT relay FROM textnotes_relays WHERE textnote = ?)"#,
         .unwrap_or_default()
     }
 
+    /// Attempts to obtain text note from database with a given `id`,
+    /// runs in relm4 executor.
+    pub async fn get_note(&self, id: EventId) -> Option<Event> {
+        let id_bytes = id.as_bytes().to_vec();
+
+        query!("SELECT event FROM textnotes WHERE id = ?", id_bytes)
+            .fetch_optional(self.pool())
+            .await
+            .ok()
+            .flatten()
+            .and_then(|record| serde_json::from_str::<Event>(&record.event).ok())
+    }
+
     /// Attempts to obtain [`Person`] from database for a given `pubkey`, runs
     /// in relm4 executor.
     pub async fn get_persona(&self, pubkey: XOnlyPublicKey) -> Option<Persona> {
@@ -202,15 +215,15 @@ pub async fn make_gnostique(
     gnostique
         .client()
         .add_relays(vec![
-            // ("ws://localhost:8080", None),
-            ("wss://eden.nostr.land", None),
-            ("wss://nostr.fmt.wiz.biz", None),
-            ("wss://relay.damus.io", None),
-            ("wss://nostr-pub.wellorder.net", None),
-            ("wss://offchain.pub", None),
-            ("wss://nos.lol", None),
-            ("wss://relay.snort.social", None),
-            ("wss://relay.current.fyi", None),
+            ("ws://localhost:8080", None),
+            // ("wss://eden.nostr.land", None),
+            // ("wss://nostr.fmt.wiz.biz", None),
+            // ("wss://relay.damus.io", None),
+            // ("wss://nostr-pub.wellorder.net", None),
+            // ("wss://offchain.pub", None),
+            // ("wss://nos.lol", None),
+            // ("wss://relay.snort.social", None),
+            // ("wss://relay.current.fyi", None),
         ])
         .await
         .unwrap();
@@ -220,7 +233,7 @@ pub async fn make_gnostique(
     gnostique
         .client()
         // .subscribe(vec![crate::follow::Follow::new().subscriptions()])
-        .subscribe(vec![Filter::new().since(Timestamp::now())])
+        .subscribe(vec![Filter::new()]) //.since(Timestamp::now())])
         .await;
 
     Ok(gnostique)

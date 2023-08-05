@@ -81,7 +81,7 @@ impl Demand {
             _ => {
                 self.0.notes.lock().await.insert(event_id, Instant::now());
 
-                info!("Requesting note {}.", event_id.to_hex());
+                info!("Requesting note {}.", event_id.to_bech32().unwrap());
 
                 let sub = vec![
                     Filter::new().kind(Kind::TextNote).id(event_id.to_hex()),

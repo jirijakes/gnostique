@@ -169,6 +169,48 @@ ON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event
     }
 }
 
+/// Attempts to load persona with `pubkey` from storage and return it.
+/// If the persona is unknown, demand is created in the background and
+/// `None` is returned immediately.
+async fn get_persona_or_demand(
+    gnostique: &Gnostique,
+    feedback: mpsc::Sender<Feedback>,
+    relay: Url,
+    pubkey: XOnlyPublicKey,
+) -> Option<Persona> {
+    let persona = gnostique.get_persona(pubkey).await;
+
+    if persona.is_none() {
+        feedback
+            .send(Feedback::NeedMetadata { relay, pubkey })
+            .await
+            .unwrap_or_default();
+    }
+
+    persona
+}
+
+/// Attempts to load text note with `event_id` from storage and return it.
+/// If the text note is unknown, demand is created in the background and
+/// `None` is returned immediately.
+async fn get_note_or_demand(
+    gnostique: &Gnostique,
+    feedback: mpsc::Sender<Feedback>,
+    relay: Option<Url>,
+    event_id: EventId,
+) -> Option<Event> {
+    let note = gnostique.get_note(event_id).await;
+
+    if note.is_none() {
+        feedback
+            .send(Feedback::NeedNote { event_id, relay })
+            .await
+            .unwrap_or_default();
+    }
+
+    note
+}
+
 async fn received_text_note(
     gnostique: &Gnostique,
     feedback: mpsc::Sender<Feedback>,
@@ -177,7 +219,6 @@ async fn received_text_note(
     repost: Option<Event>,
 ) -> X {
     gnostique.store_event(&relay, &event).await;
-    let author = gnostique.get_persona(event.pubkey).await;
 
     // if let Some((root, root_relay)) = event.thread_root() {
     //     feedback
@@ -189,65 +230,55 @@ async fn received_text_note(
     //         .unwrap_or_default();
     // };
 
-    let avatar = match &author {
-        Some(Persona { avatar, .. }) => {
-            // Author is known, let's see if he has a cached avatar
-            avatar
-                .as_ref()
-                .and_then(|url| gnostique.download().cached(url))
-        }
-        None => {
-            // If we do not know the author yet, let us request his metadata.
-            feedback
-                .send(Feedback::NeedMetadata {
-                    relay: relay.clone(),
-                    pubkey: event.pubkey,
-                })
-                .await
-                .unwrap_or_default();
-            None
-        }
-    };
-
-    let relays = gnostique.textnote_relays(event.id).await;
-
-    let (event, repost) = if let Some(r) = repost {
-        let author = gnostique.get_persona(r.pubkey).await;
-        (event, Some(Repost { event: r, author }))
-    } else {
-        (event, None)
-    };
-
     let content = event.prepare_content();
 
-    // Create demand for all the references in the dynamic content.
-    // For instance, if the text note contains an event ID, a demand
-    // for this event ID will be created.
+    let mut referenced_notes: Vec<Event> = vec![];
+    let mut referenced_profiles: Vec<Persona> = vec![];
+
     for r in content.references() {
         match r {
-            Reference::Event(id) => feedback
-                .send(Feedback::NeedNote {
-                    event_id: *id,
-                    relay: None,
-                })
-                .await
-                .unwrap_or_default(),
-            Reference::Profile(key, rs) => {
+            Reference::Event(id) => {
+                let note = get_note_or_demand(gnostique, feedback.clone(), None, *id).await;
+                if let Some(n) = note {
+                    referenced_notes.push(n);
+                }
+            }
+            Reference::Profile(pubkey, rs) => {
                 let r = rs
                     .clone()
                     .and_then(|rs| rs.first().cloned())
                     .and_then(|r| Url::parse(r.as_str()).ok())
                     .unwrap_or(relay.clone());
-                feedback
-                    .send(Feedback::NeedMetadata {
-                        relay: r,
-                        pubkey: *key,
-                    })
-                    .await
-                    .unwrap_or_default()
+                let persona = get_persona_or_demand(gnostique, feedback.clone(), r, *pubkey).await;
+                if let Some(p) = persona {
+                    referenced_profiles.push(p);
+                }
             }
         }
     }
+
+    let author =
+        get_persona_or_demand(gnostique, feedback.clone(), relay.clone(), event.pubkey).await;
+
+    let repost = match repost {
+        Some(r) => {
+            let author = gnostique.get_persona(r.pubkey).await;
+            Some(Repost { event: r, author })
+        }
+        None => None,
+    };
+
+    let avatar = author.as_ref().and_then(|Persona { avatar, .. }| {
+        avatar
+            .as_ref()
+            .and_then(|url| gnostique.download().cached(url))
+    });
+
+    let relays = gnostique.textnote_relays(event.id).await;
+
+    referenced_notes.iter().for_each(|n| {
+        dbg!(n);
+    });
 
     X::TextNote {
         event,
