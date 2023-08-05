@@ -15,7 +15,7 @@ use crate::nostr::content::{DynamicContent, Reference};
 use crate::nostr::{EventExt, Persona, Repost};
 
 #[derive(Debug)]
-pub enum X {
+pub enum Incoming {
     TextNote {
         event: Event,
         relays: Vec<Url>,
@@ -48,7 +48,7 @@ enum Feedback {
 pub fn x<'a>(
     gnostique: &'a Gnostique,
     a: Option<Box<impl Stream<Item = (Url, Event)> + 'a>>,
-) -> impl Stream<Item = X> + 'a {
+) -> impl Stream<Item = Incoming> + 'a {
     // A feedback from processing functions. If they need something,
     // they can ask by sending a message to `tx`.
     let (feedback, rx) = mpsc::channel(10);
@@ -99,11 +99,11 @@ async fn received_event(
     feedback: mpsc::Sender<Feedback>,
     relay: Url,
     event: Event,
-) -> Option<X> {
+) -> Option<Incoming> {
     match event.kind {
         Kind::TextNote => Some(received_text_note(gnostique, feedback, relay, event, None).await),
         Kind::Metadata => Some(received_metadata(gnostique, event).await),
-        Kind::Reaction => event.reacts_to().map(|to| X::Reaction {
+        Kind::Reaction => event.reacts_to().map(|to| Incoming::Reaction {
             event_id: to,
             content: event.content,
         }),
@@ -118,7 +118,7 @@ async fn received_event(
     }
 }
 
-async fn received_metadata(gnostique: &Gnostique, event: Event) -> X {
+async fn received_metadata(gnostique: &Gnostique, event: Event) -> Incoming {
     let pubkey_vec = event.pubkey.serialize().to_vec();
     let json = event.as_json();
 
@@ -163,7 +163,7 @@ ON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event
         metadata_json: json,
     };
 
-    X::Metadata {
+    Incoming::Metadata {
         persona: p,
         avatar: avatar.and_then(|d| d.file()),
     }
@@ -217,7 +217,7 @@ async fn received_text_note(
     relay: Url,
     event: Event,
     repost: Option<Event>,
-) -> X {
+) -> Incoming {
     gnostique.store_event(&relay, &event).await;
 
     // if let Some((root, root_relay)) = event.thread_root() {
@@ -280,7 +280,7 @@ async fn received_text_note(
         dbg!(n);
     });
 
-    X::TextNote {
+    Incoming::TextNote {
         event,
         relays,
         author,

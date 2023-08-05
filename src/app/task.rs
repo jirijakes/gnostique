@@ -33,7 +33,7 @@ pub async fn receive_events(gnostique: Gnostique, sender: AsyncComponentSender<M
 
     use futures_util::StreamExt;
 
-    crate::stream::x(&gnostique, s)
+    crate::incoming::x(&gnostique, s)
         .for_each(|received| {
             sender.input(MainInput::Event(received));
 

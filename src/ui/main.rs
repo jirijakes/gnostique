@@ -9,6 +9,7 @@ use relm4::factory::AsyncFactoryVecDeque;
 use tracing::warn;
 
 use crate::gnostique::Gnostique;
+use crate::incoming::Incoming;
 use crate::ui::details::*;
 use crate::ui::editprofile::model::*;
 use crate::ui::lane::*;
@@ -26,7 +27,7 @@ pub struct Main {
 
 #[derive(Debug)]
 pub enum MainInput {
-    Event(crate::stream::X),
+    Event(Incoming),
     ShowDetail(Details),
     WriteNote,
     EditProfile,
@@ -137,7 +138,7 @@ impl AsyncComponent for Main {
         _root: &Self::Root,
     ) {
         match msg {
-            MainInput::Event(crate::stream::X::TextNote {
+            MainInput::Event(Incoming::TextNote {
                 event,
                 content,
                 relays,
@@ -172,14 +173,14 @@ impl AsyncComponent for Main {
                 }
             }
 
-            MainInput::Event(crate::stream::X::Reaction { event_id, content }) => {
+            MainInput::Event(Incoming::Reaction { event_id, content }) => {
                 self.lanes.broadcast(LaneMsg::Reaction {
                     event: event_id,
                     reaction: content,
                 })
             }
 
-            MainInput::Event(crate::stream::X::Metadata { persona, avatar }) => {
+            MainInput::Event(Incoming::Metadata { persona, avatar }) => {
                 let url = persona.avatar.clone();
                 let pubkey = persona.pubkey;
 

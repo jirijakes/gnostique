@@ -5,8 +5,8 @@ mod download;
 mod follow;
 mod gnostique;
 mod identity;
+mod incoming;
 mod nostr;
-mod stream;
 mod ui;
 
 use relm4::*;
