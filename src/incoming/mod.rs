@@ -1,3 +1,5 @@
+mod feedback;
+
 use std::path::PathBuf;
 
 use futures_util::*;
@@ -7,12 +9,14 @@ use nostr_sdk::RelayPoolNotification;
 use reqwest::Url;
 use sqlx::query;
 use tokio::sync::mpsc;
-use tokio_stream::wrappers::{BroadcastStream, ReceiverStream};
+use tokio_stream::wrappers::BroadcastStream;
 use tracing::info;
 
 use crate::gnostique::Gnostique;
 use crate::nostr::content::{DynamicContent, Reference};
 use crate::nostr::{EventExt, Persona, Repost};
+
+use self::feedback::{deal_with_feedback, Feedback};
 
 #[derive(Debug)]
 pub enum Incoming {
@@ -31,17 +35,6 @@ pub enum Incoming {
     Metadata {
         persona: Persona,
         avatar: Option<PathBuf>,
-    },
-}
-
-/// Requests requested by processing functions during processing incoming events.
-#[derive(Debug)]
-enum Feedback {
-    /// Metadata for `pubkey` are requested from `relay`.
-    NeedMetadata { relay: Url, pubkey: XOnlyPublicKey },
-    NeedNote {
-        event_id: EventId,
-        relay: Option<Url>,
     },
 }
 
@@ -75,23 +68,6 @@ pub fn x<'a>(
     .map(move |(relay, event)| received_event(gnostique, feedback.clone(), relay, event))
     .buffer_unordered(64)
     .filter_map(future::ready)
-}
-
-/// Listens to incoming messages asking for some additional actions or data
-/// and processes them.
-async fn deal_with_feedback(gnostique: Gnostique, rx: mpsc::Receiver<Feedback>) {
-    ReceiverStream::new(rx)
-        .for_each(|f| async {
-            match f {
-                Feedback::NeedMetadata { relay, pubkey } => {
-                    gnostique.demand().metadata(pubkey, relay).await;
-                }
-                Feedback::NeedNote { event_id, relay } => {
-                    gnostique.demand().text_note(event_id, relay).await;
-                }
-            }
-        })
-        .await
 }
 
 async fn received_event(
