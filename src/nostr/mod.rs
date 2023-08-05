@@ -10,7 +10,7 @@ use nostr_sdk::prelude::rand::*;
 use once_cell::sync::Lazy;
 use relm4::gtk::{gdk, glib};
 
-use self::content::Content;
+use self::content::DynamicContent;
 
 pub static ANONYMOUS_USER: Lazy<Arc<gdk::Texture>> = Lazy::new(|| {
     Arc::new(
@@ -123,7 +123,7 @@ pub trait EventExt {
 
     fn as_pretty_json(&self) -> String;
 
-    fn prepare_content(&self) -> Content;
+    fn prepare_content(&self) -> DynamicContent;
 
     /// Find all relays in this event.
     fn collect_relays(&self) -> Vec<UncheckedUrl>;
@@ -215,7 +215,7 @@ impl EventExt for Event {
         serde_json::to_string_pretty(self).expect("Could not serialize Event?")
     }
 
-    fn prepare_content(&self) -> Content {
+    fn prepare_content(&self) -> DynamicContent {
         parse::parse_content(self)
     }
 

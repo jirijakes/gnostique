@@ -3,12 +3,14 @@ use std::sync::Arc;
 use gtk::gdk;
 use nostr_sdk::prelude::*;
 
+use crate::nostr::content::DynamicContent;
 use crate::nostr::*;
 use crate::ui::details::Details;
 
 /// Initial
 pub struct NoteInit {
     pub event: Arc<Event>,
+    pub content: Arc<DynamicContent>,
     pub relays: Vec<Url>,
     pub author: Option<Arc<Persona>>,
     pub is_central: bool,
@@ -41,6 +43,7 @@ pub enum NoteInput {
     Nip05Verified(XOnlyPublicKey),
     TextNote {
         event: Arc<Event>,
+        content: Arc<DynamicContent>,
         relays: Vec<Url>,
         author: Option<Arc<Persona>>,
         repost: Option<Repost>,

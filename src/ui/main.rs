@@ -8,7 +8,6 @@ use relm4::component::*;
 use relm4::factory::AsyncFactoryVecDeque;
 use tracing::warn;
 
-use crate::follow::Follow;
 use crate::gnostique::Gnostique;
 use crate::ui::details::*;
 use crate::ui::editprofile::model::*;
@@ -140,6 +139,7 @@ impl AsyncComponent for Main {
         match msg {
             MainInput::Event(crate::stream::X::TextNote {
                 event,
+                content,
                 relays,
                 author,
                 avatar,
@@ -150,6 +150,7 @@ impl AsyncComponent for Main {
 
                 self.lanes.broadcast(LaneMsg::NewTextNote {
                     event: Arc::new(event),
+                    content: Arc::new(content),
                     relays,
                     author: author.map(Arc::new),
                     repost,

@@ -3,12 +3,12 @@ use linkify::*;
 use nostr_sdk::prelude::*;
 use regex::Regex;
 
-use super::content::Content;
+use super::content::DynamicContent;
 
-pub fn parse_content(event: &Event) -> Content {
+pub fn parse_content(event: &Event) -> DynamicContent {
     lazy_static! {
         static ref NIP21: Regex = Regex::new(
-            "nostr:(?P<nip19>n(?P<type>profile|event|relay|addr|pub|ote)1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]+)",
+            "(?P<nip19>(?P<type>nprofile|nevent|nrelay|naddr|npub|note)1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]+)",
         ).unwrap();
 
         static ref TAG: Regex = Regex::new("#(?P<tag>[a-zA-Z0-9]+)").unwrap();
@@ -16,7 +16,7 @@ pub fn parse_content(event: &Event) -> Content {
         static ref MENTION: Regex = Regex::new("#\\[(?P<idx>\\d+)\\]").unwrap();
     }
 
-    let mut content = Content::default();
+    let mut dcontent = DynamicContent::new();
 
     // About trimming of content.
     //
@@ -35,25 +35,30 @@ pub fn parse_content(event: &Event) -> Content {
         let range = c.get(0).unwrap().range();
 
         match c.name("type").map(|m| m.as_str()) {
-            Some("profile") => {
+            Some("nprofile") => {
                 let what = Profile::from_bech32(nip19).unwrap();
                 let key = what.public_key.to_bech32().unwrap();
                 let with = format!(r#"<a href="nostr:{}">@{}…</a>"#, nip19, &key[..16]);
-                content.add(range, with, what);
+                dcontent.add(range, with, what);
             }
-            Some("pub") => {
+            Some("npub") => {
                 let key = XOnlyPublicKey::from_bech32(nip19).unwrap();
                 let with = format!(
                     r#"<a href="nostr:{}">@{}…</a>"#,
                     nip19,
                     &key.to_bech32().unwrap()[0..16]
                 );
-                content.add(range, with, key);
+                dcontent.add(range, with, key);
             }
-            Some("event") => {
+            Some("nevent") => {
                 let what = Nip19Event::from_bech32(nip19).unwrap();
                 let with = format!(r#"<a href="nostr:{}">{}…</a>"#, nip19, &nip19[..24]);
-                content.add(range, with, what);
+                dcontent.add(range, with, what);
+            }
+            Some("note") => {
+                let what = EventId::from_bech32(nip19).unwrap();
+                let with = format!(r#"<a href="nostr:{}">{}…</a>"#, nip19, &nip19[..24]);
+                dcontent.add(range, with, (Kind::TextNote, what));
             }
             _ => (),
         }
@@ -62,7 +67,7 @@ pub fn parse_content(event: &Event) -> Content {
     TAG.captures_iter(message).for_each(|c| {
         let tag = c.name("tag").unwrap().as_str();
         let range = c.get(0).unwrap().range();
-        content.add_fixed(
+        dcontent.add_fixed(
             range,
             format!(r#"<a href="gnostique:search?tag={}">#{}</a>"#, tag, tag),
         );
@@ -76,7 +81,7 @@ pub fn parse_content(event: &Event) -> Content {
                 let nip19 = id.to_bech32().unwrap();
                 let with = format!(r#"<a href="nostr:{}">{}…</a>"#, nip19, &nip19[..24]);
                 let what = Nip19Event::from_bech32(nip19).unwrap();
-                content.add(range, with, what);
+                dcontent.add(range, with, what);
             }
             Some(Tag::PubKey(key, _)) => {
                 let nip19 = key.to_bech32().unwrap();
@@ -84,7 +89,7 @@ pub fn parse_content(event: &Event) -> Content {
                     r#"<a href="nostr:{nip19}">@{}…</a>"#,
                     &key.to_bech32().unwrap()[0..16]
                 );
-                content.add(range, with, *key);
+                dcontent.add(range, with, *key);
             }
             _ => {}
         };
@@ -93,12 +98,12 @@ pub fn parse_content(event: &Event) -> Content {
     LinkFinder::new().spans(message).for_each(|span| {
         if let Some(LinkKind::Url) = span.kind() {
             let s = html_escape::encode_text(span.as_str());
-            content.add_fixed(
+            dcontent.add_fixed(
                 span.start()..span.end(),
                 format!(r#"<a href="{s}" title="{s}">{s}</a>"#),
             );
         }
     });
 
-    content
+    dcontent
 }

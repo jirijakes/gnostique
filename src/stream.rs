@@ -11,6 +11,7 @@ use tokio_stream::wrappers::{BroadcastStream, ReceiverStream};
 use tracing::info;
 
 use crate::gnostique::Gnostique;
+use crate::nostr::content::DynamicContent;
 use crate::nostr::{EventExt, Persona, Repost};
 
 #[derive(Debug)]
@@ -21,6 +22,7 @@ pub enum X {
         author: Option<Persona>,
         avatar: Option<PathBuf>,
         repost: Option<Repost>,
+        content: DynamicContent,
     },
     Reaction {
         event_id: EventId,
@@ -216,12 +218,15 @@ async fn received_text_note(
         (event, None)
     };
 
+    let content = event.prepare_content();
+
     X::TextNote {
         event,
         relays,
         author,
         avatar,
         repost,
+        content,
     }
 }
 

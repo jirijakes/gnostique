@@ -11,6 +11,7 @@ use reqwest::Url;
 use tracing::trace;
 
 use crate::follow::Follow;
+use crate::nostr::content::DynamicContent;
 use crate::nostr::{EventExt, Persona, Repost};
 use crate::ui::details::Details;
 use crate::ui::lane_header::LaneHeader;
@@ -65,6 +66,7 @@ impl LaneKind {
 pub enum LaneMsg {
     NewTextNote {
         event: Arc<Event>,
+        content: Arc<DynamicContent>,
         relays: Vec<Url>,
         author: Option<Arc<Persona>>,
         repost: Option<Repost>,
@@ -97,6 +99,7 @@ impl Lane {
     pub(super) fn text_note_received(
         &mut self,
         event: Arc<Event>,
+        content: Arc<DynamicContent>,
         relays: Vec<Url>,
         author: Option<Arc<Persona>>,
         repost: Option<Repost>,
@@ -110,6 +113,7 @@ impl Lane {
 
             let init = NoteInit {
                 event,
+                content,
                 relays,
                 author,
                 is_central,

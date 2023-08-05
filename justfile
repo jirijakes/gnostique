@@ -1,5 +1,5 @@
 export RUST_BACKTRACE := "full"
-export RUST_LOG := "warn,gnostique=trace,sqlx=info,hyper=info,relm4=warn"
+export RUST_LOG := "warn,gnostique=warn,sqlx=info,hyper=info,relm4=warn"
 
 @_default:
     just --list
@@ -29,3 +29,9 @@ status:
 
 diff:
     fossil diff
+
+test name="":
+    cargo test {{name}} -- --nocapture
+
+test-- name="":
+    watchexec -e rs -- just test {{name}}

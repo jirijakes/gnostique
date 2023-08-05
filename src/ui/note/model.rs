@@ -8,13 +8,13 @@ use relm4::prelude::*;
 use relm4::JoinHandle;
 use tracing::trace;
 
-use crate::nostr::content::Content;
+use crate::nostr::content::DynamicContent;
 use crate::nostr::*;
 use crate::ui::replies::{Replies, RepliesInput};
 
 #[derive(Debug)]
 pub struct Note {
-    pub(super) content: Content,
+    pub(super) content: DynamicContent,
     pub(super) is_central: bool,
     pub(super) author: Arc<Persona>,
     pub(super) nip05_verified: bool,
@@ -65,6 +65,11 @@ impl Note {
             }
         }
 
+        if self.content.references(event.id) {
+            self.content.hide(&event);
+            tracing::error!(">>>> REFED: {}", event.id);
+        }
+        
         // if let Some(r) = repost {};
 
         if event.replies_to() == Some(self.event.id) {

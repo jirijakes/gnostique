@@ -117,12 +117,14 @@ impl AsyncFactoryComponent for Lane {
 
             LaneMsg::NewTextNote {
                 event,
+                content,
                 relays,
                 author,
                 repost,
             } => {
                 self.text_notes.broadcast(NoteInput::TextNote {
                     event: event.clone(),
+                    content: content.clone(),
                     relays: relays.clone(),
                     author: author.clone(),
                     repost: repost.clone(),
@@ -134,7 +136,7 @@ impl AsyncFactoryComponent for Lane {
                         .map(|r| self.kind.accepts(&r.event))
                         .unwrap_or_default()
                 {
-                    self.text_note_received(event, relays, author, repost)
+                    self.text_note_received(event, content, relays, author, repost)
                 }
             }
             LaneMsg::LinkClicked(uri) => println!("Clicked: {uri}"),

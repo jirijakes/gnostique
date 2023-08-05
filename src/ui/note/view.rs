@@ -222,7 +222,7 @@ impl FactoryComponent for Note {
         note_menu: {
             section! {
                 "Copy event ID as hex" => Copy(self.event.id.to_hex()),
-                "Copy event ID as bech32" => Copy(self.event.id.to_string())
+                "Copy event ID as bech32" => Copy(self.event.id.to_bech32().unwrap())
             }
         }
     }
@@ -257,7 +257,7 @@ impl FactoryComponent for Note {
             nip05_verified: author.nip05_preverified,
             author,
             is_central: init.is_central,
-            content: init.event.prepare_content(),
+            content: (*init.content).clone(),
             show_hidden_buttons: false,
             avatar: ANONYMOUS_USER.clone(),
             likes: 0,
@@ -337,6 +337,7 @@ impl FactoryComponent for Note {
             // }
             NoteInput::TextNote {
                 event,
+                content,
                 relays,
                 author,
                 repost,

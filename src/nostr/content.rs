@@ -1,33 +1,57 @@
-use std::{fmt::Debug, ops::Range};
+use std::{fmt::Debug, ops::Range, sync::Arc};
 
 use nostr_sdk::prelude::*;
 
 use super::Persona;
 
+#[derive(Clone)]
 struct Void;
 
-#[derive(Default)]
-pub struct Content {
+/// Dynamic part of a content of a text note.
+
+/// This /dynamic content/ can be modified depending on a reality known at a time.
+/// For example, at the time of receiving a text note, we know nothing about referenced
+/// pubkeys. We only know the pubkey itself (and we do not even know whether it is
+/// used by somebody). So at that moment, we can only show the pubkey. However,
+/// `DynamicContent` will be aware of this reference and when later we receive full
+/// profile belonging to this pubkey, we can /augment/ the content by showing up-to-date
+/// data (i. e. name of the pubkey's profile).
+///
+/// Additionally, `DynamicContent` also holds list of all references that may be
+/// accompanied by rich content in UI. Every dynamic content can be a reference.
+///
+/// It is important to understand that `DynamicContent` does not hold the content
+/// itself, only list of locations in the original content that may be dynamically
+/// modified. One has to provide the original content to render final result
+/// (most likely from `Event` object).
+#[derive(Clone, Default)]
+pub struct DynamicContent {
     profiles: Vec<Hole<Persona>>,
     events: Vec<Hole<Event>>,
     other: Vec<Hole<Void>>,
+    references: Vec<bool>,
 }
 
-impl Content {
+impl DynamicContent {
+    /// Creates new, empty content.
+    pub fn new() -> DynamicContent {
+        Default::default()
+    }
+
     /// Augments `original` content with whatever is available at the moment.
     pub fn augment(&self, original: &str) -> String {
-        let mut ranges: Vec<(Range<usize>, &String)> = Vec::new();
+        let mut ranges: Vec<(Range<usize>, &str)> = Vec::new();
 
         for p in &self.profiles {
-            ranges.push((p.range.clone(), &p.replace_with));
+            ranges.push((p.range.clone(), if p.hidden { "" } else { &p.replace_with }));
         }
 
         for e in &self.events {
-            ranges.push((e.range.clone(), &e.replace_with));
+            ranges.push((e.range.clone(), if e.hidden { "" } else { &e.replace_with }));
         }
 
         for v in &self.other {
-            ranges.push((v.range.clone(), &v.replace_with));
+            ranges.push((v.range.clone(), if v.hidden { "" } else { &v.replace_with }));
         }
 
         // from end to start
@@ -42,27 +66,41 @@ impl Content {
         out
     }
 
-    pub fn provide<T: Slot<Content>, R: AsRef<T>>(&mut self, filler: &R) {
-        for hole in <T as Slot<Content>>::holes(self) {
+    /// Offers `filler` to this content to replace holes, if they exist.
+    pub fn provide<T: Slot<DynamicContent>, R: AsRef<T>>(&mut self, filler: &R) {
+        for hole in <T as Slot<DynamicContent>>::holes(self) {
             if let Some(rendered) = hole.anchor.accept(filler.as_ref()) {
                 hole.replace_with = rendered;
             }
         }
     }
 
-    /// Adds replaceable value that can be replaced by providing new value.
+    pub fn hide<T: Slot<DynamicContent>, R: AsRef<T>>(&mut self, filler: &R) {
+        for hole in <T as Slot<DynamicContent>>::holes(self) {
+            if hole.anchor.accept(filler.as_ref()).is_some() {
+                hole.hidden = true;
+            }
+        }
+    }
+
+    /// Adds replaceable value that can be replaced by providing new value of type `A`.
+    /// Until this value is received, `placeholder` will be shown.
     pub fn add<A, S>(&mut self, range: Range<usize>, placeholder: String, anchor: A)
     where
-        A: Anchor<S> + 'static,
-        S: Slot<Content>,
+        A: Anchor<S> + 'static + Send + Sync,
+        S: Slot<DynamicContent>,
     {
-        let holes = <S as Slot<Content>>::holes(self);
+        if let Some(r) = &anchor.references() {
+            // self.references.push(r.clone())
+        }
+
         let hole = Hole {
             range,
             replace_with: placeholder,
-            anchor: Box::new(anchor),
+            hidden: false,
+            anchor: Arc::new(anchor),
         };
-        holes.push(hole);
+        <S as Slot<DynamicContent>>::holes(self).push(hole);
     }
 
     /// Adds non-replaceable value into content.
@@ -70,38 +108,73 @@ impl Content {
         self.other.push(Hole {
             range,
             replace_with,
-            anchor: Box::new(Void),
+            hidden: false,
+            anchor: Arc::new(Void),
         });
     }
-}
 
-impl Debug for Content {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Content").finish()
+    pub fn references<T: ToReference>(&self, t: T) -> bool {
+        // self.references.contains(&t.to_reference())
+        false
     }
 }
 
-pub struct Hole<T> {
-    pub range: Range<usize>,
-    pub replace_with: String,
-    pub anchor: Box<dyn Anchor<T>>,
+impl Debug for DynamicContent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DynamicContent")
+            .field("profiles", &format!("{} holes", self.profiles.len()))
+            .field("events", &format!("{} holes", self.events.len()))
+            .field("other", &format!("{} holes", self.other.len()))
+            .field("references", &self.references)
+            .finish()
+    }
+}
+
+/// Marker of a portion of original content which can be overwritten by
+/// a new content generated by `anchor`, which can use some object of
+/// type `WaitingFor`.
+
+// Because each hole may be held by multiple note views (e. g. in multiple
+// lanes), it has to be shareable across threads, therefore all the markers.
+// Theoretically, range could be also shared but it is so small that perhaps
+// it does not make sense.
+#[derive(Clone)]
+pub struct Hole<WaitingFor>
+where
+    WaitingFor: ?Sized,
+{
+    /// Byte range in the original content.
+    range: Range<usize>,
+
+    /// Text the hole will be filled with.
+    replace_with: String,
+
+    /// Whether the hole is supposed to be hidden.
+    hidden: bool,
+
+    /// Anchor generating replacement text of this hole from
+    /// some object of type `WaitingFor`.
+    // Hole is processed in different threads, so this has
+    // to be able to cross thread boundaries.
+    anchor: Arc<dyn Anchor<WaitingFor> + Send + Sync>,
 }
 
 /// Trait for types that can be a slot in content of type `C`, meaning
 /// that we can send values of this type into `C` and it will know what
 /// to do with them.
-pub trait Slot<C>
-where
-    Self: Sized,
-{
+pub trait Slot<C> {
     /// Gives mutabale access to holes in the content `C`.
     fn holes(content: &mut C) -> &mut Vec<Hole<Self>>;
 }
 
-/// Trait for types that are holes in content and are waiting for
-/// `What` to be filled by.
+/// Trait for types can fill holes in content and are waiting for
+/// `What` to produce new text of the hole.
 pub trait Anchor<What> {
     fn accept(&self, what: &What) -> Option<String>;
+
+    fn references(&self) -> Option<Reference> {
+        None
+    }
 }
 
 impl Anchor<Void> for Void {
@@ -152,16 +225,54 @@ impl Anchor<Event> for Nip19Event {
             None
         }
     }
+
+    fn references(&self) -> Option<Reference> {
+        Some(Reference::Event(self.event_id))
+    }
 }
 
-impl Slot<Content> for Persona {
-    fn holes(content: &mut Content) -> &mut Vec<Hole<Self>> {
+impl Anchor<Event> for (Kind, EventId) {
+    fn accept(&self, what: &Event) -> Option<String> {
+        if self.0 == what.kind && self.1 == what.id {
+            let nip19 = what.id.to_bech32().unwrap();
+            Some(format!(
+                r#"<a href="nostr:{}">{}…</a>"#,
+                nip19,
+                &nip19[..24]
+            ))
+        } else {
+            None
+        }
+    }
+
+    fn references(&self) -> Option<Reference> {
+        Some(Reference::Event(self.1))
+    }
+}
+
+impl Slot<DynamicContent> for Persona {
+    fn holes(content: &mut DynamicContent) -> &mut Vec<Hole<Self>> {
         &mut content.profiles
     }
 }
 
-impl Slot<Content> for Event {
-    fn holes(content: &mut Content) -> &mut Vec<Hole<Self>> {
+impl Slot<DynamicContent> for Event {
+    fn holes(content: &mut DynamicContent) -> &mut Vec<Hole<Self>> {
         &mut content.events
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum Reference {
+    Event(EventId),
+}
+
+pub trait ToReference {
+    fn to_reference(&self) -> Reference;
+}
+
+impl ToReference for EventId {
+    fn to_reference(&self) -> Reference {
+        Reference::Event(*self)
     }
 }

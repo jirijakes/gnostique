@@ -4,10 +4,8 @@ use relm4::*;
 
 use super::model::*;
 use super::msg::*;
-use crate::gnostique::Gnostique;
 use crate::ui::main::Main;
 use crate::ui::settings::Settings;
-use crate::ui::settings::SettingsInput;
 use crate::ui::unlock::{Unlock, UnlockResult};
 
 #[relm4::component(pub)]
