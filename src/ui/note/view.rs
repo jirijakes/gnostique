@@ -108,7 +108,7 @@ impl FactoryComponent for Note {
                     #[name(content)]
                     gtk::Label {
                         #[watch]
-                        set_markup: self.content.augment(&self.event.content).trim(),
+                        set_markup: self.content.augment(&html_escape::encode_text(&self.event.content)).trim(),
                         set_wrap: true,
                         set_wrap_mode: WrapMode::WordChar,
                         set_halign: gtk::Align::Start,

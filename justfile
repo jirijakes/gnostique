@@ -1,5 +1,5 @@
 export RUST_BACKTRACE := "full"
-export RUST_LOG := "warn,gnostique=warn,sqlx=info,hyper=info,relm4=warn"
+export RUST_LOG := "warn,gnostique=info,sqlx=info,hyper=info,relm4=warn"
 
 @_default:
     just --list

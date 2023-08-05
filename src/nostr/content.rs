@@ -29,7 +29,7 @@ pub struct DynamicContent {
     profiles: Vec<Hole<Persona>>,
     events: Vec<Hole<Event>>,
     other: Vec<Hole<Void>>,
-    references: Vec<bool>,
+    references: Vec<Reference>,
 }
 
 impl DynamicContent {
@@ -90,8 +90,8 @@ impl DynamicContent {
         A: Anchor<S> + 'static + Send + Sync,
         S: Slot<DynamicContent>,
     {
-        if let Some(r) = &anchor.references() {
-            // self.references.push(r.clone())
+        if let Some(r) = &anchor.reference() {
+            self.references.push(r.clone())
         }
 
         let hole = Hole {
@@ -113,9 +113,14 @@ impl DynamicContent {
         });
     }
 
-    pub fn references<T: ToReference>(&self, t: T) -> bool {
-        // self.references.contains(&t.to_reference())
-        false
+    /// Says whether the argument is refeenced by this dynamic content.
+    pub fn is_referenced<T: ToReference>(&self, t: T) -> bool {
+        self.references.contains(&t.to_reference())
+    }
+
+    /// Returns all references of this dynamic content.
+    pub fn references(&self) -> &[Reference] {
+        self.references.as_ref()
     }
 }
 
@@ -172,7 +177,9 @@ pub trait Slot<C> {
 pub trait Anchor<What> {
     fn accept(&self, what: &What) -> Option<String>;
 
-    fn references(&self) -> Option<Reference> {
+    /// Speciifies to what other object this anchor references,
+    /// if anything at all.
+    fn reference(&self) -> Option<Reference> {
         None
     }
 }
@@ -198,6 +205,10 @@ impl Anchor<Persona> for XOnlyPublicKey {
             None
         }
     }
+
+    fn reference(&self) -> Option<Reference> {
+        Some(Reference::Profile(*self, None))
+    }
 }
 
 impl Anchor<Persona> for Profile {
@@ -215,6 +226,13 @@ impl Anchor<Persona> for Profile {
             None
         }
     }
+
+    fn reference(&self) -> Option<Reference> {
+        Some(Reference::Profile(
+            self.public_key,
+            Some(self.relays.clone()),
+        ))
+    }
 }
 
 impl Anchor<Event> for Nip19Event {
@@ -226,7 +244,7 @@ impl Anchor<Event> for Nip19Event {
         }
     }
 
-    fn references(&self) -> Option<Reference> {
+    fn reference(&self) -> Option<Reference> {
         Some(Reference::Event(self.event_id))
     }
 }
@@ -245,7 +263,7 @@ impl Anchor<Event> for (Kind, EventId) {
         }
     }
 
-    fn references(&self) -> Option<Reference> {
+    fn reference(&self) -> Option<Reference> {
         Some(Reference::Event(self.1))
     }
 }
@@ -265,6 +283,7 @@ impl Slot<DynamicContent> for Event {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Reference {
     Event(EventId),
+    Profile(XOnlyPublicKey, Option<Vec<String>>),
 }
 
 pub trait ToReference {
@@ -274,5 +293,63 @@ pub trait ToReference {
 impl ToReference for EventId {
     fn to_reference(&self) -> Reference {
         Reference::Event(*self)
+    }
+}
+
+#[allow(non_upper_case_globals)]
+#[cfg(test)]
+mod tests {
+    use nostr_sdk::prelude::*;
+    use nostr_sdk::secp256k1::SecretKey;
+
+    use crate::nostr::content::Reference;
+    use crate::nostr::parse::parse_content;
+
+    lazy_static::lazy_static! {
+        static ref keys: Keys = Keys::new(SecretKey::from_hashed_data::<sha256::Hash>(
+            "test".as_bytes(),
+        ));
+
+        static ref event1: Event = EventBuilder::new_text_note("Hello.", &[])
+            .to_event(&keys)
+            .unwrap();
+
+        static ref event2: Event = EventBuilder::new_text_note(format!("Look: {}", event1.id.to_bech32().unwrap()), &[])
+            .to_event(&keys)
+            .unwrap();
+    }
+
+    #[test]
+    fn content_parsed_ok() {
+        let content = parse_content(&event2);
+
+        assert!(content.profiles.is_empty());
+        assert!(content.other.is_empty());
+
+        assert!(content.events.len() == 1);
+        assert!(content.references.len() == 1);
+
+        assert!(content.references.contains(&Reference::Event(event1.id)));
+
+        assert!(content.is_referenced(event1.id));
+    }
+
+    #[test]
+    fn content_augmented_ok() {
+        let mut content = parse_content(&event2);
+
+        assert!(content
+            .augment(&event2.content)
+            .contains(&event1.id.to_bech32().unwrap()));
+
+        content.provide(&Box::new(event1.clone()));
+
+        assert!(content
+            .augment(&event2.content)
+            .contains(&event1.id.to_bech32().unwrap()));
+
+        content.hide(&Box::new(event1.clone()));
+
+        assert_eq!(content.augment(&event2.content), "Look: ");
     }
 }

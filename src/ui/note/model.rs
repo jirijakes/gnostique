@@ -65,11 +65,20 @@ impl Note {
             }
         }
 
-        if self.content.references(event.id) {
-            self.content.hide(&event);
-            tracing::error!(">>>> REFED: {}", event.id);
+        use nostr_sdk::prelude::*;
+
+        if self.content.is_referenced(event.id) {
+            // TODO: link referencing the event is kept in the note for the
+            // time being. However, if it is at the end of the text message,
+            // it could perhaps be removed.
+            // if (link at the end of text) { self.content.hide(&event); }
+            tracing::error!(
+                ">>>> in {} ; REFED: {}",
+                self.event.id.to_bech32().unwrap(),
+                event.id.to_bech32().unwrap()
+            );
         }
-        
+
         // if let Some(r) = repost {};
 
         if event.replies_to() == Some(self.event.id) {

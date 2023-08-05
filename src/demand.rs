@@ -46,7 +46,7 @@ impl Demand {
             _ => {
                 self.0.metadata.lock().await.insert(pubkey, Instant::now());
 
-                info!("Requesting metadata {pubkey:x}.");
+                info!("Requesting metadata {}.", pubkey.to_bech32().unwrap());
 
                 let relays = self.0.client.relays().await;
                 if let Some(r) = relays.get(&relay) {

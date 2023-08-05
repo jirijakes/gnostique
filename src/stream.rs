@@ -11,7 +11,7 @@ use tokio_stream::wrappers::{BroadcastStream, ReceiverStream};
 use tracing::info;
 
 use crate::gnostique::Gnostique;
-use crate::nostr::content::DynamicContent;
+use crate::nostr::content::{DynamicContent, Reference};
 use crate::nostr::{EventExt, Persona, Repost};
 
 #[derive(Debug)]
@@ -219,6 +219,35 @@ async fn received_text_note(
     };
 
     let content = event.prepare_content();
+
+    // Create demand for all the references in the dynamic content.
+    // For instance, if the text note contains an event ID, a demand
+    // for this event ID will be created.
+    for r in content.references() {
+        match r {
+            Reference::Event(id) => feedback
+                .send(Feedback::NeedNote {
+                    event_id: *id,
+                    relay: None,
+                })
+                .await
+                .unwrap_or_default(),
+            Reference::Profile(key, rs) => {
+                let r = rs
+                    .clone()
+                    .and_then(|rs| rs.first().cloned())
+                    .and_then(|r| Url::parse(r.as_str()).ok())
+                    .unwrap_or(relay.clone());
+                feedback
+                    .send(Feedback::NeedMetadata {
+                        relay: r,
+                        pubkey: *key,
+                    })
+                    .await
+                    .unwrap_or_default()
+            }
+        }
+    }
 
     X::TextNote {
         event,

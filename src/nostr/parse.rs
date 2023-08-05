@@ -5,17 +5,17 @@ use regex::Regex;
 
 use super::content::DynamicContent;
 
+lazy_static! {
+    pub(super) static ref NIP21: Regex = Regex::new(
+        "nostr:(?P<nip19>(?P<type>nprofile|nevent|nrelay|naddr|npub|note)1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]+)",
+    ).unwrap();
+
+    pub(super) static ref TAG: Regex = Regex::new("(^|\\s+)#(?P<tag>[a-zA-Z0-9]+)").unwrap();
+
+    pub(super) static ref MENTION: Regex = Regex::new("#\\[(?P<idx>\\d+)\\]").unwrap();
+}
+
 pub fn parse_content(event: &Event) -> DynamicContent {
-    lazy_static! {
-        static ref NIP21: Regex = Regex::new(
-            "(?P<nip19>(?P<type>nprofile|nevent|nrelay|naddr|npub|note)1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]+)",
-        ).unwrap();
-
-        static ref TAG: Regex = Regex::new("#(?P<tag>[a-zA-Z0-9]+)").unwrap();
-
-        static ref MENTION: Regex = Regex::new("#\\[(?P<idx>\\d+)\\]").unwrap();
-    }
-
     let mut dcontent = DynamicContent::new();
 
     // About trimming of content.
@@ -28,7 +28,7 @@ pub fn parse_content(event: &Event) -> DynamicContent {
     // be in the middle of Unicode character).
     //
     // So the trimming is done only at the presentation time.
-    let message = &event.content;
+    let message = &html_escape::encode_text(&event.content);
 
     NIP21.captures_iter(message).for_each(|c| {
         let nip19 = c.name("nip19").unwrap().as_str();
@@ -42,13 +42,19 @@ pub fn parse_content(event: &Event) -> DynamicContent {
                 dcontent.add(range, with, what);
             }
             Some("npub") => {
-                let key = XOnlyPublicKey::from_bech32(nip19).unwrap();
-                let with = format!(
-                    r#"<a href="nostr:{}">@{}…</a>"#,
-                    nip19,
-                    &key.to_bech32().unwrap()[0..16]
-                );
-                dcontent.add(range, with, key);
+                match XOnlyPublicKey::from_bech32(nip19) {
+                    Ok(key) => {
+                        let with = format!(
+                            r#"<a href="nostr:{}">@{}…</a>"#,
+                            nip19,
+                            &key.to_bech32().unwrap()[0..16]
+                        );
+                        dcontent.add(range, with, key);
+                    }
+                    Err(err) => {
+                        tracing::error!("Failed parse {} because {:?}", nip19, err);
+                    }
+                }
             }
             Some("nevent") => {
                 let what = Nip19Event::from_bech32(nip19).unwrap();
@@ -80,8 +86,14 @@ pub fn parse_content(event: &Event) -> DynamicContent {
             Some(Tag::Event(id, _, _)) => {
                 let nip19 = id.to_bech32().unwrap();
                 let with = format!(r#"<a href="nostr:{}">{}…</a>"#, nip19, &nip19[..24]);
-                let what = Nip19Event::from_bech32(nip19).unwrap();
-                dcontent.add(range, with, what);
+                match Nip19Event::from_bech32(&nip19) {
+                    Err(e) => {
+                        tracing::error!("Failed parse {}: {:?}", nip19, e);
+                    }
+                    Ok(what) => {
+                        dcontent.add(range, with, what);
+                    }
+                }
             }
             Some(Tag::PubKey(key, _)) => {
                 let nip19 = key.to_bech32().unwrap();
@@ -106,4 +118,27 @@ pub fn parse_content(event: &Event) -> DynamicContent {
     });
 
     dcontent
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TAG;
+
+    #[test]
+    fn parse_tags() {
+        let c = TAG.captures_iter("#nostr.").collect::<Vec<_>>();
+        assert!(!c.is_empty());
+        c.iter().for_each(|c| {
+            assert_eq!(c.name("tag").map(|m| m.as_str()), Some("nostr"));
+        });
+
+        let c = TAG.captures_iter("this is #nostr").collect::<Vec<_>>();
+        assert!(!c.is_empty());
+        c.iter().for_each(|c| {
+            assert_eq!(c.name("tag").map(|m| m.as_str()), Some("nostr"));
+        });
+
+        let c = TAG.captures_iter("link#nostr").collect::<Vec<_>>();
+        assert!(c.is_empty());
+    }
 }

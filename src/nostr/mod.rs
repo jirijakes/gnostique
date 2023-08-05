@@ -122,7 +122,6 @@ pub trait EventExt {
     fn as_metadata(&self) -> Option<Metadata>;
 
     fn as_pretty_json(&self) -> String;
-
     fn prepare_content(&self) -> DynamicContent;
 
     /// Find all relays in this event.
