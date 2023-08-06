@@ -34,7 +34,9 @@ impl SimpleAsyncComponent for Replies {
 
     #[rustfmt::skip]
     view! {
+        #[name = "replies"]
         gtk::Box {
+            set_widget_name: "replies",
             add_css_class: "replies",
             #[watch]
             set_visible: !model.replies.is_empty(),

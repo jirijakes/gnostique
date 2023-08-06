@@ -2,8 +2,9 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use gtk::gdk;
+use gtk::traits::BoxExt;
 use nostr_sdk::nostr::*;
-use relm4::component::{AsyncComponentController, AsyncController};
+use relm4::component::{AsyncComponent, AsyncComponentController, AsyncController};
 use relm4::prelude::*;
 use relm4::JoinHandle;
 use tracing::trace;
@@ -11,6 +12,8 @@ use tracing::trace;
 use crate::nostr::content::DynamicContent;
 use crate::nostr::*;
 use crate::ui::replies::{Replies, RepliesInput};
+
+use super::view::NoteWidgets;
 
 #[derive(Debug)]
 pub struct Note {
@@ -25,7 +28,7 @@ pub struct Note {
     pub time: DateTime<Utc>,
     pub(super) event: Arc<Event>,
     pub(super) relays: Vec<Url>,
-    pub(super) replies: AsyncController<Replies>,
+    pub(super) replies: Option<AsyncController<Replies>>,
     pub(super) repost: Option<Repost>,
     pub(super) age: String,
 
@@ -45,7 +48,13 @@ impl Drop for Note {
 }
 
 impl Note {
-    pub(super) fn receive(&mut self, note: TextNote, relays: Vec<Url>, _repost: Option<Repost>) {
+    pub(super) fn receive(
+        &mut self,
+        widgets: &NoteWidgets,
+        note: TextNote,
+        relays: Vec<Url>,
+        _repost: Option<Repost>,
+    ) {
         let (event, author) = note.underlying();
 
         // The newly arriving event is this text note. Assuming that
@@ -76,7 +85,17 @@ impl Note {
 
         if event.replies_to() == Some(self.event.id) {
             // The newly arriving event is a reply to this text note.
-            self.replies.emit(RepliesInput::NewReply(event.clone()));
+            // Let's inform Replies component about this new event.
+            self.replies
+                .get_or_insert_with(|| {
+                    trace!("Creating new Replies component as first reply arrived.");
+                    let r = Replies::builder().launch(()).detach();
+                    widgets
+                        .right_column
+                        .insert_child_after(r.widget(), Some(&widgets.content));
+                    r
+                })
+                .emit(RepliesInput::NewReply(event.clone()));
         }
 
         if let Some((root, _root_relay)) = self.event.thread_root() {

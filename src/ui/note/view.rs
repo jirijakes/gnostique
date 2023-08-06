@@ -24,6 +24,10 @@ use crate::ui::widgets::author::Author;
     |             +-----------------------+
     |             |        CONTENT        |
     |             +-----------------------+
+    |             |         QUOTE         |
+    |             +-----------------------+
+    |             |        REPLIES        |
+    |             +-----------------------+
     |             |       REACTIONS       |
     |             +-----------------------+
     |             |        STATUS         |
@@ -44,7 +48,7 @@ impl FactoryComponent for Note {
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
 
-            // REPOSTER may be prepended here
+            // here be REPOSTER
             
             gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
@@ -81,6 +85,7 @@ impl FactoryComponent for Note {
                 },
 
                 // right column
+                #[name = "right_column"]
                 gtk::Box {
                     set_orientation: gtk::Orientation::Vertical,
                     set_hexpand: true,
@@ -104,7 +109,7 @@ impl FactoryComponent for Note {
                     },
 
                     // content
-                    #[name(content)]
+                    #[name = "content"]
                     gtk::Label {
                         #[watch]
                         set_markup: self.content.augment(&html_escape::encode_text(&self.event.content)).trim(),
@@ -125,10 +130,14 @@ impl FactoryComponent for Note {
                         }
                     },
 
-                    self.replies.widget(),
+                    // here be QUOTES
+                    
+                    // here be REPLIES
 
                     // reactions
+                    #[name = "reactions"]
                     gtk::Grid {
+                        set_widget_name: "reactions",
                         // set_column_spacing: 20,
                         set_column_homogeneous: true,
                         set_hexpand: true,
@@ -242,7 +251,6 @@ impl FactoryComponent for Note {
             }
         });
 
-        let replies = Replies::builder().launch(()).detach();
         let (event, author) = init.note.underlying();
 
         Note {
@@ -257,7 +265,7 @@ impl FactoryComponent for Note {
             time: Utc.timestamp_opt(event.created_at.as_i64(), 0).unwrap(),
             event,
             relays: init.relays,
-            replies,
+            replies: None,
             repost: init.repost,
             age: String::new(),
             tick_handle,
@@ -300,7 +308,12 @@ impl FactoryComponent for Note {
         widgets
     }
 
-    fn update(&mut self, message: Self::Input, sender: FactorySender<Self>) {
+    fn update_with_view(
+        &mut self,
+        widgets: &mut Self::Widgets,
+        message: Self::Input,
+        sender: FactorySender<Self>)
+    {
         match message {
             NoteInput::UpdatedProfile { author } => {
                 if self.author.pubkey == author.pubkey {
@@ -308,7 +321,9 @@ impl FactoryComponent for Note {
                     self.nip05_verified = author.nip05_preverified;
                 };
                 self.content.provide(&author);
-                self.replies.emit(RepliesInput::UpdatedProfile { author });
+                if let Some(replies)  = &self.replies {                
+                    replies.emit(RepliesInput::UpdatedProfile { author });
+                };
             }
             NoteInput::FocusIn => self.show_hidden_buttons = true,
             NoteInput::FocusOut => self.show_hidden_buttons = false,
@@ -321,20 +336,19 @@ impl FactoryComponent for Note {
                     self.avatar = bitmap
                 }
             }
-            // NoteInput::Reply(event) => {
-            // self.replies.emit(RepliesInput::NewReply(event));
-            // }
             NoteInput::TextNote {
                 note,
-                content,
+                content: _, // NOTE: I guess someday we will need it to augment replies, quotes etc.
                 relays,
                 repost,
-            } => self.receive(note, relays, repost),
+            } => self.receive(widgets, note, relays, repost),
             NoteInput::Nip05Verified(pubkey) => {
                 if pubkey == self.author.pubkey {
                     self.nip05_verified = true;
                 }
-                self.replies.emit(RepliesInput::Nip05Verified(pubkey));
+                if let Some(replies) = &self.replies {
+                    replies.emit(RepliesInput::Nip05Verified(pubkey));
+                };
             }
             NoteInput::Reaction { event, reaction } => {
                 if self.event.id == event {
