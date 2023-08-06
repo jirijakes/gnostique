@@ -113,8 +113,8 @@ impl DynamicContent {
         });
     }
 
-    /// Says whether the argument is refeenced by this dynamic content.
-    pub fn is_referenced<T: ToReference>(&self, t: T) -> bool {
+    /// Answers the question whether this dynamic content references given argument.
+    pub fn has_reference<T: ToReference>(&self, t: T) -> bool {
         self.references.contains(&t.to_reference())
     }
 
@@ -331,7 +331,7 @@ mod tests {
 
         assert!(content.references.contains(&Reference::Event(event1.id)));
 
-        assert!(content.is_referenced(event1.id));
+        assert!(content.has_reference(event1.id));
     }
 
     #[test]

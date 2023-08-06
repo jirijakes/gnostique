@@ -60,7 +60,7 @@ impl Note {
 
         use nostr_sdk::prelude::*;
 
-        if self.content.is_referenced(event.id) {
+        if self.content.has_reference(event.id) {
             // TODO: link referencing the event is kept in the note for the
             // time being. However, if it is at the end of the text message,
             // it could perhaps be removed.
