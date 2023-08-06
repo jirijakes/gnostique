@@ -9,10 +9,9 @@ use crate::ui::details::Details;
 
 /// Initial
 pub struct NoteInit {
-    pub event: Arc<Event>,
+    pub note: TextNote,
     pub content: Arc<DynamicContent>,
     pub relays: Vec<Url>,
-    pub author: Option<Arc<Persona>>,
     pub is_central: bool,
     pub repost: Option<Repost>,
 }
@@ -42,10 +41,9 @@ pub enum NoteInput {
 
     Nip05Verified(XOnlyPublicKey),
     TextNote {
-        event: Arc<Event>,
+        note: TextNote,
         content: Arc<DynamicContent>,
         relays: Vec<Url>,
-        author: Option<Arc<Persona>>,
         repost: Option<Repost>,
     },
     Tick,

@@ -41,21 +41,19 @@ pub fn parse_content(event: &Event) -> DynamicContent {
                 let with = format!(r#"<a href="nostr:{}">@{}…</a>"#, nip19, &key[..16]);
                 dcontent.add(range, with, what);
             }
-            Some("npub") => {
-                match XOnlyPublicKey::from_bech32(nip19) {
-                    Ok(key) => {
-                        let with = format!(
-                            r#"<a href="nostr:{}">@{}…</a>"#,
-                            nip19,
-                            &key.to_bech32().unwrap()[0..16]
-                        );
-                        dcontent.add(range, with, key);
-                    }
-                    Err(err) => {
-                        tracing::error!("Failed parse {} because {:?}", nip19, err);
-                    }
+            Some("npub") => match XOnlyPublicKey::from_bech32(nip19) {
+                Ok(key) => {
+                    let with = format!(
+                        r#"<a href="nostr:{}">@{}…</a>"#,
+                        nip19,
+                        &key.to_bech32().unwrap()[0..16]
+                    );
+                    dcontent.add(range, with, key);
                 }
-            }
+                Err(err) => {
+                    tracing::error!("Failed parse {} because {:?}", nip19, err);
+                }
+            },
             Some("nevent") => {
                 let what = Nip19Event::from_bech32(nip19).unwrap();
                 let with = format!(r#"<a href="nostr:{}">{}…</a>"#, nip19, &nip19[..24]);

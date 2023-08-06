@@ -116,27 +116,25 @@ impl AsyncFactoryComponent for Lane {
             }
 
             LaneMsg::NewTextNote {
-                event,
+                note,
                 content,
                 relays,
-                author,
                 repost,
             } => {
                 self.text_notes.broadcast(NoteInput::TextNote {
-                    event: event.clone(),
+                    note: note.clone(),
                     content: content.clone(),
                     relays: relays.clone(),
-                    author: author.clone(),
                     repost: repost.clone(),
                 });
 
-                if self.kind.accepts(&event)
+                if self.kind.accepts(note.event())
                     || repost
                         .as_ref()
-                        .map(|r| self.kind.accepts(&r.event))
+                        .map(|r| self.kind.accepts(r.event()))
                         .unwrap_or_default()
                 {
-                    self.text_note_received(event, content, relays, author, repost)
+                    self.text_note_received(note, content, relays, repost)
                 }
             }
             LaneMsg::LinkClicked(uri) => println!("Clicked: {uri}"),

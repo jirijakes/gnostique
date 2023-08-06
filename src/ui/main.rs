@@ -139,21 +139,19 @@ impl AsyncComponent for Main {
     ) {
         match msg {
             MainInput::Event(Incoming::TextNote {
-                event,
+                note,
                 content,
                 relays,
-                author,
                 avatar,
                 repost,
             }) => {
-                let pubkey = event.pubkey;
-                let url = author.as_ref().and_then(|a| a.avatar.as_ref()).cloned();
+                let pubkey = note.author().pubkey;
+                let url = note.author().avatar.clone();
 
                 self.lanes.broadcast(LaneMsg::NewTextNote {
-                    event: Arc::new(event),
+                    note,
                     content: Arc::new(content),
                     relays,
-                    author: author.map(Arc::new),
                     repost,
                 });
 

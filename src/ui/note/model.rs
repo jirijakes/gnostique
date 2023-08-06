@@ -45,13 +45,9 @@ impl Drop for Note {
 }
 
 impl Note {
-    pub(super) fn receive(
-        &mut self,
-        event: Arc<Event>,
-        relays: Vec<Url>,
-        author: Option<Arc<Persona>>,
-        _repost: Option<Repost>,
-    ) {
+    pub(super) fn receive(&mut self, note: TextNote, relays: Vec<Url>, _repost: Option<Repost>) {
+        let (event, author) = note.underlying();
+
         // The newly arriving event is this text note. Assuming that
         // it's all more up-to-date, so we can update notes state right away.
         if event.id == self.event.id {
@@ -59,9 +55,7 @@ impl Note {
             self.relays = relays;
 
             // update author
-            if let Some(a) = author {
-                self.author = a;
-            }
+            self.author = author;
         }
 
         use nostr_sdk::prelude::*;

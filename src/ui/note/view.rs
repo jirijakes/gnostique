@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use std::time::Duration;
 
 use chrono::{TimeZone, Utc};
@@ -244,11 +243,9 @@ impl FactoryComponent for Note {
         });
 
         let replies = Replies::builder().launch(()).detach();
-        let author = init
-            .author
-            .unwrap_or(Arc::new(Persona::new(init.event.pubkey)));
+        let (event, author) = init.note.underlying();
 
-        Self {
+        Note {
             nip05_verified: author.nip05_preverified,
             author,
             is_central: init.is_central,
@@ -257,15 +254,13 @@ impl FactoryComponent for Note {
             avatar: ANONYMOUS_USER.clone(),
             likes: 0,
             dislikes: 0,
-            time: Utc
-                .timestamp_opt(init.event.created_at.as_i64(), 0)
-                .unwrap(),
-            event: init.event,
+            time: Utc.timestamp_opt(event.created_at.as_i64(), 0).unwrap(),
+            event,
             relays: init.relays,
             replies,
             repost: init.repost,
             age: String::new(),
-            tick_handle
+            tick_handle,
         }
     }
 
@@ -287,9 +282,9 @@ impl FactoryComponent for Note {
                     add_css_class: "repost",
                     // set_visible: self.repost_author.is_some(),
 
-                    Author::with_pubkey(repost.author.pubkey) {
+                    Author::with_pubkey(repost.author().pubkey) {
                         //TODO: Does the watch work here?
-                        #[watch] set_persona: &repost.author,
+                        #[watch] set_persona: repost.author(),
                         // set_context_menu: Some(&reposter_menu),
                         set_icon = &gtk::Image {
                             set_icon_name: Some("gnostique-repost-symbolic"),
@@ -330,12 +325,11 @@ impl FactoryComponent for Note {
             // self.replies.emit(RepliesInput::NewReply(event));
             // }
             NoteInput::TextNote {
-                event,
+                note,
                 content,
                 relays,
-                author,
                 repost,
-            } => self.receive(event, relays, author, repost),
+            } => self.receive(note, relays, repost),
             NoteInput::Nip05Verified(pubkey) => {
                 if pubkey == self.author.pubkey {
                     self.nip05_verified = true;
@@ -353,7 +347,7 @@ impl FactoryComponent for Note {
             }
             NoteInput::ShowDetails => {
                 let event_json = match &self.repost {
-                    Some(repost) => serde_json::to_string_pretty(&repost.event).unwrap(),
+                    Some(repost) => serde_json::to_string_pretty(repost.event()).unwrap(),
                     None => serde_json::to_string_pretty(self.event.as_ref()).unwrap(),
                 };
                 let details = Details {

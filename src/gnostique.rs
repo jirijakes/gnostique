@@ -234,6 +234,7 @@ pub async fn make_gnostique(
         .client()
         // .subscribe(vec![crate::follow::Follow::new().subscriptions()])
         .subscribe(vec![Filter::new()]) //.since(Timestamp::now())])
+        // .subscribe(vec![Filter::new().since(Timestamp::now())])
         .await;
 
     Ok(gnostique)

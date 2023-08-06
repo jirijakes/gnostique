@@ -1,4 +1,5 @@
 pub mod content;
+pub mod gnevent;
 mod parse;
 
 pub use std::sync::Arc;
@@ -11,6 +12,7 @@ use once_cell::sync::Lazy;
 use relm4::gtk::{gdk, glib};
 
 use self::content::DynamicContent;
+use self::gnevent::GnEvent;
 
 pub static ANONYMOUS_USER: Lazy<Arc<gdk::Texture>> = Lazy::new(|| {
     Arc::new(
@@ -22,9 +24,41 @@ pub static ANONYMOUS_USER: Lazy<Arc<gdk::Texture>> = Lazy::new(|| {
 });
 
 #[derive(Clone, Debug)]
-pub struct Repost {
-    pub event: Event,
-    pub author: Persona,
+pub struct Repost(GnEvent);
+
+impl Repost {
+    pub fn new(event: GnEvent) -> Repost {
+        Repost(event)
+    }
+
+    pub fn event(&self) -> &Event {
+        self.0.event()
+    }
+
+    pub fn author(&self) -> &Persona {
+        self.0.author()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct TextNote(GnEvent);
+
+impl TextNote {
+    pub fn new(event: GnEvent) -> TextNote {
+        TextNote(event)
+    }
+
+    pub fn event(&self) -> &Event {
+        self.0.event()
+    }
+
+    pub fn underlying(self) -> (Arc<Event>, Arc<Persona>) {
+        self.0.underlying()
+    }
+
+    pub fn author(&self) -> &Persona {
+        self.0.author()
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -222,11 +256,11 @@ impl EventExt for Event {
         self.tags
             .iter()
             .filter_map(|t| match t {
-                Tag::Event(_, Some(r), _) => r.clone().try_into().ok(),
-                Tag::PubKey(_, Some(r)) => r.clone().try_into().ok(),
+                Tag::Event(_, Some(r), _) => Some(r.clone()),
+                Tag::PubKey(_, Some(r)) => Some(r.clone()),
                 Tag::ContactList {
                     relay_url: Some(r), ..
-                } => r.clone().try_into().ok(),
+                } => Some(r.clone()),
                 Tag::Relay(url) => Some(url.clone()),
                 _ => None,
             })

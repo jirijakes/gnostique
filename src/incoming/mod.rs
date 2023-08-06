@@ -14,16 +14,16 @@ use tracing::info;
 
 use crate::gnostique::Gnostique;
 use crate::nostr::content::{DynamicContent, Reference};
-use crate::nostr::{EventExt, Persona, Repost};
+use crate::nostr::gnevent::GnEvent;
+use crate::nostr::{EventExt, Persona, Repost, TextNote};
 
 use self::feedback::{deal_with_feedback, Feedback};
 
 #[derive(Debug)]
 pub enum Incoming {
     TextNote {
-        event: Event,
+        note: TextNote,
         relays: Vec<Url>,
-        author: Option<Persona>,
         avatar: Option<PathBuf>,
         repost: Option<Repost>,
         content: DynamicContent,
@@ -238,11 +238,8 @@ async fn received_text_note(
 
     let repost = match repost {
         Some(r) => {
-            let author = gnostique
-                .get_persona(r.pubkey)
-                .await
-                .unwrap_or(Persona::new(r.pubkey));
-            Some(Repost { event: r, author })
+            let author = gnostique.get_persona(r.pubkey).await;
+            Some(Repost::new(GnEvent::new(r, author)))
         }
         None => None,
     };
@@ -259,10 +256,11 @@ async fn received_text_note(
         dbg!(n);
     });
 
+    let note = TextNote::new(GnEvent::new(event, author));
+
     Incoming::TextNote {
-        event,
+        note,
         relays,
-        author,
         avatar,
         repost,
         content,

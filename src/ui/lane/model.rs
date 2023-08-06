@@ -12,7 +12,7 @@ use tracing::trace;
 
 use crate::follow::Follow;
 use crate::nostr::content::DynamicContent;
-use crate::nostr::{EventExt, Persona, Repost};
+use crate::nostr::{EventExt, Persona, Repost, TextNote};
 use crate::ui::details::Details;
 use crate::ui::lane_header::LaneHeader;
 use crate::ui::note::{Note, NoteInit};
@@ -65,10 +65,9 @@ impl LaneKind {
 #[derive(Clone, Debug)]
 pub enum LaneMsg {
     NewTextNote {
-        event: Arc<Event>,
+        note: TextNote,
         content: Arc<DynamicContent>,
         relays: Vec<Url>,
-        author: Option<Arc<Persona>>,
         repost: Option<Repost>,
     },
     UpdatedProfile {
@@ -98,24 +97,22 @@ impl Lane {
     /// New text note was received, let's handle it.
     pub(super) fn text_note_received(
         &mut self,
-        event: Arc<Event>,
+        note: TextNote,
         content: Arc<DynamicContent>,
         relays: Vec<Url>,
-        author: Option<Arc<Persona>>,
         repost: Option<Repost>,
     ) {
-        let event_id = event.id;
+        let event_id = note.event().id;
 
         // Add note iff it has not been added yet (they may arrive multiple times).
-        if !self.hash_index.contains_key(&event.id) {
+        if !self.hash_index.contains_key(&event_id) {
             let is_central = self.kind.is_thread(&event_id);
-            let event_time = event.created_at;
+            let event_time = note.event().created_at;
 
             let init = NoteInit {
-                event,
+                note,
                 content,
                 relays,
-                author,
                 is_central,
                 repost,
             };
