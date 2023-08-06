@@ -26,8 +26,7 @@ pub struct Note {
     pub(super) event: Arc<Event>,
     pub(super) relays: Vec<Url>,
     pub(super) replies: AsyncController<Replies>,
-    pub(super) repost_author: Option<Persona>,
-    pub(super) repost: Option<Event>,
+    pub(super) repost: Option<Repost>,
     pub(super) age: String,
 
     /// Holds join handle of a background task that regularly updates

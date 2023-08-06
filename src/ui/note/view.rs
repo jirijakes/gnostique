@@ -247,11 +247,6 @@ impl FactoryComponent for Note {
         let author = init
             .author
             .unwrap_or(Arc::new(Persona::new(init.event.pubkey)));
-        let repost_author = init
-            .repost
-            .as_ref()
-            .map(|r| r.author.clone().unwrap_or(Persona::new(r.event.pubkey)));
-        let repost = init.repost.map(|r| r.event);
 
         Self {
             nip05_verified: author.nip05_preverified,
@@ -268,8 +263,7 @@ impl FactoryComponent for Note {
             event: init.event,
             relays: init.relays,
             replies,
-            repost_author,
-            repost,
+            repost: init.repost,
             age: String::new(),
             tick_handle
         }
@@ -284,18 +278,18 @@ impl FactoryComponent for Note {
     ) -> Self::Widgets {
         let widgets = view_output!();
 
-        if let Some(reposter) = &self.repost_author {
+        if let Some(repost) = &self.repost {
             relm4::view! {
                 #[name = "reposter_box"]
                 gtk::Box {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_spacing: 10,
                     add_css_class: "repost",
-                    set_visible: self.repost_author.is_some(),
+                    // set_visible: self.repost_author.is_some(),
 
-                    Author::with_pubkey(reposter.pubkey) {
+                    Author::with_pubkey(repost.author.pubkey) {
                         //TODO: Does the watch work here?
-                        #[watch] set_persona?: &self.repost_author,
+                        #[watch] set_persona: &repost.author,
                         // set_context_menu: Some(&reposter_menu),
                         set_icon = &gtk::Image {
                             set_icon_name: Some("gnostique-repost-symbolic"),
@@ -359,7 +353,7 @@ impl FactoryComponent for Note {
             }
             NoteInput::ShowDetails => {
                 let event_json = match &self.repost {
-                    Some(e) => serde_json::to_string_pretty(e).unwrap(),
+                    Some(repost) => serde_json::to_string_pretty(&repost.event).unwrap(),
                     None => serde_json::to_string_pretty(self.event.as_ref()).unwrap(),
                 };
                 let details = Details {

@@ -24,7 +24,7 @@ pub static ANONYMOUS_USER: Lazy<Arc<gdk::Texture>> = Lazy::new(|| {
 #[derive(Clone, Debug)]
 pub struct Repost {
     pub event: Event,
-    pub author: Option<Persona>,
+    pub author: Persona,
 }
 
 #[derive(Clone, Debug)]

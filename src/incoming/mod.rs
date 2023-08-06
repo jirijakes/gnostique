@@ -238,7 +238,10 @@ async fn received_text_note(
 
     let repost = match repost {
         Some(r) => {
-            let author = gnostique.get_persona(r.pubkey).await;
+            let author = gnostique
+                .get_persona(r.pubkey)
+                .await
+                .unwrap_or(Persona::new(r.pubkey));
             Some(Repost { event: r, author })
         }
         None => None,
