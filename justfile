@@ -27,8 +27,8 @@ refresh: sync upgrade build
 status:
     fossil status --extra --changed --missing --deleted --added
 
-diff:
-    fossil diff
+diff path="":
+    fossil diff {{path}}
 
 test name="":
     cargo test {{name}} -- --nocapture

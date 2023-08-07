@@ -63,14 +63,7 @@
     min-width: 500px;
 }
 
-.text-note .right-column {
-    padding-top: 8px;
-    padding-bottom: 4px;
-    padding-left: 4px;
-    padding-right: 4px;
-}
-
-.text-note .right-column .note-age {
+.text-note .note-age {
     padding-right: 8px;
     opacity: .6;
     font-size: .9em;

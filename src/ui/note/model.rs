@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use gtk::gdk;
-use gtk::traits::BoxExt;
+use gtk::prelude::*;
 use nostr_sdk::nostr::*;
 use relm4::component::{AsyncComponent, AsyncComponentController, AsyncController};
 use relm4::prelude::*;
@@ -90,9 +90,7 @@ impl Note {
                 .get_or_insert_with(|| {
                     trace!("Creating new Replies component as first reply arrived.");
                     let r = Replies::builder().launch(()).detach();
-                    widgets
-                        .right_column
-                        .insert_child_after(r.widget(), Some(&widgets.content));
+                    widgets.root.attach(r.widget(), 1, 4, 1, 1);
                     r
                 })
                 .emit(RepliesInput::NewReply(event.clone()));
