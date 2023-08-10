@@ -7,7 +7,7 @@ use super::content::DynamicContent;
 
 lazy_static! {
     pub(super) static ref NIP21: Regex = Regex::new(
-        "nostr:(?P<nip19>(?P<type>nprofile|nevent|nrelay|naddr|npub|note)1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]+)",
+        "(nostr:)?(?P<nip19>(?P<type>nprofile|nevent|nrelay|naddr|npub|note)1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]+)",
     ).unwrap();
 
     pub(super) static ref TAG: Regex = Regex::new("(^|\\s+)#(?P<tag>[a-zA-Z0-9]+)").unwrap();
