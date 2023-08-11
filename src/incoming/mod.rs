@@ -259,14 +259,6 @@ async fn received_text_note(
 
     let relays = gnostique.textnote_relays(event.id).await;
 
-    // referenced_notes.iter().for_each(|n| {
-    //     dbg!(n);
-    // });
-
-    // referenced_profiles.iter().for_each(|n| {
-    //     dbg!(n);
-    // });
-
     let note = TextNote::new(GnEvent::new(event, author));
 
     Incoming::TextNote {

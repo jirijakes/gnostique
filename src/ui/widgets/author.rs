@@ -20,6 +20,13 @@ impl Author {
     pub fn set_persona(&self, persona: &Persona) {
         self.set_name(persona.name.clone());
         self.set_display_name(persona.display_name.clone());
+        self.set_name_to_show(
+            persona
+                .display_name
+                .clone()
+                .filter(|s| !s.is_empty())
+                .or_else(|| persona.name.as_ref().map(|n| format!("@{n}"))),
+        );
         self.set_nip05(persona.nip05.clone());
     }
 
@@ -49,6 +56,8 @@ mod imp {
         name: RefCell<Option<String>>,
         #[property(get, set, nullable)]
         display_name: RefCell<Option<String>>,
+        #[property(get, set, nullable)]
+        name_to_show: RefCell<Option<String>>,
         #[property(get, set, construct_only)]
         pubkey: RefCell<String>,
         #[property(get, set, nullable)]
@@ -148,7 +157,7 @@ mod imp {
                 }
             };
 
-            obj.bind_property("display-name", &author_name, "label")
+            obj.bind_property("name-to-show", &author_name, "label")
                 .sync_create()
                 .build();
             obj.bind_property("pubkey", &author_pubkey, "label")
@@ -161,8 +170,10 @@ mod imp {
                 })
                 .sync_create()
                 .build();
-            obj.bind_property("display-name", &author_name, "visible")
-                .transform_to(|_, display_name: Option<String>| Some(display_name.is_some()))
+            obj.bind_property("name-to-show", &author_name, "visible")
+                .transform_to(|_, name: Option<String>| {
+                    Some(name.is_some() && name.iter().all(|s| !s.is_empty()))
+                })
                 .sync_create()
                 .build();
             obj.bind_property("nip05-verified", &author_nip05, "visible")
