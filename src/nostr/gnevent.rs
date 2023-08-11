@@ -6,7 +6,7 @@ use super::Persona;
 
 /// An event with its author. If the profile of the author is known at the time
 /// of creation it will be included, otherwise only pubkey will be there.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct GnEvent(Arc<Event>, Arc<Persona>);
 
 impl GnEvent {

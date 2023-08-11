@@ -11,6 +11,7 @@ use tracing::trace;
 
 use crate::nostr::content::DynamicContent;
 use crate::nostr::*;
+use crate::ui::note::quote::Quote;
 use crate::ui::replies::{Replies, RepliesInput};
 
 use super::view::NoteWidgets;
@@ -29,6 +30,7 @@ pub struct Note {
     pub(super) event: Arc<Event>,
     pub(super) relays: Vec<Url>,
     pub(super) replies: Option<AsyncController<Replies>>,
+    pub(super) quote: Option<Controller<Quote>>,
     pub(super) repost: Option<Repost>,
     pub(super) age: String,
 
@@ -55,7 +57,7 @@ impl Note {
         relays: Vec<Url>,
         _repost: Option<Repost>,
     ) {
-        let (event, author) = note.underlying();
+        let (event, author) = note.clone().underlying();
 
         // The newly arriving event is this text note. Assuming that
         // it's all more up-to-date, so we can update notes state right away.
@@ -67,18 +69,12 @@ impl Note {
             self.author = author;
         }
 
-        use nostr_sdk::prelude::*;
-
-        if self.content.has_reference(event.id) {
-            // TODO: link referencing the event is kept in the note for the
-            // time being. However, if it is at the end of the text message,
-            // it could perhaps be removed.
-            // if (link at the end of text) { self.content.hide(&event); }
-            tracing::error!(
-                ">>>> in {} ; REFED: {}",
-                self.event.id.to_bech32().unwrap(),
-                event.id.to_bech32().unwrap()
-            );
+        // If newly arrived notes is referenced by this note, let us add
+        // it as Quote (but only once).
+        if self.quote.is_none() && self.content.has_reference(event.id) {
+            let quote = Quote::builder().launch(note).detach();
+            widgets.root.attach(quote.widget(), 1, 3, 1, 1);
+            self.quote = Some(quote);
         }
 
         // if let Some(r) = repost {};

@@ -144,6 +144,8 @@ impl AsyncComponent for Main {
                 relays,
                 avatar,
                 repost,
+                referenced_notes,
+                referenced_profiles,
             }) => {
                 let pubkey = note.author().pubkey;
                 let url = note.author().avatar.clone();
@@ -153,6 +155,8 @@ impl AsyncComponent for Main {
                     content: Arc::new(content),
                     relays,
                     repost,
+                    referenced_notes,
+                    referenced_profiles
                 });
 
                 if let Some(ref file) = avatar {

@@ -40,7 +40,7 @@ impl Repost {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct TextNote(GnEvent);
 
 impl TextNote {
@@ -72,6 +72,20 @@ pub struct Persona {
     pub nip05: Option<String>,
     pub nip05_preverified: bool,
     pub metadata_json: String,
+}
+
+impl std::hash::Hash for Persona {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.pubkey.hash(state);
+    }
+}
+
+impl Eq for Persona {}
+
+impl PartialEq for Persona {
+    fn eq(&self, other: &Self) -> bool {
+        self.pubkey == other.pubkey
+    }
 }
 
 impl Persona {

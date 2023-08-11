@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use gtk::gdk;
@@ -69,6 +69,8 @@ pub enum LaneMsg {
         content: Arc<DynamicContent>,
         relays: Vec<Url>,
         repost: Option<Repost>,
+        referenced_notes: HashSet<TextNote>,
+        referenced_profiles: HashSet<Persona>,
     },
     UpdatedProfile {
         author: Arc<Persona>,
@@ -101,6 +103,8 @@ impl Lane {
         content: Arc<DynamicContent>,
         relays: Vec<Url>,
         repost: Option<Repost>,
+        referenced_notes: HashSet<TextNote>,
+        referenced_profiles: HashSet<Persona>,
     ) {
         let event_id = note.event().id;
 
@@ -115,6 +119,8 @@ impl Lane {
                 relays,
                 is_central,
                 repost,
+                referenced_notes,
+                referenced_profiles,
             };
 
             let di = if is_central {

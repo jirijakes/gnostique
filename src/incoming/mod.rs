@@ -1,5 +1,6 @@
 mod feedback;
 
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 use futures_util::*;
@@ -27,6 +28,8 @@ pub enum Incoming {
         avatar: Option<PathBuf>,
         repost: Option<Repost>,
         content: DynamicContent,
+        referenced_notes: HashSet<TextNote>,
+        referenced_profiles: HashSet<Persona>,
     },
     Reaction {
         event_id: EventId,
@@ -208,15 +211,19 @@ async fn received_text_note(
 
     let content = event.prepare_content();
 
-    let mut referenced_notes: Vec<Event> = vec![];
-    let mut referenced_profiles: Vec<Persona> = vec![];
+    let mut referenced_notes: HashSet<TextNote> = Default::default();
+    let mut referenced_profiles: HashSet<Persona> = Default::default();
 
     for r in content.references() {
         match r {
             Reference::Event(id) => {
+                // TODO: Beautify
                 let note = get_note_or_demand(gnostique, feedback.clone(), None, *id).await;
                 if let Some(n) = note {
-                    referenced_notes.push(n);
+                    let author =
+                        get_persona_or_demand(gnostique, feedback.clone(), relay.clone(), n.pubkey)
+                            .await;
+                    referenced_notes.insert(TextNote::new(GnEvent::new(n, author)));
                 }
             }
             Reference::Profile(pubkey, rs) => {
@@ -227,7 +234,7 @@ async fn received_text_note(
                     .unwrap_or(relay.clone());
                 let persona = get_persona_or_demand(gnostique, feedback.clone(), r, *pubkey).await;
                 if let Some(p) = persona {
-                    referenced_profiles.push(p);
+                    referenced_profiles.insert(p);
                 }
             }
         }
@@ -252,9 +259,13 @@ async fn received_text_note(
 
     let relays = gnostique.textnote_relays(event.id).await;
 
-    referenced_notes.iter().for_each(|n| {
-        dbg!(n);
-    });
+    // referenced_notes.iter().for_each(|n| {
+    //     dbg!(n);
+    // });
+
+    // referenced_profiles.iter().for_each(|n| {
+    //     dbg!(n);
+    // });
 
     let note = TextNote::new(GnEvent::new(event, author));
 
@@ -264,6 +275,8 @@ async fn received_text_note(
         avatar,
         repost,
         content,
+        referenced_notes,
+        referenced_profiles,
     }
 }
 

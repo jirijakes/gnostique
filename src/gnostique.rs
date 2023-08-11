@@ -220,7 +220,6 @@ pub async fn make_gnostique(
             ("wss://nostr.fmt.wiz.biz", None),
             ("wss://relay.damus.io", None),
             ("wss://nostr-pub.wellorder.net", None),
-            ("wss://offchain.pub", None),
             ("wss://nos.lol", None),
             ("wss://relay.snort.social", None),
             ("wss://relay.current.fyi", None),

@@ -93,10 +93,32 @@
     background-image: none;
 }
 
-.replies {
+
+/*        QUOTE
+ */
+
+.quote {
     margin: 0 6px;
     padding: 12px;
     background-color: darker(@theme_bg_color);
+    border: 1px solid black;
+    border-radius: 8px;
+}
+
+.quote author {
+    margin-bottom: 6px;
+    font-size: 0.9em;
+}
+
+/*        REPLIES
+ *
+ * TODO: Will be overhauled.
+ */
+
+.replies {
+    margin: 0 6px;
+    padding: 12px;
+    background-color: lighter(@theme_bg_color);
     border: 1px solid black;
     border-radius: 8px;
 }

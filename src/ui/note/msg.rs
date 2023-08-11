@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use gtk::gdk;
@@ -14,6 +15,8 @@ pub struct NoteInit {
     pub relays: Vec<Url>,
     pub is_central: bool,
     pub repost: Option<Repost>,
+    pub referenced_notes: HashSet<TextNote>,
+    pub referenced_profiles: HashSet<Persona>,
 }
 
 #[derive(Clone, Debug)]
@@ -45,6 +48,8 @@ pub enum NoteInput {
         content: Arc<DynamicContent>,
         relays: Vec<Url>,
         repost: Option<Repost>,
+        referenced_notes: HashSet<TextNote>,
+        referenced_profiles: HashSet<Persona>,
     },
     Tick,
 }

@@ -9,6 +9,7 @@ use relm4::prelude::*;
 
 use super::model::*;
 use super::msg::*;
+use super::quote::Quote;
 use crate::app::action::*;
 use crate::nostr::*;
 use crate::ui::details::Details;
@@ -231,6 +232,13 @@ impl FactoryComponent for Note {
             }
         });
 
+        // TODO: Now we make only one of the referenced notes a quote.
+        // Perhaps we could show all of them somehow?
+        let quote = init.referenced_notes
+            .into_iter()
+            .next()
+            .map(|q| Quote::builder().launch(q).detach());
+        
         let (event, author) = init.note.underlying();
 
         Note {
@@ -247,6 +255,7 @@ impl FactoryComponent for Note {
             relays: init.relays,
             replies: None,
             repost: init.repost,
+            quote,
             age: String::new(),
             tick_handle,
         }
@@ -285,6 +294,13 @@ impl FactoryComponent for Note {
             widgets.root.attach(&reposter_box, 0, 0, 2, 1);
         }
 
+        // If controller for Quote has been created in `init_model`,
+        // add its widget to the note. If note and a quote arrives
+        // later, the controller will be created in note::model::receive.
+        if let Some(quote) = &self.quote {
+            widgets.root.attach(quote.widget(), 1, 3, 1, 1);
+        }
+
         widgets
     }
 
@@ -321,6 +337,7 @@ impl FactoryComponent for Note {
                 content: _, // NOTE: I guess someday we will need it to augment replies, quotes etc.
                 relays,
                 repost,
+                ..                
             } => self.receive(widgets, note, relays, repost),
             NoteInput::Nip05Verified(pubkey) => {
                 if pubkey == self.author.pubkey {
