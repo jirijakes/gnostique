@@ -24,8 +24,16 @@ impl Author {
             persona
                 .display_name
                 .clone()
+                .or_else(|| persona.name.as_ref().map(|n| format!("@{n}")))
                 .filter(|s| !s.is_empty())
-                .or_else(|| persona.name.as_ref().map(|n| format!("@{n}"))),
+                .map(|mut s| {
+                    if s.len() > 60 {
+                        s.truncate(60);
+                        format!("{s}…")
+                    } else {
+                        s
+                    }
+                }),
         );
         self.set_nip05(persona.nip05.clone());
     }
