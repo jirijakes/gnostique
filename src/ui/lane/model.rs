@@ -22,6 +22,7 @@ use crate::ui::profilebox::model::Profilebox;
 #[derive(Debug)]
 pub struct Lane {
     pub(super) kind: LaneKind,
+    pub(super) index: DynamicIndex,
     pub(super) text_notes: FactoryVecDeque<Note>,
     pub(super) hash_index: HashMap<EventId, DynamicIndex>,
     /// Component of profile box; exists only when the lane
@@ -91,6 +92,7 @@ pub enum LaneMsg {
     },
     Nip05Verified(XOnlyPublicKey),
     LinkClicked(Url),
+    CloseLane,
 }
 
 #[derive(Debug)]
@@ -99,6 +101,7 @@ pub enum LaneOutput {
     WriteNote,
     OpenProfile(Arc<Persona>, Url),
     DemandProfile(XOnlyPublicKey, Url),
+    CloseLane(DynamicIndex)
 }
 
 impl Lane {

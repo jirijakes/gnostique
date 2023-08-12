@@ -7,11 +7,16 @@ use crate::ui::lane::LaneKind;
 #[derive(Debug)]
 pub struct LaneHeader {}
 
+#[derive(Clone, Debug)]
+pub enum LaneHeaderOutput {
+    CloseLane,
+}
+
 #[relm4::component(pub)]
 impl SimpleComponent for LaneHeader {
     type Input = ();
     type Init = LaneKind;
-    type Output = ();
+    type Output = LaneHeaderOutput;
 
     view! {
         gtk::CenterBox {
@@ -23,7 +28,7 @@ impl SimpleComponent for LaneHeader {
                 gtk::Button::from_icon_name("mail-message-new-symbolic") {
                     set_has_frame: false,
                     set_tooltip_text: Some("Write new text note with the current identity"),
-                    connect_clicked[sender] => move |_| { sender.output(()).unwrap() }
+                    // connect_clicked[sender] => move |_| { sender.output(()).unwrap() }
                 }
             },
 
@@ -53,6 +58,13 @@ impl SimpleComponent for LaneHeader {
                             .build();
                         popover.set_parent(b);
                         popover.popup();
+                    }
+                },
+                gtk::Button::from_icon_name("process-stop-symbolic") {
+                    set_has_frame: false,
+                    set_tooltip_text: Some("Close this lane"),
+                    connect_clicked[sender] => move |_| {
+                        sender.output(LaneHeaderOutput::CloseLane).unwrap_or_default()
                     }
                 }
             },

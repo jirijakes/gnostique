@@ -6,6 +6,7 @@ use gtk::prelude::*;
 use nostr_sdk::nostr::prelude::*;
 use relm4::component::*;
 use relm4::factory::AsyncFactoryVecDeque;
+use relm4::prelude::DynamicIndex;
 use tracing::warn;
 
 use crate::gnostique::Gnostique;
@@ -43,6 +44,7 @@ pub enum MainInput {
     OpenProfile(Arc<Persona>, Url),
     Nip05Verified(XOnlyPublicKey),
     DemandProfile(XOnlyPublicKey, Url),
+    CloseLane(DynamicIndex),
 }
 
 #[relm4::component(pub async)]
@@ -194,12 +196,18 @@ impl AsyncComponent for Main {
 
             MainInput::WriteNote => self.write_note.emit(WriteNoteInput::Show),
 
+            MainInput::CloseLane(id) => {
+                self.lanes.guard().remove(id.current_index());
+            }
+
             MainInput::Noop => {}
 
             MainInput::EditProfile => self.edit_profile.emit(EditProfileInput::Show),
 
             MainInput::OpenProfile(persona, relay) => {
-                self.lanes.guard().push_back(LaneKind::Profile(persona, relay));
+                self.lanes
+                    .guard()
+                    .push_back(LaneKind::Profile(persona, relay));
             }
 
             MainInput::DemandProfile(pubkey, relay) => {

@@ -4,7 +4,7 @@ use relm4::prelude::*;
 use relm4::{gtk, AsyncFactorySender};
 
 use crate::ui::lane::model::*;
-use crate::ui::lane_header::LaneHeader;
+use crate::ui::lane_header::{LaneHeader, LaneHeaderOutput};
 use crate::ui::main::MainInput;
 use crate::ui::note::NoteInput;
 use crate::ui::profilebox;
@@ -44,7 +44,7 @@ impl AsyncFactoryComponent for Lane {
 
     async fn init_model(
         kind: LaneKind,
-        _index: &DynamicIndex,
+        index: &DynamicIndex,
         sender: AsyncFactorySender<Self>,
     ) -> Self {
         let profile_box = if let LaneKind::Profile(persona, relay) = &kind {
@@ -57,13 +57,20 @@ impl AsyncFactoryComponent for Lane {
             None
         };
 
-        Self {
-            kind: kind.clone(),
-            profile_box,
-            header: LaneHeader::builder()
-                .launch(kind)
-                .forward(sender.output_sender(), |_| LaneOutput::WriteNote),
+        let header = {
+            let index = index.clone();
+            LaneHeader::builder()
+                .launch(kind.clone())
+                .forward(sender.output_sender(), move |out| match out {
+                    LaneHeaderOutput::CloseLane => LaneOutput::CloseLane(index.clone()),
+                })
+        };
 
+        Self {
+            kind,
+            profile_box,
+            index: index.clone(),
+            header,
             text_notes: FactoryVecDeque::new(
                 gtk::ListBox::builder()
                     .selection_mode(gtk::SelectionMode::None)
@@ -105,6 +112,7 @@ impl AsyncFactoryComponent for Lane {
             LaneOutput::DemandProfile(pubkey, relay) => {
                 Some(MainInput::DemandProfile(pubkey, relay))
             }
+            LaneOutput::CloseLane(id) => Some(MainInput::CloseLane(id)),
         }
     }
 
@@ -193,6 +201,7 @@ impl AsyncFactoryComponent for Lane {
                 }
             }
             LaneMsg::LinkClicked(uri) => println!("Clicked: {uri}"),
+            LaneMsg::CloseLane => sender.output(LaneOutput::CloseLane(self.index.clone())),
         }
     }
 }

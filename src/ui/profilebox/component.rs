@@ -66,6 +66,7 @@ impl Component for Profilebox {
                 gtk::Label {
                     set_selectable: true,
                     set_xalign: 0.0,
+                    set_wrap_mode: gtk::pango::WrapMode::Word,
                     add_css_class: "about",
                     #[watch] set_label?: &model.author.about.as_ref(),
                 },
