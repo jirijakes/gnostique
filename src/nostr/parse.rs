@@ -10,7 +10,7 @@ lazy_static! {
         "(nostr:)?(?P<nip19>(?P<type>nprofile|nevent|nrelay|naddr|npub|note)1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]+)",
     ).unwrap();
 
-    pub(super) static ref TAG: Regex = Regex::new("(^|\\s+)#(?P<tag>[a-zA-Z0-9]+)").unwrap();
+    pub(super) static ref TAG: Regex = Regex::new("(^|\\s+)(?P<tag>#[a-zA-Z0-9]+)").unwrap();
 
     pub(super) static ref MENTION: Regex = Regex::new("#\\[(?P<idx>\\d+)\\]").unwrap();
 }
@@ -69,12 +69,13 @@ pub fn parse_content(event: &Event) -> DynamicContent {
     });
 
     TAG.captures_iter(message).for_each(|c| {
-        let tag = c.name("tag").unwrap().as_str();
-        let range = c.get(0).unwrap().range();
-        dcontent.add_fixed(
-            range,
-            format!(r#"<a href="gnostique:search?tag={}">#{}</a>"#, tag, tag),
-        );
+        if let Some(m) = c.name("tag") {
+            let tag = m.as_str().trim_start_matches('#');
+            dcontent.add_fixed(
+                m.range(),
+                format!(r#"<a href="gnostique:search?tag={tag}">#{tag}</a>"#),
+            );
+        }
     });
 
     MENTION.captures_iter(message).for_each(|c| {
