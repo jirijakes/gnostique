@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
@@ -111,7 +112,7 @@ impl Lane {
         let event_id = note.event().id;
 
         // Add note iff it has not been added yet (they may arrive multiple times).
-        if !self.hash_index.contains_key(&event_id) {
+        if let Entry::Vacant(e) = self.hash_index.entry(event_id) {
             let is_central = self.kind.is_thread(&event_id);
             let event_time = note.event().created_at;
 
@@ -151,7 +152,7 @@ impl Lane {
             };
 
             // At the end, let's remember (event_id -> dynamic index) pair.
-            self.hash_index.insert(event_id, di);
+            e.insert(di);
         }
 
         // Remove oldest notes if there are too many already.
