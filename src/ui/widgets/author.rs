@@ -1,4 +1,6 @@
 use gtk::glib;
+use gtk::glib::{closure_local, SignalHandlerId};
+use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use nostr_sdk::prelude::*;
 
@@ -51,6 +53,11 @@ impl Author {
     pub fn set_context_menu(&self, menu: Option<&gtk::gio::Menu>) {
         self.imp().set_context_menu(menu);
     }
+
+    /// Emits a 'clicked' signal when user clicks on any part of author.
+    pub fn connect_clicked<F: Fn(&Self) + 'static>(&self, f: F) -> SignalHandlerId {
+        self.connect_closure("clicked", false, closure_local!(move |a| f(a)))
+    }
 }
 
 mod imp {
@@ -58,8 +65,10 @@ mod imp {
 
     use gtk::glib;
     use gtk::glib::clone;
+    use gtk::glib::subclass::Signal;
     use gtk::prelude::*;
     use gtk::subclass::prelude::*;
+    use once_cell::sync::Lazy;
 
     #[derive(Debug, Default, glib::Properties)]
     #[properties(wrapper_type = super::Author)]
@@ -220,8 +229,21 @@ mod imp {
                 }),
             );
 
+            let gesture = gtk::GestureClick::new();
+            gesture.connect_released(clone!(@weak obj => move |_, _, _, _| {
+                obj.emit_by_name::<()>("clicked", &[]);
+            }));
+            author_box.add_controller(gesture);
+
             author_box.set_parent(&*obj);
             *self.author_box.borrow_mut() = Some(author_box);
+        }
+
+        fn signals() -> &'static [Signal] {
+            static SIGNALS: Lazy<Vec<Signal>> =
+                Lazy::new(|| vec![Signal::builder("clicked").build()]);
+
+            SIGNALS.as_ref()
         }
 
         fn properties() -> &'static [glib::ParamSpec] {
