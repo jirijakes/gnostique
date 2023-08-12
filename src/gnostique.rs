@@ -216,13 +216,13 @@ pub async fn make_gnostique(
         .client()
         .add_relays(vec![
             // ("ws://localhost:8080", None),
-            ("wss://eden.nostr.land", None),
-            ("wss://nostr.fmt.wiz.biz", None),
-            ("wss://relay.damus.io", None),
-            ("wss://nostr-pub.wellorder.net", None),
+            // ("wss://eden.nostr.land", None),
+            // ("wss://nostr.fmt.wiz.biz", None),
+            // ("wss://relay.damus.io", None),
+            // ("wss://nostr-pub.wellorder.net", None),
             ("wss://nos.lol", None),
-            ("wss://relay.snort.social", None),
-            ("wss://relay.current.fyi", None),
+            // ("wss://relay.snort.social", None),
+            // ("wss://relay.current.fyi", None),
         ])
         .await
         .unwrap();
