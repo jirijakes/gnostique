@@ -22,6 +22,7 @@ impl AsyncFactoryComponent for Lane {
     view! {
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
+            add_css_class: "lane",
 
             // HEADER
             self.header.widget() { },
@@ -83,7 +84,7 @@ impl AsyncFactoryComponent for Lane {
         let widgets = view_output!();
 
         match self.kind {
-            LaneKind::Profile(_, _) => root.add_css_class("laneprofile"),
+            LaneKind::Profile(_, _) => root.add_css_class("profile"),
             LaneKind::Thread(_) => {}
             _ => {}
         };

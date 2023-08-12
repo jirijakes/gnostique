@@ -21,6 +21,18 @@
     font-size: .9em;
 }
 
+/*        LANE
+ *       ======
+ */
+
+.lane {
+    border-right: 2px solid black;
+}
+
+.lane:last-child {
+    border-right: 0;
+}
+
 .laneheader {
     background-color: darker(darker(@theme_bg_color));
     border: 2px solid black;
@@ -44,7 +56,6 @@
     font-size: 0.9em;
     opacity: 0.7;
 }
-
 
 /*        TEXT NOTE
  *       ===========
@@ -83,7 +94,7 @@
    font-size: 1em;
 }
 
-.laneprofile .text-note .content {
+.lane.profile .text-note .content {
     padding: 1em;
 }
 
