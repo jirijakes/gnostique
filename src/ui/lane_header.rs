@@ -32,7 +32,7 @@ impl SimpleComponent for LaneHeader {
                 set_orientation: gtk::Orientation::Horizontal,
                 set_spacing: 10,
                 gtk::Label {
-                    set_text: header,
+                    set_text: &header,
                     add_css_class: "name"
                 },
                 gtk::Label {
@@ -72,11 +72,17 @@ impl SimpleComponent for LaneHeader {
     ) -> ComponentParts<Self> {
         let model = LaneHeader {};
 
+        // TODO: header title could be part of model, so it can be
+        // dynamically changed when needed.
         let header = match init {
-            LaneKind::Feed(_) => "Feed",
-            LaneKind::Thread(_) => "Thread",
-            LaneKind::Profile(_, _) => "User profile",
-            LaneKind::Sink => "All",
+            LaneKind::Feed(_) => "Feed".to_string(),
+            LaneKind::Thread(_) => "Thread".to_string(),
+            LaneKind::Profile(p, _) => p
+                .display_name
+                .clone()
+                .or_else(|| p.name.clone())
+                .unwrap_or("User profile".to_string()),
+            LaneKind::Sink => "All".to_string(),
         };
 
         let widgets = view_output!();
