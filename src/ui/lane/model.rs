@@ -24,13 +24,15 @@ pub struct Lane {
     pub(super) kind: LaneKind,
     pub(super) text_notes: FactoryVecDeque<Note>,
     pub(super) hash_index: HashMap<EventId, DynamicIndex>,
-    pub(super) profile_box: Controller<Profilebox>,
+    /// Component of profile box; exists only when the lane
+    /// is of kind Profile.
+    pub(super) profile_box: Option<Controller<Profilebox>>,
     pub(super) header: Controller<LaneHeader>,
 }
 
 #[derive(Clone, Debug)]
 pub enum LaneKind {
-    Profile(XOnlyPublicKey),
+    Profile(Arc<Persona>, Url),
     Thread(EventId),
     Feed(Follow),
     Sink,
@@ -42,18 +44,18 @@ impl LaneKind {
     }
 
     pub fn is_profile(&self, pubkey: &XOnlyPublicKey) -> bool {
-        matches!(self, LaneKind::Profile(p) if p == pubkey)
+        matches!(self, LaneKind::Profile(p, _) if &p.pubkey == pubkey)
     }
 
     pub fn is_a_profile(&self) -> bool {
-        matches!(self, LaneKind::Profile(_))
+        matches!(self, LaneKind::Profile(_, _))
     }
 
     pub fn accepts(&self, event: &Event) -> bool {
         match self {
             LaneKind::Sink => true,
             LaneKind::Feed(f) => f.follows(&event.pubkey) && event.replies_to().is_none(),
-            LaneKind::Profile(pubkey) => &event.pubkey == pubkey,
+            LaneKind::Profile(p, _) => event.pubkey == p.pubkey,
             LaneKind::Thread(id) => {
                 event.id == *id
                     || event.replies_to() == Some(*id)
@@ -77,7 +79,7 @@ pub enum LaneMsg {
         author: Arc<Persona>,
     },
     ShowDetails(Details),
-    OpenProfile(XOnlyPublicKey),
+    OpenProfile(Arc<Persona>, Url),
     MetadataBitmap {
         pubkey: XOnlyPublicKey,
         url: Url,
@@ -95,7 +97,8 @@ pub enum LaneMsg {
 pub enum LaneOutput {
     ShowDetails(Details),
     WriteNote,
-    OpenProfile(XOnlyPublicKey),
+    OpenProfile(Arc<Persona>, Url),
+    DemandProfile(XOnlyPublicKey, Url),
 }
 
 impl Lane {
@@ -135,7 +138,7 @@ impl Lane {
                 let idx = self.text_notes.iter().position(|tn| {
                     let ord = tn.time.timestamp().cmp(&event_time.as_i64());
                     match self.kind {
-                        LaneKind::Profile(_) => ord == Ordering::Less,
+                        LaneKind::Profile(_, _) => ord == Ordering::Less,
                         LaneKind::Thread(_) => ord == Ordering::Less,
                         LaneKind::Feed(_) => ord == Ordering::Less,
                         LaneKind::Sink => ord == Ordering::Less,

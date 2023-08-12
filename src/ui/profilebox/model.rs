@@ -7,15 +7,15 @@ use crate::nostr::{Persona, ANONYMOUS_USER};
 
 #[derive(Debug)]
 pub struct Profilebox {
-    pub author: Option<Arc<Persona>>,
+    pub author: Arc<Persona>,
     pub avatar: Arc<Texture>,
     pub banner: Option<Arc<Texture>>,
 }
 
 impl Profilebox {
-    pub fn new() -> Self {
+    pub fn new(persona: Arc<Persona>) -> Self {
         Self {
-            author: None,
+            author: persona,
             avatar: ANONYMOUS_USER.clone(),
             banner: None,
         }

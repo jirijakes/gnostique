@@ -23,14 +23,13 @@ impl AsyncFactoryComponent for Lane {
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
 
+            // HEADER
             self.header.widget() { },
 
-            // profile box
-            self.profile_box.widget() {
-                set_visible: self.kind.is_a_profile(),
-            },
+            // PROFILE BOX (before text notes)
 
-            // notes
+            // TEXT NOTES
+            #[name = "text_notes"]
             gtk::ScrolledWindow {
                 set_hscrollbar_policy: gtk::PolicyType::Never,
                 set_min_content_width: 600,
@@ -43,15 +42,25 @@ impl AsyncFactoryComponent for Lane {
     }
 
     async fn init_model(
-        init: Self::Init,
+        kind: LaneKind,
         _index: &DynamicIndex,
         sender: AsyncFactorySender<Self>,
     ) -> Self {
+        let profile_box = if let LaneKind::Profile(persona, relay) = &kind {
+            // Since persona does not include avatar bitmap, it has to be obtained
+            // from outside. Once #0464b5d7fa3bbbad is solved, this should not be
+            // needed anymore.
+            sender.output(LaneOutput::DemandProfile(persona.pubkey, relay.clone()));
+            Some(Profilebox::builder().launch(persona.clone()).detach())
+        } else {
+            None
+        };
+
         Self {
-            kind: init.clone(),
-            profile_box: Profilebox::builder().launch(()).detach(),
+            kind: kind.clone(),
+            profile_box,
             header: LaneHeader::builder()
-                .launch(init)
+                .launch(kind)
                 .forward(sender.output_sender(), |_| LaneOutput::WriteNote),
 
             text_notes: FactoryVecDeque::new(
@@ -64,11 +73,31 @@ impl AsyncFactoryComponent for Lane {
         }
     }
 
+    fn init_widgets(
+        &mut self,
+        _di: &DynamicIndex,
+        root: &Self::Root,
+        _returned_widget: &gtk::Widget,
+        _sender: AsyncFactorySender<Self>,
+    ) -> Self::Widgets {
+        let widgets = view_output!();
+
+        // Profile box will exist only if this lane is of kind Profile.
+        if let Some(p) = &self.profile_box {
+            p.widget().insert_before(root, Some(&widgets.text_notes));
+        };
+
+        widgets
+    }
+
     fn forward_to_parent(output: Self::Output) -> Option<Self::ParentInput> {
         match output {
-            LaneOutput::OpenProfile(pubkey) => Some(MainInput::OpenProfile(pubkey)),
+            LaneOutput::OpenProfile(persona, relay) => Some(MainInput::OpenProfile(persona, relay)),
             LaneOutput::ShowDetails(details) => Some(MainInput::ShowDetail(details)),
             LaneOutput::WriteNote => Some(MainInput::WriteNote),
+            LaneOutput::DemandProfile(pubkey, relay) => {
+                Some(MainInput::DemandProfile(pubkey, relay))
+            }
         }
     }
 
@@ -80,9 +109,11 @@ impl AsyncFactoryComponent for Lane {
 
             LaneMsg::UpdatedProfile { author } => {
                 if self.kind.is_profile(&author.pubkey) {
-                    self.profile_box.emit(profilebox::Input::UpdatedProfile {
-                        author: author.clone(),
-                    });
+                    if let Some(p) = &self.profile_box {
+                        p.emit(profilebox::Input::UpdatedProfile {
+                            author: author.clone(),
+                        });
+                    }
                 }
                 self.text_notes
                     .broadcast(NoteInput::UpdatedProfile { author });
@@ -94,10 +125,12 @@ impl AsyncFactoryComponent for Lane {
                 bitmap,
             } => {
                 if self.kind.is_profile(&pubkey) {
-                    self.profile_box.emit(profilebox::Input::MetadataBitmap {
-                        url: url.clone(),
-                        bitmap: bitmap.clone(),
-                    })
+                    if let Some(p) = &self.profile_box {
+                        p.emit(profilebox::Input::MetadataBitmap {
+                            url: url.clone(),
+                            bitmap: bitmap.clone(),
+                        });
+                    }
                 };
 
                 self.text_notes.broadcast(NoteInput::MetadataBitmap {
@@ -111,7 +144,9 @@ impl AsyncFactoryComponent for Lane {
                 .text_notes
                 .broadcast(NoteInput::Reaction { event, reaction }),
 
-            LaneMsg::OpenProfile(pubkey) => sender.output(LaneOutput::OpenProfile(pubkey)),
+            LaneMsg::OpenProfile(person, relay) => {
+                sender.output(LaneOutput::OpenProfile(person, relay))
+            }
 
             LaneMsg::Nip05Verified(pubkey) => {
                 self.text_notes.broadcast(NoteInput::Nip05Verified(pubkey))

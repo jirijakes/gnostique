@@ -10,6 +10,7 @@ use tracing::warn;
 
 use crate::gnostique::Gnostique;
 use crate::incoming::Incoming;
+use crate::nostr::Persona;
 use crate::ui::details::*;
 use crate::ui::editprofile::model::*;
 use crate::ui::lane::*;
@@ -39,8 +40,9 @@ pub enum MainInput {
         url: Url,
         file: PathBuf,
     },
-    OpenProfile(XOnlyPublicKey),
+    OpenProfile(Arc<Persona>, Url),
     Nip05Verified(XOnlyPublicKey),
+    DemandProfile(XOnlyPublicKey, Url),
 }
 
 #[relm4::component(pub async)]
@@ -100,24 +102,7 @@ impl AsyncComponent for Main {
         let status_bar = model.status_bar.widget();
         let widgets = view_output!();
 
-        {
-            let mut guard = model.lanes.guard();
-
-            // guard.push_back(LaneKind::Feed(Follow::new()));
-
-            guard.push_back(LaneKind::Sink);
-
-            // guard.push_back(LaneKind::Profile(
-            //     "febbaba219357c6c64adfa2e01789f274aa60e90c289938bfc80dd91facb2899"
-            //         .parse()
-            //         .unwrap(),
-            // ));
-            // guard.push_back(LaneKind::Thread(
-            //     "b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b"
-            //         .parse()
-            //         .unwrap(),
-            // ));
-        }
+        model.lanes.guard().push_back(LaneKind::Sink);
 
         // widgets
         //     .window
@@ -213,8 +198,15 @@ impl AsyncComponent for Main {
 
             MainInput::EditProfile => self.edit_profile.emit(EditProfileInput::Show),
 
-            MainInput::OpenProfile(pubkey) => {
-                self.lanes.guard().push_back(LaneKind::Profile(pubkey));
+            MainInput::OpenProfile(persona, relay) => {
+                self.lanes.guard().push_back(LaneKind::Profile(persona, relay));
+            }
+
+            MainInput::DemandProfile(pubkey, relay) => {
+                let demand = self.gnostique.demand().clone();
+                relm4::spawn(async move { demand.metadata(pubkey, relay).await })
+                    .await
+                    .unwrap();
             }
 
             MainInput::UpdateProfile(metadata) => {

@@ -75,7 +75,7 @@ impl SimpleComponent for LaneHeader {
         let header = match init {
             LaneKind::Feed(_) => "Feed",
             LaneKind::Thread(_) => "Thread",
-            LaneKind::Profile(_) => "User profile",
+            LaneKind::Profile(_, _) => "User profile",
             LaneKind::Sink => "All",
         };
 

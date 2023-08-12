@@ -63,6 +63,7 @@ impl TextNote {
 
 #[derive(Clone, Debug)]
 pub struct Persona {
+    // TODO: Add relays?
     pub name: Option<String>,
     pub display_name: Option<String>,
     pub pubkey: XOnlyPublicKey,
