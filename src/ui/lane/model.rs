@@ -76,6 +76,7 @@ pub enum LaneMsg {
         author: Arc<Persona>,
     },
     ShowDetails(Details),
+    OpenProfile(XOnlyPublicKey),
     MetadataBitmap {
         pubkey: XOnlyPublicKey,
         url: Url,
@@ -93,6 +94,7 @@ pub enum LaneMsg {
 pub enum LaneOutput {
     ShowDetails(Details),
     WriteNote,
+    OpenProfile(XOnlyPublicKey),
 }
 
 impl Lane {
@@ -132,7 +134,7 @@ impl Lane {
                 let idx = self.text_notes.iter().position(|tn| {
                     let ord = tn.time.timestamp().cmp(&event_time.as_i64());
                     match self.kind {
-                        LaneKind::Profile(_) => ord == Ordering::Greater,
+                        LaneKind::Profile(_) => ord == Ordering::Less,
                         LaneKind::Thread(_) => ord == Ordering::Less,
                         LaneKind::Feed(_) => ord == Ordering::Less,
                         LaneKind::Sink => ord == Ordering::Less,

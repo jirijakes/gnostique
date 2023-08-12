@@ -64,13 +64,13 @@ impl AsyncFactoryComponent for Lane {
         }
     }
 
-    // fn output_to_parent_input(output: Self::Output) -> Option<Self::ParentInput> {
-    //     match output {
-    //         _ => Some(())
-    //         // LaneOutput::ShowDetails(details) => Some(Msg::ShowDetail(details)),
-    //         // LaneOutput::WriteNote => Some(Msg::WriteNote),
-    //     }
-    // }
+    fn forward_to_parent(output: Self::Output) -> Option<Self::ParentInput> {
+        match output {
+            LaneOutput::OpenProfile(pubkey) => Some(MainInput::OpenProfile(pubkey)),
+            LaneOutput::ShowDetails(details) => Some(MainInput::ShowDetail(details)),
+            LaneOutput::WriteNote => Some(MainInput::WriteNote),
+        }
+    }
 
     async fn update(&mut self, msg: Self::Input, sender: AsyncFactorySender<Self>) {
         match msg {
@@ -110,6 +110,8 @@ impl AsyncFactoryComponent for Lane {
             LaneMsg::Reaction { event, reaction } => self
                 .text_notes
                 .broadcast(NoteInput::Reaction { event, reaction }),
+
+            LaneMsg::OpenProfile(pubkey) => sender.output(LaneOutput::OpenProfile(pubkey)),
 
             LaneMsg::Nip05Verified(pubkey) => {
                 self.text_notes.broadcast(NoteInput::Nip05Verified(pubkey))

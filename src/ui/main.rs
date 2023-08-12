@@ -39,6 +39,7 @@ pub enum MainInput {
         url: Url,
         file: PathBuf,
     },
+    OpenProfile(XOnlyPublicKey),
     Nip05Verified(XOnlyPublicKey),
 }
 
@@ -156,7 +157,7 @@ impl AsyncComponent for Main {
                     relays,
                     repost,
                     referenced_notes,
-                    referenced_profiles
+                    referenced_profiles,
                 });
 
                 if let Some(ref file) = avatar {
@@ -211,6 +212,10 @@ impl AsyncComponent for Main {
             MainInput::Noop => {}
 
             MainInput::EditProfile => self.edit_profile.emit(EditProfileInput::Show),
+
+            MainInput::OpenProfile(pubkey) => {
+                self.lanes.guard().push_back(LaneKind::Profile(pubkey));
+            }
 
             MainInput::UpdateProfile(metadata) => {
                 let client = self.gnostique.client().clone();

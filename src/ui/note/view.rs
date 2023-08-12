@@ -83,6 +83,9 @@ impl FactoryComponent for Note {
                     set_context_menu: Some(&author_menu),
                     #[watch] set_persona: &self.author,
                     #[watch] set_nip05_verified: self.nip05_verified,
+                    connect_clicked[sender, author = self.author.pubkey] => move |_| {
+                        sender.output(NoteOutput::OpenProfile(author));
+                    }
                 },
                 add_overlay = &gtk::Label {
                     set_valign: gtk::Align::Start,
@@ -220,6 +223,7 @@ impl FactoryComponent for Note {
         match output {
             NoteOutput::ShowDetails(details) => Some(LaneMsg::ShowDetails(details)),
             NoteOutput::LinkClicked(uri) => uri.parse().map(LaneMsg::LinkClicked).ok(),
+            NoteOutput::OpenProfile(pubkey) => Some(LaneMsg::OpenProfile(pubkey))
         }
     }
 

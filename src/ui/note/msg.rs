@@ -58,4 +58,5 @@ pub enum NoteInput {
 pub enum NoteOutput {
     ShowDetails(Details),
     LinkClicked(String),
+    OpenProfile(XOnlyPublicKey)
 }
