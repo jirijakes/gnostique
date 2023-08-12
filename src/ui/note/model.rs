@@ -20,6 +20,7 @@ use super::view::NoteWidgets;
 pub struct Note {
     pub(super) content: DynamicContent,
     pub(super) is_central: bool,
+    pub(super) is_profile: bool,
     pub(super) author: Arc<Persona>,
     pub(super) nip05_verified: bool,
     pub(super) show_hidden_buttons: bool,

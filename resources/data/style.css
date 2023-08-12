@@ -45,6 +45,11 @@
     opacity: 0.7;
 }
 
+
+/*        TEXT NOTE
+ *       ===========
+ */
+
 .text-note.central .content {
     font-size: 1.3em;
 }
@@ -78,6 +83,13 @@
    font-size: 1em;
 }
 
+.laneprofile .text-note .content {
+    padding: 1em;
+}
+
+/*        REACTIONS
+ */
+
 .reactions {
     padding: 5px 100px 0px 50px;
 }
@@ -92,7 +104,6 @@
     background-color: transparent;
     background-image: none;
 }
-
 
 /*        QUOTE
  */

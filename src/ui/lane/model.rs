@@ -117,6 +117,7 @@ impl Lane {
         // Add note iff it has not been added yet (they may arrive multiple times).
         if let Entry::Vacant(e) = self.hash_index.entry(event_id) {
             let is_central = self.kind.is_thread(&event_id);
+            let is_profile = self.kind.is_a_profile();
             let event_time = note.event().created_at;
 
             let init = NoteInit {
@@ -124,6 +125,7 @@ impl Lane {
                 content,
                 relays,
                 is_central,
+                is_profile,
                 repost,
                 referenced_notes,
                 referenced_profiles,

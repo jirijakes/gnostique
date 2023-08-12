@@ -14,6 +14,7 @@ pub struct NoteInit {
     pub content: Arc<DynamicContent>,
     pub relays: Vec<Url>,
     pub is_central: bool,
+    pub is_profile: bool,
     pub repost: Option<Repost>,
     pub referenced_notes: HashSet<TextNote>,
     pub referenced_profiles: HashSet<Persona>,

@@ -58,6 +58,7 @@ impl FactoryComponent for Note {
             // AVATAR
             attach[0, 1, 1, 6] = &gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
+                set_visible: !self.is_profile,
                 add_css_class: "avatar",
                 
                 gtk::Image {
@@ -80,6 +81,7 @@ impl FactoryComponent for Note {
             // AUTHOR
             attach[1, 1, 1, 1] = &gtk::Overlay {
                 Author::with_pubkey(self.author.pubkey) {
+                    set_visible: !self.is_profile,
                     set_context_menu: Some(&author_menu),
                     #[watch] set_persona: &self.author,
                     #[watch] set_nip05_verified: self.nip05_verified,
@@ -250,6 +252,7 @@ impl FactoryComponent for Note {
             nip05_verified: author.nip05_preverified,
             author,
             is_central: init.is_central,
+            is_profile: init.is_profile,
             content: (*init.content).clone(),
             show_hidden_buttons: false,
             avatar: ANONYMOUS_USER.clone(),
@@ -269,7 +272,7 @@ impl FactoryComponent for Note {
     fn init_widgets(
         &mut self,
         _index: &DynamicIndex,
-        root: &Self::Root,
+        _root: &Self::Root,
         _returned_widget: &gtk::ListBoxRow,
         sender: FactorySender<Self>,
     ) -> Self::Widgets {
@@ -298,7 +301,7 @@ impl FactoryComponent for Note {
 
             widgets.root.attach(&reposter_box, 0, 0, 2, 1);
         }
-
+        
         // If controller for Quote has been created in `init_model`,
         // add its widget to the note. If note and a quote arrives
         // later, the controller will be created in note::model::receive.

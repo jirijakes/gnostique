@@ -82,6 +82,12 @@ impl AsyncFactoryComponent for Lane {
     ) -> Self::Widgets {
         let widgets = view_output!();
 
+        match self.kind {
+            LaneKind::Profile(_, _) => root.add_css_class("laneprofile"),
+            LaneKind::Thread(_) => {}
+            _ => {}
+        };
+
         // Profile box will exist only if this lane is of kind Profile.
         if let Some(p) = &self.profile_box {
             p.widget().insert_before(root, Some(&widgets.text_notes));
