@@ -153,22 +153,9 @@
  *       ========
  */
 
-author button.author-name {
+author label.author-name {
     font-weight: bold;
-    background-image: none;
-    background-color: transparent;
-    border: none;
-    text-shadow: none;
-    padding: 0px;
-    box-shadow: none;
-    border-radius: 0px;
-    min-height: 0px;
-    outline-offset: 0;
     font-size: 1.1em;
-}
-
-author button.author-name:hover {
-    color: @fg_color;
 }
 
 author label.author-pubkey {

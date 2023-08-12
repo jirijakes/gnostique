@@ -151,7 +151,7 @@ mod imp {
                     set_spacing: 12,
 
                     #[name = "author_name"]
-                    gtk::Button {
+                    gtk::Label {
                         add_css_class: "author-name",
                     },
 
