@@ -24,8 +24,14 @@ impl Author {
             persona
                 .display_name
                 .clone()
-                .or_else(|| persona.name.as_ref().map(|n| format!("@{n}")))
-                .filter(|s| !s.is_empty())
+                .filter(|s| !s.trim().is_empty())
+                .or_else(|| {
+                    persona
+                        .name
+                        .as_ref()
+                        .filter(|s| !s.trim().is_empty())
+                        .map(|n| format!("@{n}"))
+                })
                 .map(|mut s| {
                     if s.len() > 60 {
                         s.truncate(60);
