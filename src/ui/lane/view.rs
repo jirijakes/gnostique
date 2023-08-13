@@ -113,6 +113,7 @@ impl AsyncFactoryComponent for Lane {
                 Some(MainInput::DemandProfile(pubkey, relay))
             }
             LaneOutput::CloseLane(id) => Some(MainInput::CloseLane(id)),
+            LaneOutput::LinkClicked(uri, relays) => Some(MainInput::LinkClicked(uri, relays))
         }
     }
 
@@ -200,7 +201,7 @@ impl AsyncFactoryComponent for Lane {
                     )
                 }
             }
-            LaneMsg::LinkClicked(uri) => println!("Clicked: {uri}"),
+            LaneMsg::LinkClicked(uri, relays) => sender.output(LaneOutput::LinkClicked(uri, relays)),
             LaneMsg::CloseLane => sender.output(LaneOutput::CloseLane(self.index.clone())),
         }
     }

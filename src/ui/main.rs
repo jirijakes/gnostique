@@ -45,6 +45,7 @@ pub enum MainInput {
     Nip05Verified(XOnlyPublicKey),
     DemandProfile(XOnlyPublicKey, Url),
     CloseLane(DynamicIndex),
+    LinkClicked(Url, Vec<Url>),
 }
 
 #[relm4::component(pub async)]
@@ -198,6 +199,26 @@ impl AsyncComponent for Main {
 
             MainInput::CloseLane(id) => {
                 self.lanes.guard().remove(id.current_index());
+            }
+
+            MainInput::LinkClicked(url, relays) => {
+                if let Some(tag) =
+                    url.query_pairs()
+                        .find_map(|(k, v)| if k == "tag" { Some(v) } else { None })
+                {
+                    let client = self.gnostique.client();
+                    for r in relays {
+                        if let Ok(r) = client.relay(&r).await {
+                            let tag_filter = Filter::new()
+                                .since(Timestamp::now())
+                                .hashtag(tag.to_string());
+                            let all = Filter::new().since(Timestamp::now());
+                            let r = r.subscribe(vec![all, tag_filter], None).await;
+                            println!(">>>>> {r:?}");
+                        };
+                    }
+                    self.lanes.guard().push_back(LaneKind::Tag(tag.to_string()));
+                }
             }
 
             MainInput::Noop => {}

@@ -6,6 +6,7 @@ use std::sync::Arc;
 use gtk::gdk;
 use nostr_sdk::nostr::secp256k1::XOnlyPublicKey;
 use nostr_sdk::nostr::{Event, EventId};
+use nostr_sdk::Tag;
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::*;
 use reqwest::Url;
@@ -36,6 +37,7 @@ pub enum LaneKind {
     Profile(Arc<Persona>, Url),
     Thread(EventId),
     Feed(Follow),
+    Tag(String), // TODO: perhaps more general Search?
     Sink,
 }
 
@@ -55,6 +57,10 @@ impl LaneKind {
     pub fn accepts(&self, event: &Event) -> bool {
         match self {
             LaneKind::Sink => true,
+            LaneKind::Tag(tag) => event
+                .tags
+                .iter()
+                .any(|t| matches!(t, Tag::Hashtag(h) if h == tag)),
             LaneKind::Feed(f) => f.follows(&event.pubkey) && event.replies_to().is_none(),
             LaneKind::Profile(p, _) => event.pubkey == p.pubkey,
             LaneKind::Thread(id) => {
@@ -91,7 +97,7 @@ pub enum LaneMsg {
         reaction: String,
     },
     Nip05Verified(XOnlyPublicKey),
-    LinkClicked(Url),
+    LinkClicked(Url, Vec<Url>),
     CloseLane,
 }
 
@@ -101,7 +107,8 @@ pub enum LaneOutput {
     WriteNote,
     OpenProfile(Arc<Persona>, Url),
     DemandProfile(XOnlyPublicKey, Url),
-    CloseLane(DynamicIndex)
+    CloseLane(DynamicIndex),
+    LinkClicked(Url, Vec<Url>),
 }
 
 impl Lane {
@@ -147,6 +154,7 @@ impl Lane {
                         LaneKind::Thread(_) => ord == Ordering::Less,
                         LaneKind::Feed(_) => ord == Ordering::Less,
                         LaneKind::Sink => ord == Ordering::Less,
+                        LaneKind::Tag(_) => ord == Ordering::Less,
                     }
                 });
 
