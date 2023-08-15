@@ -14,6 +14,7 @@ use tracing::trace;
 
 use crate::follow::Follow;
 use crate::nostr::content::DynamicContent;
+use crate::nostr::subscriptions::Subscription;
 use crate::nostr::{EventExt, Persona, Repost, TextNote};
 use crate::ui::details::Details;
 use crate::ui::lane_header::LaneHeader;
@@ -37,7 +38,7 @@ pub enum LaneKind {
     Profile(Arc<Persona>, Url),
     Thread(EventId),
     Feed(Follow),
-    Tag(String), // TODO: perhaps more general Search?
+    Subscription(Subscription), // TODO: perhaps more general Search?
     Sink,
 }
 
@@ -57,10 +58,7 @@ impl LaneKind {
     pub fn accepts(&self, event: &Event) -> bool {
         match self {
             LaneKind::Sink => true,
-            LaneKind::Tag(tag) => event
-                .tags
-                .iter()
-                .any(|t| matches!(t, Tag::Hashtag(h) if h == tag)),
+            LaneKind::Subscription(sub) => LaneKind::accepts_subscription(event, sub),
             LaneKind::Feed(f) => f.follows(&event.pubkey) && event.replies_to().is_none(),
             LaneKind::Profile(p, _) => event.pubkey == p.pubkey,
             LaneKind::Thread(id) => {
@@ -69,6 +67,22 @@ impl LaneKind {
                     || matches!(event.thread_root(), Some((i, _)) if i == *id)
             }
         }
+    }
+
+    /// Determines whether the incoming `event` is going to be placed in this lane.
+    /// Gradually, it will cover all cases and at the end will replace lane kind.
+    fn accepts_subscription(event: &Event, subscription: &Subscription) -> bool {
+        let tags: HashSet<_> = subscription
+            .hashtags()
+            .into_iter()
+            .map(|t| t.to_lowercase())
+            .collect();
+
+        // TODO: could also consider content of the text note, not only event.tags.
+        event
+            .tags
+            .iter()
+            .any(|t| matches!(t, Tag::Hashtag(h) if tags.contains(h.to_lowercase().as_str())))
     }
 }
 
@@ -154,7 +168,7 @@ impl Lane {
                         LaneKind::Thread(_) => ord == Ordering::Less,
                         LaneKind::Feed(_) => ord == Ordering::Less,
                         LaneKind::Sink => ord == Ordering::Less,
-                        LaneKind::Tag(_) => ord == Ordering::Less,
+                        LaneKind::Subscription(_) => ord == Ordering::Less,
                     }
                 });
 

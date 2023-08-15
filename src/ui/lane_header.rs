@@ -89,7 +89,7 @@ impl SimpleComponent for LaneHeader {
         let header = match init {
             LaneKind::Feed(_) => "Feed".to_string(),
             LaneKind::Thread(_) => "Thread".to_string(),
-            LaneKind::Tag(tag) => format!("#{tag}"),
+            LaneKind::Subscription(sub) => sub.to_string(),
             LaneKind::Profile(p, _) => p
                 .display_name
                 .clone()

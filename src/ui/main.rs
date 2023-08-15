@@ -208,7 +208,7 @@ impl AsyncComponent for Main {
                         .find_map(|(k, v)| if k == "tag" { Some(v) } else { None })
                 {
                     let client = self.gnostique.client();
-                    let sub = Subscription::hashtag(tag.to_string());
+                    let sub = Subscription::hashtag(tag);
                     let filter = sub.to_filter().since(Timestamp::now());
                     for relay_url in relays {
                         if let Ok(relay) = client.relay(&relay_url).await {
@@ -224,8 +224,7 @@ impl AsyncComponent for Main {
                             println!(">>>>> {s:#?}");
                         };
                     }
-                    // self.lanes.guard().push_back(LaneKind::Tag(sub));
-                    self.lanes.guard().push_back(LaneKind::Tag(tag.to_string()));
+                    self.lanes.guard().push_back(LaneKind::Subscription(sub));
                 }
             }
 

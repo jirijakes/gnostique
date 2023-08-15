@@ -8,10 +8,27 @@ pub enum Subscription {
 }
 
 impl Subscription {
+    /// Creates new hashtag subscription from given `tag`.
     pub fn hashtag<S: Into<String>>(tag: S) -> Subscription {
         Subscription::Hashtag(tag.into())
     }
-    
+
+    /// Collects all hashtags from this subscription.
+    // TODO: HashSet?
+    pub fn hashtags(&self) -> Vec<&str> {
+        let mut tags: Vec<&str> = vec![];
+
+        match self {
+            Subscription::Hashtag(t) => tags.push(t),
+            Subscription::Or(s1, s2) => {
+                tags.append(&mut s1.hashtags());
+                tags.append(&mut s2.hashtags());
+            }
+        }
+
+        tags
+    }
+
     pub fn from_sdk(subscription: &ActiveSubscription) -> Option<Subscription> {
         Subscription::from_filters(&subscription.filters())
     }
