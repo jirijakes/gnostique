@@ -37,8 +37,8 @@ impl Subscription {
         todo!()
     }
 
-    pub fn add(&self, other: &Subscription) -> Subscription {
-        todo!()
+    pub fn add(self, other: Subscription) -> Subscription {
+        Subscription::Or(Box::new(self), Box::new(other))
     }
 
     pub fn to_filter(&self) -> Filter {

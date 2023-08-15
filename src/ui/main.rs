@@ -199,6 +199,7 @@ impl AsyncComponent for Main {
             MainInput::WriteNote => self.write_note.emit(WriteNoteInput::Show),
 
             MainInput::CloseLane(id) => {
+                // TODO: Resubscribe.
                 self.lanes.guard().remove(id.current_index());
             }
 
@@ -209,22 +210,35 @@ impl AsyncComponent for Main {
                 {
                     let client = self.gnostique.client();
                     let sub = Subscription::hashtag(tag);
-                    let filter = sub.to_filter().since(Timestamp::now());
-                    for relay_url in relays {
-                        if let Ok(relay) = client.relay(&relay_url).await {
-                            // TODO: now first lane is hardcoded as Sink, when the Sink
-                            // is removed, we collect filters from lanes.
-                            let sink_filter = Filter::new().since(Timestamp::now());
-                            let result = relay
-                                .subscribe(vec![sink_filter, filter.clone()], None)
-                                .await;
-                            println!(">>>>> {result:?}");
 
-                            let s = relay.subscription().await;
-                            println!(">>>>> {s:#?}");
-                        };
+                    let mut lanes = self.lanes.guard();
+
+                    {
+                        let lane_subs = lanes
+                            .iter()
+                            .filter_map(|l| l.and_then(|l| l.subscription()))
+                            .fold(sub.clone(), |x, y| x.add(y.clone()));
+
+                        tracing::info!("Subscribing to {lane_subs:?}");
+
+                        let sub_filter = lane_subs.to_filter().since(Timestamp::now());
+
+                        for relay_url in relays {
+                            if let Ok(relay) = client.relay(&relay_url).await {
+                                // TODO: now first lane is hardcoded as Sink, when the Sink
+                                // is removed, the sink_filter will be removed, too.
+                                let sink_filter = Filter::new().since(Timestamp::now());
+                                let _ = relay
+                                    .subscribe(vec![sink_filter, sub_filter.clone()], None)
+                                    .await;
+
+                                let active_sub = relay.subscription().await;
+                                tracing::debug!("On {relay_url} subscribed to {:#?}", active_sub);
+                            };
+                        }
                     }
-                    self.lanes.guard().push_back(LaneKind::Subscription(sub));
+
+                    lanes.push_back(LaneKind::Subscription(sub));
                 }
             }
 

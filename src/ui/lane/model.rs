@@ -200,4 +200,14 @@ impl Lane {
             }
         }
     }
+
+    /// Returns a subscription of this lane, if it exists.
+    // TODO: Eventually, every lane should have a subscription, so
+    // there will be no need for Option anymore.
+    pub fn subscription(&self) -> Option<&Subscription> {
+        match &self.kind {
+            LaneKind::Subscription(s) => Some(s),
+            _ => None,
+        }
+    }
 }
