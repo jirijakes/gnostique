@@ -35,3 +35,6 @@ test name="":
 
 test-- name="":
     watchexec -e rs -- just test {{name}}
+
+show:
+    fossil timeline -n 1 --full -v

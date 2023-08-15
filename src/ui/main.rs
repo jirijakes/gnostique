@@ -11,6 +11,7 @@ use tracing::warn;
 
 use crate::gnostique::Gnostique;
 use crate::incoming::Incoming;
+use crate::nostr::subscriptions::Subscription;
 use crate::nostr::Persona;
 use crate::ui::details::*;
 use crate::ui::editprofile::model::*;
@@ -207,16 +208,23 @@ impl AsyncComponent for Main {
                         .find_map(|(k, v)| if k == "tag" { Some(v) } else { None })
                 {
                     let client = self.gnostique.client();
-                    for r in relays {
-                        if let Ok(r) = client.relay(&r).await {
-                            let tag_filter = Filter::new()
-                                .since(Timestamp::now())
-                                .hashtag(tag.to_string());
-                            let all = Filter::new().since(Timestamp::now());
-                            let r = r.subscribe(vec![all, tag_filter], None).await;
-                            println!(">>>>> {r:?}");
+                    let sub = Subscription::hashtag(tag.to_string());
+                    let filter = sub.to_filter().since(Timestamp::now());
+                    for relay_url in relays {
+                        if let Ok(relay) = client.relay(&relay_url).await {
+                            // TODO: now first lane is hardcoded as Sink, when the Sink
+                            // is removed, we collect filters from lanes.
+                            let sink_filter = Filter::new().since(Timestamp::now());
+                            let result = relay
+                                .subscribe(vec![sink_filter, filter.clone()], None)
+                                .await;
+                            println!(">>>>> {result:?}");
+
+                            let s = relay.subscription().await;
+                            println!(">>>>> {s:#?}");
                         };
                     }
+                    // self.lanes.guard().push_back(LaneKind::Tag(sub));
                     self.lanes.guard().push_back(LaneKind::Tag(tag.to_string()));
                 }
             }
