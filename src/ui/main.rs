@@ -46,7 +46,7 @@ pub enum MainInput {
     Nip05Verified(XOnlyPublicKey),
     DemandProfile(XOnlyPublicKey, Url),
     CloseLane(DynamicIndex),
-    LinkClicked(Url, Vec<Url>),
+    LinkClicked(Url),
 }
 
 #[relm4::component(pub async)]
@@ -203,12 +203,15 @@ impl AsyncComponent for Main {
                 self.lanes.guard().remove(id.current_index());
             }
 
-            MainInput::LinkClicked(url, relays) => {
+            MainInput::LinkClicked(url) => {
                 if let Some(tag) =
                     url.query_pairs()
                         .find_map(|(k, v)| if k == "tag" { Some(v) } else { None })
                 {
                     let client = self.gnostique.client();
+                    let relays = client.relays().await;
+                    let relays = relays.values();
+
                     let sub = Subscription::hashtag(tag);
 
                     let mut lanes = self.lanes.guard();
@@ -223,18 +226,16 @@ impl AsyncComponent for Main {
 
                         let sub_filter = lane_subs.to_filter().since(Timestamp::now());
 
-                        for relay_url in relays {
-                            if let Ok(relay) = client.relay(&relay_url).await {
-                                // TODO: now first lane is hardcoded as Sink, when the Sink
-                                // is removed, the sink_filter will be removed, too.
-                                let sink_filter = Filter::new().since(Timestamp::now());
-                                let _ = relay
-                                    .subscribe(vec![sink_filter, sub_filter.clone()], None)
-                                    .await;
+                        for relay in relays {
+                            // TODO: now first lane is hardcoded as Sink, when the Sink
+                            // is removed, the sink_filter will be removed, too.
+                            let sink_filter = Filter::new().since(Timestamp::now());
+                            let _ = relay
+                                .subscribe(vec![sink_filter, sub_filter.clone()], None)
+                                .await;
 
-                                let active_sub = relay.subscription().await;
-                                tracing::debug!("On {relay_url} subscribed to {:#?}", active_sub);
-                            };
+                            let active_sub = relay.subscription().await;
+                            tracing::debug!("On {} subscribed to {:#?}", relay.url(), active_sub);
                         }
                     }
 
@@ -246,10 +247,38 @@ impl AsyncComponent for Main {
 
             MainInput::EditProfile => self.edit_profile.emit(EditProfileInput::Show),
 
-            MainInput::OpenProfile(persona, relay) => {
-                self.lanes
-                    .guard()
-                    .push_back(LaneKind::Profile(persona, relay));
+            MainInput::OpenProfile(persona, _relay) => {
+                let client = self.gnostique.client();
+                let relays = client.relays().await;
+                let relays = relays.values();
+
+                let sub = Subscription::profile(persona.pubkey);
+
+                let mut lanes = self.lanes.guard();
+                {
+                    let lane_subs = lanes
+                        .iter()
+                        .filter_map(|l| l.and_then(|l| l.subscription()))
+                        .fold(sub.clone(), |x, y| x.add(y.clone()));
+
+                    tracing::info!("Subscribing to {lane_subs:?}");
+
+                    let sub_filter = lane_subs.to_filter().since(Timestamp::now());
+
+                    for relay in relays {
+                        // TODO: now first lane is hardcoded as Sink, when the Sink
+                        // is removed, the sink_filter will be removed, too.
+                        let sink_filter = Filter::new().since(Timestamp::now());
+                        let _ = relay
+                            .subscribe(vec![sink_filter, sub_filter.clone()], None)
+                            .await;
+
+                        let active_sub = relay.subscription().await;
+                        tracing::debug!("On {} subscribed to {:#?}", relay.url(), active_sub);
+                    }
+                }
+
+                lanes.push_back(LaneKind::Subscription(sub));
             }
 
             MainInput::DemandProfile(pubkey, relay) => {

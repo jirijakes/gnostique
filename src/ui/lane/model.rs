@@ -78,11 +78,17 @@ impl LaneKind {
             .map(|t| t.to_lowercase())
             .collect();
 
+        let pubkeys: HashSet<_> = subscription.pubkeys().into_iter().collect();
+
         // TODO: could also consider content of the text note, not only event.tags.
-        event
+        let accepts_tags = event
             .tags
             .iter()
-            .any(|t| matches!(t, Tag::Hashtag(h) if tags.contains(h.to_lowercase().as_str())))
+            .any(|t| matches!(t, Tag::Hashtag(h) if tags.contains(h.to_lowercase().as_str())));
+
+        let accept_pubkeys = pubkeys.contains(&event.pubkey);
+
+        accepts_tags || accept_pubkeys
     }
 }
 
@@ -111,7 +117,7 @@ pub enum LaneMsg {
         reaction: String,
     },
     Nip05Verified(XOnlyPublicKey),
-    LinkClicked(Url, Vec<Url>),
+    LinkClicked(Url),
     CloseLane,
 }
 
@@ -122,7 +128,7 @@ pub enum LaneOutput {
     OpenProfile(Arc<Persona>, Url),
     DemandProfile(XOnlyPublicKey, Url),
     CloseLane(DynamicIndex),
-    LinkClicked(Url, Vec<Url>),
+    LinkClicked(Url),
 }
 
 impl Lane {

@@ -3,6 +3,8 @@ use relm4::factory::{AsyncFactoryComponent, FactoryVecDeque};
 use relm4::prelude::*;
 use relm4::{gtk, AsyncFactorySender};
 
+use crate::nostr::subscriptions::Subscription;
+use crate::nostr::Persona;
 use crate::ui::lane::model::*;
 use crate::ui::lane_header::{LaneHeader, LaneHeaderOutput};
 use crate::ui::main::MainInput;
@@ -47,12 +49,16 @@ impl AsyncFactoryComponent for Lane {
         index: &DynamicIndex,
         sender: AsyncFactorySender<Self>,
     ) -> Self {
-        let profile_box = if let LaneKind::Profile(persona, relay) = &kind {
+        let profile_box = if let LaneKind::Subscription(Subscription::Profile(pubkey)) = &kind {
             // Since persona does not include avatar bitmap, it has to be obtained
             // from outside. Once #0464b5d7fa3bbbad is solved, this should not be
             // needed anymore.
-            sender.output(LaneOutput::DemandProfile(persona.pubkey, relay.clone()));
-            Some(Profilebox::builder().launch(persona.clone()).detach())
+            // sender.output(LaneOutput::DemandProfile(*pubkey, relay.clone()));
+            Some(
+                Profilebox::builder()
+                    .launch(std::sync::Arc::new(Persona::new(*pubkey)))
+                    .detach(),
+            )
         } else {
             None
         };
@@ -113,7 +119,7 @@ impl AsyncFactoryComponent for Lane {
                 Some(MainInput::DemandProfile(pubkey, relay))
             }
             LaneOutput::CloseLane(id) => Some(MainInput::CloseLane(id)),
-            LaneOutput::LinkClicked(uri, relays) => Some(MainInput::LinkClicked(uri, relays))
+            LaneOutput::LinkClicked(uri) => Some(MainInput::LinkClicked(uri)),
         }
     }
 
@@ -201,7 +207,7 @@ impl AsyncFactoryComponent for Lane {
                     )
                 }
             }
-            LaneMsg::LinkClicked(uri, relays) => sender.output(LaneOutput::LinkClicked(uri, relays)),
+            LaneMsg::LinkClicked(uri) => sender.output(LaneOutput::LinkClicked(uri)),
             LaneMsg::CloseLane => sender.output(LaneOutput::CloseLane(self.index.clone())),
         }
     }

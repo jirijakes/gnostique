@@ -111,9 +111,9 @@ impl FactoryComponent for Note {
                 set_selectable: true,
                 add_css_class: "content",
 
-                connect_activate_link[sender, relays = self.relays.clone()] => move |_, uri| {
+                connect_activate_link[sender] => move |_, uri| {
                     if uri.starts_with("nostr") || uri.starts_with("gnostique") {
-                        sender.output(NoteOutput::LinkClicked(uri.to_string(), relays.clone()));
+                        sender.output(NoteOutput::LinkClicked(uri.to_string()));
                         gtk::Inhibit(true)
                     } else { gtk::Inhibit(false) }
                 }
@@ -225,7 +225,7 @@ impl FactoryComponent for Note {
     fn forward_to_parent(output: Self::Output) -> Option<Self::ParentInput> {
         match output {
             NoteOutput::ShowDetails(details) => Some(LaneMsg::ShowDetails(details)),
-            NoteOutput::LinkClicked(uri, relays) => uri.parse().map(|u| LaneMsg::LinkClicked(u, relays)).ok(),
+            NoteOutput::LinkClicked(uri) => uri.parse().map(|u| LaneMsg::LinkClicked(u)).ok(),
             NoteOutput::OpenProfile(persona, relay) => Some(LaneMsg::OpenProfile(persona, relay))
         }
     }

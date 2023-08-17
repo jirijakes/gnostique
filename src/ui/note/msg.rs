@@ -58,6 +58,6 @@ pub enum NoteInput {
 #[derive(Debug)]
 pub enum NoteOutput {
     ShowDetails(Details),
-    LinkClicked(String, Vec<Url>),
+    LinkClicked(String),
     OpenProfile(Arc<Persona>, Url)
 }
