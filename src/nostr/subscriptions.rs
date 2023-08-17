@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use nostr_sdk::{relay::ActiveSubscription, secp256k1::XOnlyPublicKey, Filter};
 
 #[derive(Debug, Clone)]
@@ -19,16 +21,16 @@ impl Subscription {
     }
 
     /// Collects all hashtags from this subscription.
-    // TODO: HashSet?
-    pub fn hashtags(&self) -> Vec<&str> {
-        let mut tags: Vec<&str> = vec![];
+    pub fn hashtags(&self) -> HashSet<&str> {
+        let mut tags: HashSet<&str> = Default::default();
 
         match self {
-            Subscription::Hashtag(t) => tags.push(t),
-            Subscription::Or(s1, s2) => {
-                tags.append(&mut s1.hashtags());
-                tags.append(&mut s2.hashtags());
+            Subscription::Hashtag(t) => {
+                tags.insert(t);
             }
+            Subscription::Or(s1, s2) => s1.hashtags().union(&s2.hashtags()).for_each(|t| {
+                tags.insert(t);
+            }),
             Subscription::Profile(_) => {}
         }
 
@@ -36,15 +38,17 @@ impl Subscription {
     }
 
     /// Collects all pubkeys from this subscription.
-    pub fn pubkeys(&self) -> Vec<XOnlyPublicKey> {
-        let mut pubkeys: Vec<XOnlyPublicKey> = vec![];
+    pub fn pubkeys(&self) -> HashSet<XOnlyPublicKey> {
+        let mut pubkeys: HashSet<XOnlyPublicKey> = Default::default();
 
         match self {
-            Subscription::Profile(p) => pubkeys.push(*p),
-            Subscription::Or(s1, s2) => {
-                pubkeys.append(&mut s1.pubkeys());
-                pubkeys.append(&mut s2.pubkeys());
+            Subscription::Profile(p) => {
+                pubkeys.insert(*p);
             }
+            Subscription::Or(s1, s2) => s1.pubkeys().union(&s2.pubkeys()).for_each(|p| {
+                pubkeys.insert(*p);
+            }),
+
             Subscription::Hashtag(_) => {}
         }
 

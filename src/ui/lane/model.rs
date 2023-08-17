@@ -72,13 +72,7 @@ impl LaneKind {
     /// Determines whether the incoming `event` is going to be placed in this lane.
     /// Gradually, it will cover all cases and at the end will replace lane kind.
     fn accepts_subscription(event: &Event, subscription: &Subscription) -> bool {
-        let tags: HashSet<_> = subscription
-            .hashtags()
-            .into_iter()
-            .map(|t| t.to_lowercase())
-            .collect();
-
-        let pubkeys: HashSet<_> = subscription.pubkeys().into_iter().collect();
+        let tags = subscription.hashtags();
 
         // TODO: could also consider content of the text note, not only event.tags.
         let accepts_tags = event
@@ -86,7 +80,7 @@ impl LaneKind {
             .iter()
             .any(|t| matches!(t, Tag::Hashtag(h) if tags.contains(h.to_lowercase().as_str())));
 
-        let accept_pubkeys = pubkeys.contains(&event.pubkey);
+        let accept_pubkeys = subscription.pubkeys().contains(&event.pubkey);
 
         accepts_tags || accept_pubkeys
     }
