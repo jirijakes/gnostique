@@ -36,7 +36,6 @@ pub struct Lane {
 
 #[derive(Clone, Debug)]
 pub enum LaneKind {
-    Profile(Arc<Persona>, Url),
     Thread(EventId),
     Feed(Follow),
     Subscription(Subscription), // TODO: perhaps more general Search?
@@ -49,11 +48,11 @@ impl LaneKind {
     }
 
     pub fn is_profile(&self, pubkey: &XOnlyPublicKey) -> bool {
-        matches!(self, LaneKind::Profile(p, _) if &p.pubkey == pubkey)
+        matches!(self, LaneKind::Subscription(Subscription::Profile(p, _)) if p == pubkey)
     }
 
     pub fn is_a_profile(&self) -> bool {
-        matches!(self, LaneKind::Profile(_, _))
+        matches!(self, LaneKind::Subscription(Subscription::Profile(..)))
     }
 
     pub fn accepts(&self, event: &Event) -> bool {
@@ -61,7 +60,6 @@ impl LaneKind {
             LaneKind::Sink => true,
             LaneKind::Subscription(sub) => LaneKind::accepts_subscription(event, sub),
             LaneKind::Feed(f) => f.follows(&event.pubkey) && event.replies_to().is_none(),
-            LaneKind::Profile(p, _) => event.pubkey == p.pubkey,
             LaneKind::Thread(id) => {
                 event.id == *id
                     || event.replies_to() == Some(*id)
@@ -167,7 +165,6 @@ impl Lane {
                 let idx = self.text_notes.iter().position(|tn| {
                     let ord = tn.time.timestamp().cmp(&event_time.as_i64());
                     match self.kind {
-                        LaneKind::Profile(_, _) => ord == Ordering::Less,
                         LaneKind::Thread(_) => ord == Ordering::Less,
                         LaneKind::Feed(_) => ord == Ordering::Less,
                         LaneKind::Sink => ord == Ordering::Less,

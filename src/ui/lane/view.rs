@@ -94,7 +94,7 @@ impl AsyncFactoryComponent for Lane {
         let widgets = view_output!();
 
         match self.kind {
-            LaneKind::Profile(_, _) => root.add_css_class("profile"),
+            LaneKind::Subscription(Subscription::Profile(..)) => root.add_css_class("profile"),
             LaneKind::Thread(_) => {}
             _ => {}
         };
@@ -111,8 +111,8 @@ impl AsyncFactoryComponent for Lane {
         match output {
             LaneOutput::ShowDetails(details) => Some(MainInput::ShowDetail(details)),
             LaneOutput::WriteNote => Some(MainInput::WriteNote),
-            LaneOutput::DemandProfile(pubkey, relay) => {
-                Some(MainInput::DemandProfile(pubkey, relay))
+            LaneOutput::DemandProfile(pubkey, relays) => {
+                Some(MainInput::DemandProfile(pubkey, relays))
             }
             LaneOutput::CloseLane(id) => Some(MainInput::CloseLane(id)),
             LaneOutput::LinkClicked(link) => Some(MainInput::LinkClicked(link)),

@@ -38,3 +38,6 @@ test-- name="":
 
 show:
     fossil timeline -n 1 --full -v
+
+prepare:
+    cargo +nightly fmt

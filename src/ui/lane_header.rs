@@ -90,11 +90,6 @@ impl SimpleComponent for LaneHeader {
             LaneKind::Feed(_) => "Feed".to_string(),
             LaneKind::Thread(_) => "Thread".to_string(),
             LaneKind::Subscription(sub) => sub.to_string(),
-            LaneKind::Profile(p, _) => p
-                .display_name
-                .clone()
-                .or_else(|| p.name.clone())
-                .unwrap_or("User profile".to_string()),
             LaneKind::Sink => "All".to_string(),
         };
 

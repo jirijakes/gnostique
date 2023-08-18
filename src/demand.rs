@@ -49,8 +49,9 @@ impl Demand {
                 info!("Requesting metadata {}.", pubkey.to_bech32().unwrap());
 
                 let relays = self.0.client.relays().await;
+                // TODO: Try more relays.
                 let relay = relay.first().expect("Relays should be multiple");
-                if let Some(r) = relays.get(&relay) {
+                if let Some(r) = relays.get(relay) {
                     r.req_events_of(
                         vec![Filter::new()
                             .kind(Kind::Metadata)
