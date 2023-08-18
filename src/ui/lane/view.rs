@@ -6,7 +6,7 @@ use relm4::{gtk, AsyncFactorySender};
 use crate::nostr::subscriptions::Subscription;
 use crate::nostr::Persona;
 use crate::ui::lane::model::*;
-use crate::ui::lane_header::{LaneHeader, LaneHeaderOutput};
+use crate::ui::lane_header::{LaneHeader, LaneHeaderInput, LaneHeaderOutput};
 use crate::ui::main::MainInput;
 use crate::ui::note::NoteInput;
 use crate::ui::profilebox;
@@ -132,6 +132,10 @@ impl AsyncFactoryComponent for Lane {
                             author: author.clone(),
                         });
                     }
+
+                    self.header.emit(LaneHeaderInput::ChangeTitle(
+                        author.show_name().unwrap_or(author.short_bech32(24)),
+                    ));
                 }
                 self.text_notes
                     .broadcast(NoteInput::UpdatedProfile { author });

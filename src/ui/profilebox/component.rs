@@ -43,7 +43,7 @@ impl Component for Profilebox {
                         set_selectable: true,
                         set_xalign: 0.0,
                         add_css_class: "name",
-                        #[watch] set_label?: model.author.name.as_ref(),
+                        #[watch] set_label?: model.author.show_name().as_ref(),
                     },
 
                     gtk::Label {

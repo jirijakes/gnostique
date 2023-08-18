@@ -5,17 +5,24 @@ use crate::app::action::EditProfile;
 use crate::ui::lane::LaneKind;
 
 #[derive(Debug)]
-pub struct LaneHeader {}
+pub struct LaneHeader {
+    title: String,
+}
 
 #[derive(Clone, Debug)]
 pub enum LaneHeaderOutput {
     CloseLane,
 }
 
+#[derive(Clone, Debug)]
+pub enum LaneHeaderInput {
+    ChangeTitle(String),
+}
+
 #[relm4::component(pub)]
 impl SimpleComponent for LaneHeader {
-    type Input = ();
     type Init = LaneKind;
+    type Input = LaneHeaderInput;
     type Output = LaneHeaderOutput;
 
     view! {
@@ -37,7 +44,7 @@ impl SimpleComponent for LaneHeader {
                 set_orientation: gtk::Orientation::Horizontal,
                 set_spacing: 10,
                 gtk::Label {
-                    set_text: &header,
+                    #[watch] set_text: &model.title,
                     add_css_class: "name"
                 },
                 gtk::Label {
@@ -82,21 +89,23 @@ impl SimpleComponent for LaneHeader {
         _root: &Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let model = LaneHeader {};
-
-        // TODO: header title could be part of model, so it can be
-        // dynamically changed when needed.
-        let header = match init {
+        let title = match init {
             LaneKind::Feed(_) => "Feed".to_string(),
             LaneKind::Thread(_) => "Thread".to_string(),
             LaneKind::Subscription(sub) => sub.to_string(),
             LaneKind::Sink => "All".to_string(),
         };
 
+        let model = LaneHeader { title };
+
         let widgets = view_output!();
 
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, _message: Self::Input, _sender: ComponentSender<Self>) {}
+    fn update(&mut self, message: Self::Input, _sender: ComponentSender<Self>) {
+        match message {
+            LaneHeaderInput::ChangeTitle(title) => self.title = title,
+        }
+    }
 }
