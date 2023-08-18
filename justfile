@@ -41,3 +41,7 @@ show:
 
 prepare:
     cargo +nightly fmt
+
+[no-exit-message]
+check:
+    cargo +nightly fmt --check
