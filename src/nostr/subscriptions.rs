@@ -1,13 +1,12 @@
 use std::collections::HashSet;
 
+use nostr_sdk::prelude::{Filter, Url, XOnlyPublicKey};
 use nostr_sdk::relay::ActiveSubscription;
-use nostr_sdk::secp256k1::XOnlyPublicKey;
-use nostr_sdk::Filter;
 
 #[derive(Debug, Clone)]
 pub enum Subscription {
     Hashtag(String),
-    Profile(XOnlyPublicKey),
+    Profile(XOnlyPublicKey, Vec<Url>),
     // And(Box<Subscriptions>, Box<Subscriptions>),
     Or(Box<Subscription>, Box<Subscription>),
 }
@@ -18,8 +17,8 @@ impl Subscription {
         Subscription::Hashtag(tag.into())
     }
 
-    pub fn profile(pubkey: XOnlyPublicKey) -> Subscription {
-        Subscription::Profile(pubkey)
+    pub fn profile(pubkey: XOnlyPublicKey, relays: Vec<Url>) -> Subscription {
+        Subscription::Profile(pubkey, relays)
     }
 
     /// Collects all hashtags from this subscription.
@@ -33,7 +32,7 @@ impl Subscription {
             Subscription::Or(s1, s2) => s1.hashtags().union(&s2.hashtags()).for_each(|t| {
                 tags.insert(t);
             }),
-            Subscription::Profile(_) => {}
+            Subscription::Profile(..) => {}
         }
 
         tags
@@ -44,7 +43,7 @@ impl Subscription {
         let mut pubkeys: HashSet<XOnlyPublicKey> = Default::default();
 
         match self {
-            Subscription::Profile(p) => {
+            Subscription::Profile(p, _) => {
                 pubkeys.insert(*p);
             }
             Subscription::Or(s1, s2) => s1.pubkeys().union(&s2.pubkeys()).for_each(|p| {
@@ -80,7 +79,7 @@ impl Subscription {
             Subscription::Hashtag(t) => format!("#{t}"),
             // Subscriptions::And(s1, s2) => format!("{} & {}", s1.to_string(), s2.to_string()),
             Subscription::Or(s1, s2) => format!("{} + {}", s1.to_string(), s2.to_string()),
-            Subscription::Profile(p) => format!("@{p}"),
+            Subscription::Profile(p, _) => format!("@{p}"),
         }
     }
 }
@@ -93,7 +92,7 @@ fn to_filter(subscriptions: &Subscription, filter: &mut Filter) {
             ts.sort(); // make hashtags distinct
             ts.dedup(); // make hashtags distinct
         }
-        Subscription::Profile(p) => {
+        Subscription::Profile(p, _) => {
             let ps = filter.pubkeys.get_or_insert(vec![]);
             ps.push(*p);
             ps.sort();

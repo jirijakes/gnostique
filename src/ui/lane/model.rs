@@ -123,7 +123,7 @@ pub enum LaneMsg {
 pub enum LaneOutput {
     ShowDetails(Details),
     WriteNote,
-    DemandProfile(XOnlyPublicKey, Url),
+    DemandProfile(XOnlyPublicKey, Vec<Url>),
     CloseLane(DynamicIndex),
     LinkClicked(InternalLink),
 }

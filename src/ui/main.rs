@@ -13,7 +13,6 @@ use super::link::InternalLink;
 use crate::gnostique::Gnostique;
 use crate::incoming::Incoming;
 use crate::nostr::subscriptions::Subscription;
-use crate::nostr::Persona;
 use crate::ui::details::*;
 use crate::ui::editprofile::model::*;
 use crate::ui::lane::*;
@@ -44,7 +43,7 @@ pub enum MainInput {
         file: PathBuf,
     },
     Nip05Verified(XOnlyPublicKey),
-    DemandProfile(XOnlyPublicKey, Url),
+    DemandProfile(XOnlyPublicKey, Vec<Url>),
     CloseLane(DynamicIndex),
     LinkClicked(InternalLink),
 }
@@ -238,12 +237,13 @@ impl AsyncComponent for Main {
                 lanes.push_back(LaneKind::Subscription(sub));
             }
 
-            MainInput::LinkClicked(InternalLink::Profile(persona, _relay)) => {
+            MainInput::LinkClicked(InternalLink::Profile(persona, relays)) => {
                 let client = self.gnostique.client();
-                let relays = client.relays().await;
-                let relays = relays.values();
 
-                let sub = Subscription::profile(persona.pubkey);
+                let sub = Subscription::profile(persona.pubkey, relays);
+
+                let connected_relays = client.relays().await;
+                let connected_relays = connected_relays.values();
 
                 let mut lanes = self.lanes.guard();
                 {
@@ -256,7 +256,7 @@ impl AsyncComponent for Main {
 
                     let sub_filter = lane_subs.to_filter().since(Timestamp::now());
 
-                    for relay in relays {
+                    for relay in connected_relays {
                         // TODO: now first lane is hardcoded as Sink, when the Sink
                         // is removed, the sink_filter will be removed, too.
                         let sink_filter = Filter::new().since(Timestamp::now());
@@ -276,9 +276,9 @@ impl AsyncComponent for Main {
 
             MainInput::EditProfile => self.edit_profile.emit(EditProfileInput::Show),
 
-            MainInput::DemandProfile(pubkey, relay) => {
+            MainInput::DemandProfile(pubkey, relays) => {
                 let demand = self.gnostique.demand().clone();
-                relm4::spawn(async move { demand.metadata(pubkey, relay).await })
+                relm4::spawn(async move { demand.metadata(pubkey, relays).await })
                     .await
                     .unwrap();
             }

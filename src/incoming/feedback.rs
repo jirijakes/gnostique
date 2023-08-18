@@ -24,7 +24,7 @@ pub async fn deal_with_feedback(gnostique: Gnostique, rx: mpsc::Receiver<Feedbac
         .for_each(|f| async {
             match f {
                 Feedback::NeedMetadata { relay, pubkey } => {
-                    gnostique.demand().metadata(pubkey, relay).await;
+                    gnostique.demand().metadata(pubkey, vec![relay]).await;
                 }
                 Feedback::NeedNote { event_id, relay } => {
                     gnostique.demand().text_note(event_id, relay).await;

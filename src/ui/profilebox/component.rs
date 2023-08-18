@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use gtk::prelude::*;
-use nostr_sdk::prelude::ToBech32;
+use nostr_sdk::prelude::{ToBech32, XOnlyPublicKey};
 use relm4::*;
 
 use super::model::{Input, Profilebox};
@@ -11,7 +11,7 @@ use crate::nostr::Persona;
 impl Component for Profilebox {
     type Input = Input;
     type Output = ();
-    type Init = Arc<Persona>;
+    type Init = XOnlyPublicKey;
     type CommandOutput = ();
 
     view! {
@@ -74,11 +74,11 @@ impl Component for Profilebox {
     }
 
     fn init(
-        persona: Arc<Persona>,
+        pubkey: XOnlyPublicKey,
         root: &Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let model = Profilebox::new(persona);
+        let model = Profilebox::new(Arc::new(Persona::new(pubkey)));
         let widgets = view_output!();
 
         ComponentParts { model, widgets }

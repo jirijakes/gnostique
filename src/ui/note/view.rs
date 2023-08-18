@@ -114,7 +114,7 @@ impl FactoryComponent for Note {
                 add_css_class: "content",
 
                 connect_activate_link[sender] => move |_, uri| {
-                    if let Some(link) = InternalLink::from_url_str(&uri) {
+                    if let Some(link) = InternalLink::from_url_str(uri) {
                         sender.output(NoteOutput::LinkClicked(link));
                         gtk::Inhibit(true)
                     } else { gtk::Inhibit(false) }

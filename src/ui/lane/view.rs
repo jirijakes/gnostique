@@ -49,19 +49,16 @@ impl AsyncFactoryComponent for Lane {
         index: &DynamicIndex,
         sender: AsyncFactorySender<Self>,
     ) -> Self {
-        let profile_box = if let LaneKind::Subscription(Subscription::Profile(pubkey)) = &kind {
-            // Since persona does not include avatar bitmap, it has to be obtained
-            // from outside. Once #0464b5d7fa3bbbad is solved, this should not be
-            // needed anymore.
-            // sender.output(LaneOutput::DemandProfile(*pubkey, relay.clone()));
-            Some(
-                Profilebox::builder()
-                    .launch(std::sync::Arc::new(Persona::new(*pubkey)))
-                    .detach(),
-            )
-        } else {
-            None
-        };
+        let profile_box =
+            if let LaneKind::Subscription(Subscription::Profile(pubkey, relays)) = &kind {
+                // Since persona does not include avatar bitmap, it has to be obtained
+                // from outside. Once #0464b5d7fa3bbbad is solved, this should not be
+                // needed anymore.
+                sender.output(LaneOutput::DemandProfile(*pubkey, relays.clone()));
+                Some(Profilebox::builder().launch(*pubkey).detach())
+            } else {
+                None
+            };
 
         let header = {
             let index = index.clone();

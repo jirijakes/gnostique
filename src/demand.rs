@@ -28,7 +28,7 @@ impl Demand {
 
     // TODO: Clean up `notes` and `metadata`
 
-    pub async fn metadata(&self, pubkey: XOnlyPublicKey, relay: Url) {
+    pub async fn metadata(&self, pubkey: XOnlyPublicKey, relay: Vec<Url>) {
         let elapsed = self
             .0
             .metadata
@@ -49,6 +49,7 @@ impl Demand {
                 info!("Requesting metadata {}.", pubkey.to_bech32().unwrap());
 
                 let relays = self.0.client.relays().await;
+                let relay = relay.first().expect("Relays should be multiple");
                 if let Some(r) = relays.get(&relay) {
                     r.req_events_of(
                         vec![Filter::new()
