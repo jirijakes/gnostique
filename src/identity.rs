@@ -1,7 +1,6 @@
-use nostr_sdk::{
-    prelude::{FromMnemonic, Keys},
-    secp256k1::rand::{rngs::OsRng, Rng},
-};
+use nostr_sdk::prelude::{FromMnemonic, Keys};
+use nostr_sdk::secp256k1::rand::rngs::OsRng;
+use nostr_sdk::secp256k1::rand::Rng;
 use secrecy::*;
 use serde::{Deserialize, Serialize};
 

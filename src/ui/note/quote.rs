@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use gtk::prelude::*;
 use nostr_sdk::Event;
-use relm4::{SimpleComponent, ComponentSender, ComponentParts};
+use relm4::{ComponentParts, ComponentSender, SimpleComponent};
 
-use crate::nostr::{TextNote, Persona};
+use crate::nostr::{Persona, TextNote};
 use crate::ui::widgets::author::Author;
 
 /// Quoted text note whose widget is inserted into a text note
@@ -14,16 +14,15 @@ pub struct Quote {
     /// Event of the quoted text note.
     event: Arc<Event>,
     /// Author of the quoted texxt note.
-    author: Arc<Persona>
+    author: Arc<Persona>,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for Quote {
-
     type Init = TextNote;
     type Input = ();
     type Output = ();
-    
+
     #[rustfmt::skip]
     view! {
         gtk::Box {
@@ -50,13 +49,12 @@ impl SimpleComponent for Quote {
     fn init(
         note: TextNote,
         _root: &Self::Root,
-        _sender: ComponentSender<Self>) -> ComponentParts<Self>
-    {
+        _sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
         let (event, author) = note.underlying();
         let model = Quote { event, author };
         let widgets = view_output!();
-        
+
         ComponentParts { model, widgets }
     }
-    
 }

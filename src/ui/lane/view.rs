@@ -112,14 +112,13 @@ impl AsyncFactoryComponent for Lane {
 
     fn forward_to_parent(output: Self::Output) -> Option<Self::ParentInput> {
         match output {
-            LaneOutput::OpenProfile(persona, relay) => Some(MainInput::OpenProfile(persona, relay)),
             LaneOutput::ShowDetails(details) => Some(MainInput::ShowDetail(details)),
             LaneOutput::WriteNote => Some(MainInput::WriteNote),
             LaneOutput::DemandProfile(pubkey, relay) => {
                 Some(MainInput::DemandProfile(pubkey, relay))
             }
             LaneOutput::CloseLane(id) => Some(MainInput::CloseLane(id)),
-            LaneOutput::LinkClicked(uri) => Some(MainInput::LinkClicked(uri)),
+            LaneOutput::LinkClicked(link) => Some(MainInput::LinkClicked(link)),
         }
     }
 
@@ -165,10 +164,6 @@ impl AsyncFactoryComponent for Lane {
             LaneMsg::Reaction { event, reaction } => self
                 .text_notes
                 .broadcast(NoteInput::Reaction { event, reaction }),
-
-            LaneMsg::OpenProfile(person, relay) => {
-                sender.output(LaneOutput::OpenProfile(person, relay))
-            }
 
             LaneMsg::Nip05Verified(pubkey) => {
                 self.text_notes.broadcast(NoteInput::Nip05Verified(pubkey))

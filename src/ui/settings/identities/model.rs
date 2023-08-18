@@ -1,10 +1,9 @@
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::*;
 
-use crate::identity::Identity;
-
 use super::edit::Edit;
 use super::identity::IdentityBox;
+use crate::identity::Identity;
 
 #[derive(Debug)]
 pub struct Identities {

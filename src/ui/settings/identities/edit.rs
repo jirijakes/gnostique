@@ -1,7 +1,8 @@
 use bip39::Mnemonic;
 use gtk::glib::clone;
 use gtk::prelude::*;
-use nostr_sdk::secp256k1::rand::{rngs::OsRng, Rng};
+use nostr_sdk::secp256k1::rand::rngs::OsRng;
+use nostr_sdk::secp256k1::rand::Rng;
 use relm4::prelude::*;
 use secrecy::ExposeSecret;
 

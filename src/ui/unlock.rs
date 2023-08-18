@@ -4,10 +4,8 @@ use directories::ProjectDirs;
 use gtk::prelude::*;
 use relm4::*;
 use secrecy::{Secret, SecretString};
-use sqlx::{
-    sqlite::{SqliteConnectOptions, SqlitePoolOptions},
-    SqlitePool,
-};
+use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+use sqlx::SqlitePool;
 
 use crate::config::Config;
 use crate::gnostique::{make_gnostique, Gnostique};

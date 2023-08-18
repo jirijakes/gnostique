@@ -9,6 +9,7 @@ use relm4::factory::AsyncFactoryVecDeque;
 use relm4::prelude::DynamicIndex;
 use tracing::warn;
 
+use super::link::InternalLink;
 use crate::gnostique::Gnostique;
 use crate::incoming::Incoming;
 use crate::nostr::subscriptions::Subscription;
@@ -42,11 +43,10 @@ pub enum MainInput {
         url: Url,
         file: PathBuf,
     },
-    OpenProfile(Arc<Persona>, Url),
     Nip05Verified(XOnlyPublicKey),
     DemandProfile(XOnlyPublicKey, Url),
     CloseLane(DynamicIndex),
-    LinkClicked(Url),
+    LinkClicked(InternalLink),
 }
 
 #[relm4::component(pub async)]
@@ -203,51 +203,42 @@ impl AsyncComponent for Main {
                 self.lanes.guard().remove(id.current_index());
             }
 
-            MainInput::LinkClicked(url) => {
-                if let Some(tag) =
-                    url.query_pairs()
-                        .find_map(|(k, v)| if k == "tag" { Some(v) } else { None })
+            MainInput::LinkClicked(InternalLink::Tag(tag)) => {
+                let client = self.gnostique.client();
+                let relays = client.relays().await;
+                let relays = relays.values();
+
+                let sub = Subscription::hashtag(tag);
+
+                let mut lanes = self.lanes.guard();
+
                 {
-                    let client = self.gnostique.client();
-                    let relays = client.relays().await;
-                    let relays = relays.values();
+                    let lane_subs = lanes
+                        .iter()
+                        .filter_map(|l| l.and_then(|l| l.subscription()))
+                        .fold(sub.clone(), |x, y| x.add(y.clone()));
 
-                    let sub = Subscription::hashtag(tag);
+                    tracing::info!("Subscribing to {lane_subs:?}");
 
-                    let mut lanes = self.lanes.guard();
+                    let sub_filter = lane_subs.to_filter().since(Timestamp::now());
 
-                    {
-                        let lane_subs = lanes
-                            .iter()
-                            .filter_map(|l| l.and_then(|l| l.subscription()))
-                            .fold(sub.clone(), |x, y| x.add(y.clone()));
+                    for relay in relays {
+                        // TODO: now first lane is hardcoded as Sink, when the Sink
+                        // is removed, the sink_filter will be removed, too.
+                        let sink_filter = Filter::new().since(Timestamp::now());
+                        let _ = relay
+                            .subscribe(vec![sink_filter, sub_filter.clone()], None)
+                            .await;
 
-                        tracing::info!("Subscribing to {lane_subs:?}");
-
-                        let sub_filter = lane_subs.to_filter().since(Timestamp::now());
-
-                        for relay in relays {
-                            // TODO: now first lane is hardcoded as Sink, when the Sink
-                            // is removed, the sink_filter will be removed, too.
-                            let sink_filter = Filter::new().since(Timestamp::now());
-                            let _ = relay
-                                .subscribe(vec![sink_filter, sub_filter.clone()], None)
-                                .await;
-
-                            let active_sub = relay.subscription().await;
-                            tracing::debug!("On {} subscribed to {:#?}", relay.url(), active_sub);
-                        }
+                        let active_sub = relay.subscription().await;
+                        tracing::debug!("On {} subscribed to {:#?}", relay.url(), active_sub);
                     }
-
-                    lanes.push_back(LaneKind::Subscription(sub));
                 }
+
+                lanes.push_back(LaneKind::Subscription(sub));
             }
 
-            MainInput::Noop => {}
-
-            MainInput::EditProfile => self.edit_profile.emit(EditProfileInput::Show),
-
-            MainInput::OpenProfile(persona, _relay) => {
+            MainInput::LinkClicked(InternalLink::Profile(persona, _relay)) => {
                 let client = self.gnostique.client();
                 let relays = client.relays().await;
                 let relays = relays.values();
@@ -280,6 +271,10 @@ impl AsyncComponent for Main {
 
                 lanes.push_back(LaneKind::Subscription(sub));
             }
+
+            MainInput::Noop => {}
+
+            MainInput::EditProfile => self.edit_profile.emit(EditProfileInput::Show),
 
             MainInput::DemandProfile(pubkey, relay) => {
                 let demand = self.gnostique.demand().clone();

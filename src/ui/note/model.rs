@@ -9,12 +9,11 @@ use relm4::prelude::*;
 use relm4::JoinHandle;
 use tracing::trace;
 
+use super::view::NoteWidgets;
 use crate::nostr::content::DynamicContent;
 use crate::nostr::*;
 use crate::ui::note::quote::Quote;
 use crate::ui::replies::{Replies, RepliesInput};
-
-use super::view::NoteWidgets;
 
 #[derive(Debug)]
 pub struct Note {

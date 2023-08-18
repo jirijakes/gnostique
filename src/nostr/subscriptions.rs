@@ -1,6 +1,8 @@
 use std::collections::HashSet;
 
-use nostr_sdk::{relay::ActiveSubscription, secp256k1::XOnlyPublicKey, Filter};
+use nostr_sdk::relay::ActiveSubscription;
+use nostr_sdk::secp256k1::XOnlyPublicKey;
+use nostr_sdk::Filter;
 
 #[derive(Debug, Clone)]
 pub enum Subscription {

@@ -18,6 +18,7 @@ use crate::nostr::subscriptions::Subscription;
 use crate::nostr::{EventExt, Persona, Repost, TextNote};
 use crate::ui::details::Details;
 use crate::ui::lane_header::LaneHeader;
+use crate::ui::link::InternalLink;
 use crate::ui::note::{Note, NoteInit};
 use crate::ui::profilebox::model::Profilebox;
 
@@ -72,7 +73,11 @@ impl LaneKind {
     /// Determines whether the incoming `event` is going to be placed in this lane.
     /// Gradually, it will cover all cases and at the end will replace lane kind.
     fn accepts_subscription(event: &Event, subscription: &Subscription) -> bool {
-        let tags = subscription.hashtags();
+        let tags = subscription
+            .hashtags()
+            .iter()
+            .map(|t| t.to_lowercase())
+            .collect::<HashSet<_>>();
 
         // TODO: could also consider content of the text note, not only event.tags.
         let accepts_tags = event
@@ -100,7 +105,6 @@ pub enum LaneMsg {
         author: Arc<Persona>,
     },
     ShowDetails(Details),
-    OpenProfile(Arc<Persona>, Url),
     MetadataBitmap {
         pubkey: XOnlyPublicKey,
         url: Url,
@@ -111,7 +115,7 @@ pub enum LaneMsg {
         reaction: String,
     },
     Nip05Verified(XOnlyPublicKey),
-    LinkClicked(Url),
+    LinkClicked(InternalLink),
     CloseLane,
 }
 
@@ -119,10 +123,9 @@ pub enum LaneMsg {
 pub enum LaneOutput {
     ShowDetails(Details),
     WriteNote,
-    OpenProfile(Arc<Persona>, Url),
     DemandProfile(XOnlyPublicKey, Url),
     CloseLane(DynamicIndex),
-    LinkClicked(Url),
+    LinkClicked(InternalLink),
 }
 
 impl Lane {

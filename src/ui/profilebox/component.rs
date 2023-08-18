@@ -4,9 +4,8 @@ use gtk::prelude::*;
 use nostr_sdk::prelude::ToBech32;
 use relm4::*;
 
-use crate::nostr::Persona;
-
 use super::model::{Input, Profilebox};
+use crate::nostr::Persona;
 
 #[relm4::component(pub)]
 impl Component for Profilebox {
