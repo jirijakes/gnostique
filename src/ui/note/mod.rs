@@ -1,7 +1,7 @@
 mod model;
 mod msg;
-mod view;
 mod quote;
+mod view;
 
 pub use model::*;
 pub use msg::*;

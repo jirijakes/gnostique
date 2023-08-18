@@ -6,6 +6,7 @@ use std::sync::Arc;
 use gtk::gdk;
 use nostr_sdk::nostr::secp256k1::XOnlyPublicKey;
 use nostr_sdk::nostr::{Event, EventId};
+use nostr_sdk::Tag;
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::*;
 use reqwest::Url;
@@ -13,9 +14,11 @@ use tracing::trace;
 
 use crate::follow::Follow;
 use crate::nostr::content::DynamicContent;
+use crate::nostr::subscriptions::Subscription;
 use crate::nostr::{EventExt, Persona, Repost, TextNote};
 use crate::ui::details::Details;
 use crate::ui::lane_header::LaneHeader;
+use crate::ui::link::InternalLink;
 use crate::ui::note::{Note, NoteInit};
 use crate::ui::profilebox::model::Profilebox;
 
@@ -33,9 +36,9 @@ pub struct Lane {
 
 #[derive(Clone, Debug)]
 pub enum LaneKind {
-    Profile(Arc<Persona>, Url),
     Thread(EventId),
     Feed(Follow),
+    Subscription(Subscription), // TODO: perhaps more general Search?
     Sink,
 }
 
@@ -45,24 +48,44 @@ impl LaneKind {
     }
 
     pub fn is_profile(&self, pubkey: &XOnlyPublicKey) -> bool {
-        matches!(self, LaneKind::Profile(p, _) if &p.pubkey == pubkey)
+        matches!(self, LaneKind::Subscription(Subscription::Profile(p, _)) if p == pubkey)
     }
 
     pub fn is_a_profile(&self) -> bool {
-        matches!(self, LaneKind::Profile(_, _))
+        matches!(self, LaneKind::Subscription(Subscription::Profile(..)))
     }
 
     pub fn accepts(&self, event: &Event) -> bool {
         match self {
             LaneKind::Sink => true,
+            LaneKind::Subscription(sub) => LaneKind::accepts_subscription(event, sub),
             LaneKind::Feed(f) => f.follows(&event.pubkey) && event.replies_to().is_none(),
-            LaneKind::Profile(p, _) => event.pubkey == p.pubkey,
             LaneKind::Thread(id) => {
                 event.id == *id
                     || event.replies_to() == Some(*id)
                     || matches!(event.thread_root(), Some((i, _)) if i == *id)
             }
         }
+    }
+
+    /// Determines whether the incoming `event` is going to be placed in this lane.
+    /// Gradually, it will cover all cases and at the end will replace lane kind.
+    fn accepts_subscription(event: &Event, subscription: &Subscription) -> bool {
+        let tags = subscription
+            .hashtags()
+            .iter()
+            .map(|t| t.to_lowercase())
+            .collect::<HashSet<_>>();
+
+        // TODO: could also consider content of the text note, not only event.tags.
+        let accepts_tags = event
+            .tags
+            .iter()
+            .any(|t| matches!(t, Tag::Hashtag(h) if tags.contains(h.to_lowercase().as_str())));
+
+        let accept_pubkeys = subscription.pubkeys().contains(&event.pubkey);
+
+        accepts_tags || accept_pubkeys
     }
 }
 
@@ -80,7 +103,6 @@ pub enum LaneMsg {
         author: Arc<Persona>,
     },
     ShowDetails(Details),
-    OpenProfile(Arc<Persona>, Url),
     MetadataBitmap {
         pubkey: XOnlyPublicKey,
         url: Url,
@@ -91,7 +113,7 @@ pub enum LaneMsg {
         reaction: String,
     },
     Nip05Verified(XOnlyPublicKey),
-    LinkClicked(Url),
+    LinkClicked(InternalLink),
     CloseLane,
 }
 
@@ -99,9 +121,9 @@ pub enum LaneMsg {
 pub enum LaneOutput {
     ShowDetails(Details),
     WriteNote,
-    OpenProfile(Arc<Persona>, Url),
-    DemandProfile(XOnlyPublicKey, Url),
-    CloseLane(DynamicIndex)
+    DemandProfile(XOnlyPublicKey, Vec<Url>),
+    CloseLane(DynamicIndex),
+    LinkClicked(InternalLink),
 }
 
 impl Lane {
@@ -143,10 +165,10 @@ impl Lane {
                 let idx = self.text_notes.iter().position(|tn| {
                     let ord = tn.time.timestamp().cmp(&event_time.as_i64());
                     match self.kind {
-                        LaneKind::Profile(_, _) => ord == Ordering::Less,
                         LaneKind::Thread(_) => ord == Ordering::Less,
                         LaneKind::Feed(_) => ord == Ordering::Less,
                         LaneKind::Sink => ord == Ordering::Less,
+                        LaneKind::Subscription(_) => ord == Ordering::Less,
                     }
                 });
 
@@ -176,6 +198,16 @@ impl Lane {
             while g.len() > 10 {
                 let _ = g.pop_back();
             }
+        }
+    }
+
+    /// Returns a subscription of this lane, if it exists.
+    // TODO: Eventually, every lane should have a subscription, so
+    // there will be no need for Option anymore.
+    pub fn subscription(&self) -> Option<&Subscription> {
+        match &self.kind {
+            LaneKind::Subscription(s) => Some(s),
+            _ => None,
         }
     }
 }

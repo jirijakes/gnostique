@@ -7,6 +7,7 @@ use nostr_sdk::prelude::*;
 use crate::nostr::content::DynamicContent;
 use crate::nostr::*;
 use crate::ui::details::Details;
+use crate::ui::link::InternalLink;
 
 /// Initial
 pub struct NoteInit {
@@ -58,6 +59,5 @@ pub enum NoteInput {
 #[derive(Debug)]
 pub enum NoteOutput {
     ShowDetails(Details),
-    LinkClicked(String),
-    OpenProfile(Arc<Persona>, Url)
+    LinkClicked(InternalLink),
 }

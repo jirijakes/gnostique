@@ -1,8 +1,7 @@
 use relm4::Controller;
 
-use crate::identity::Identity;
-
 use super::identities::model::Identities;
+use crate::identity::Identity;
 
 #[derive(Debug)]
 pub struct Settings {

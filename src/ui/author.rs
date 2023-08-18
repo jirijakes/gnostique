@@ -12,7 +12,7 @@ impl WidgetTemplate for Author {
             add_css_class: "author",
 
             #[name = "author_name"]
-            gtk::Button {
+            gtk::Label {
                 add_css_class: "author-name"
             },
 

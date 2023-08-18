@@ -3,8 +3,10 @@ use relm4::factory::{AsyncFactoryComponent, FactoryVecDeque};
 use relm4::prelude::*;
 use relm4::{gtk, AsyncFactorySender};
 
+use crate::nostr::subscriptions::Subscription;
+use crate::nostr::Persona;
 use crate::ui::lane::model::*;
-use crate::ui::lane_header::{LaneHeader, LaneHeaderOutput};
+use crate::ui::lane_header::{LaneHeader, LaneHeaderInput, LaneHeaderOutput};
 use crate::ui::main::MainInput;
 use crate::ui::note::NoteInput;
 use crate::ui::profilebox;
@@ -47,15 +49,16 @@ impl AsyncFactoryComponent for Lane {
         index: &DynamicIndex,
         sender: AsyncFactorySender<Self>,
     ) -> Self {
-        let profile_box = if let LaneKind::Profile(persona, relay) = &kind {
-            // Since persona does not include avatar bitmap, it has to be obtained
-            // from outside. Once #0464b5d7fa3bbbad is solved, this should not be
-            // needed anymore.
-            sender.output(LaneOutput::DemandProfile(persona.pubkey, relay.clone()));
-            Some(Profilebox::builder().launch(persona.clone()).detach())
-        } else {
-            None
-        };
+        let profile_box =
+            if let LaneKind::Subscription(Subscription::Profile(pubkey, relays)) = &kind {
+                // Since persona does not include avatar bitmap, it has to be obtained
+                // from outside. Once #0464b5d7fa3bbbad is solved, this should not be
+                // needed anymore.
+                sender.output(LaneOutput::DemandProfile(*pubkey, relays.clone()));
+                Some(Profilebox::builder().launch(*pubkey).detach())
+            } else {
+                None
+            };
 
         let header = {
             let index = index.clone();
@@ -91,7 +94,7 @@ impl AsyncFactoryComponent for Lane {
         let widgets = view_output!();
 
         match self.kind {
-            LaneKind::Profile(_, _) => root.add_css_class("profile"),
+            LaneKind::Subscription(Subscription::Profile(..)) => root.add_css_class("profile"),
             LaneKind::Thread(_) => {}
             _ => {}
         };
@@ -106,13 +109,13 @@ impl AsyncFactoryComponent for Lane {
 
     fn forward_to_parent(output: Self::Output) -> Option<Self::ParentInput> {
         match output {
-            LaneOutput::OpenProfile(persona, relay) => Some(MainInput::OpenProfile(persona, relay)),
             LaneOutput::ShowDetails(details) => Some(MainInput::ShowDetail(details)),
             LaneOutput::WriteNote => Some(MainInput::WriteNote),
-            LaneOutput::DemandProfile(pubkey, relay) => {
-                Some(MainInput::DemandProfile(pubkey, relay))
+            LaneOutput::DemandProfile(pubkey, relays) => {
+                Some(MainInput::DemandProfile(pubkey, relays))
             }
             LaneOutput::CloseLane(id) => Some(MainInput::CloseLane(id)),
+            LaneOutput::LinkClicked(link) => Some(MainInput::LinkClicked(link)),
         }
     }
 
@@ -129,6 +132,10 @@ impl AsyncFactoryComponent for Lane {
                             author: author.clone(),
                         });
                     }
+
+                    self.header.emit(LaneHeaderInput::ChangeTitle(
+                        author.show_name().unwrap_or(author.short_bech32(24)),
+                    ));
                 }
                 self.text_notes
                     .broadcast(NoteInput::UpdatedProfile { author });
@@ -158,10 +165,6 @@ impl AsyncFactoryComponent for Lane {
             LaneMsg::Reaction { event, reaction } => self
                 .text_notes
                 .broadcast(NoteInput::Reaction { event, reaction }),
-
-            LaneMsg::OpenProfile(person, relay) => {
-                sender.output(LaneOutput::OpenProfile(person, relay))
-            }
 
             LaneMsg::Nip05Verified(pubkey) => {
                 self.text_notes.broadcast(NoteInput::Nip05Verified(pubkey))
@@ -200,7 +203,7 @@ impl AsyncFactoryComponent for Lane {
                     )
                 }
             }
-            LaneMsg::LinkClicked(uri) => println!("Clicked: {uri}"),
+            LaneMsg::LinkClicked(uri) => sender.output(LaneOutput::LinkClicked(uri)),
             LaneMsg::CloseLane => sender.output(LaneOutput::CloseLane(self.index.clone())),
         }
     }

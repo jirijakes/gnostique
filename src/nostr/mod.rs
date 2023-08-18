@@ -1,6 +1,7 @@
 pub mod content;
 pub mod gnevent;
 mod parse;
+pub mod subscriptions;
 
 pub use std::sync::Arc;
 
@@ -138,6 +139,28 @@ impl Persona {
 
     pub fn short_pubkey(&self, chars: usize) -> String {
         Self::shortened(&self.pubkey.to_string(), chars)
+    }
+
+    /// Returns profile's display name or name, whichever is available.
+    /// The resulting name is shortened to 60 characters.
+    pub fn show_name(&self) -> Option<String> {
+        self.display_name
+            .clone()
+            .filter(|s| !s.trim().is_empty())
+            .or_else(|| {
+                self.name
+                    .as_ref()
+                    .filter(|s| !s.trim().is_empty())
+                    .map(|n| format!("@{n}"))
+            })
+            .map(|mut s| {
+                if s.len() > 60 {
+                    s.truncate(60);
+                    format!("{s}…")
+                } else {
+                    s
+                }
+            })
     }
 
     /// Format author's pubkey according to context (has or has not author name).

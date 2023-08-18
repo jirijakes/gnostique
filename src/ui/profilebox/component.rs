@@ -1,18 +1,17 @@
 use std::sync::Arc;
 
 use gtk::prelude::*;
-use nostr_sdk::prelude::ToBech32;
+use nostr_sdk::prelude::{ToBech32, XOnlyPublicKey};
 use relm4::*;
 
-use crate::nostr::Persona;
-
 use super::model::{Input, Profilebox};
+use crate::nostr::Persona;
 
 #[relm4::component(pub)]
 impl Component for Profilebox {
     type Input = Input;
     type Output = ();
-    type Init = Arc<Persona>;
+    type Init = XOnlyPublicKey;
     type CommandOutput = ();
 
     view! {
@@ -44,7 +43,7 @@ impl Component for Profilebox {
                         set_selectable: true,
                         set_xalign: 0.0,
                         add_css_class: "name",
-                        #[watch] set_label?: model.author.name.as_ref(),
+                        #[watch] set_label?: model.author.show_name().as_ref(),
                     },
 
                     gtk::Label {
@@ -75,11 +74,11 @@ impl Component for Profilebox {
     }
 
     fn init(
-        persona: Arc<Persona>,
+        pubkey: XOnlyPublicKey,
         root: &Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let model = Profilebox::new(persona);
+        let model = Profilebox::new(Arc::new(Persona::new(pubkey)));
         let widgets = view_output!();
 
         ComponentParts { model, widgets }

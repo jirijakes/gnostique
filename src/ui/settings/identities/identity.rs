@@ -1,9 +1,8 @@
 use gtk::prelude::*;
 use relm4::prelude::*;
 
-use crate::identity::Identity;
-
 use super::model::IdentitiesInput;
+use crate::identity::Identity;
 
 #[derive(Debug)]
 pub struct IdentityBox {

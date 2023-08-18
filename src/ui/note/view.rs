@@ -3,7 +3,7 @@ use std::time::Duration;
 use chrono::{TimeZone, Utc};
 use gtk::pango::WrapMode;
 use gtk::prelude::*;
-use nostr_sdk::prelude::ToBech32;
+use nostr_sdk::prelude::{ToBech32, Url};
 use relm4::component::AsyncComponentController;
 use relm4::prelude::*;
 
@@ -14,6 +14,7 @@ use crate::app::action::*;
 use crate::nostr::*;
 use crate::ui::details::Details;
 use crate::ui::lane::LaneMsg;
+use crate::ui::link::InternalLink;
 use crate::ui::replies::RepliesInput;
 use crate::ui::widgets::author::Author;
 
@@ -29,7 +30,7 @@ use crate::ui::widgets::author::Author;
     |             +-----------------------+
     |             |       [REPLIES]       |   1 4 1 1
     |             +-----------------------+
-    |             |       REACTIONS       |   1 5 1 1 
+    |             |       REACTIONS       |   1 5 1 1
     |             +-----------------------+
     |             |        STATUS         |   1 6 1 1
     +-------------+-----------------------+
@@ -54,19 +55,19 @@ impl FactoryComponent for Note {
             set_row_spacing: 6,
 
             // here be REPOSTER
-            
+
             // AVATAR
             attach[0, 1, 1, 6] = &gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
                 set_visible: !self.is_profile,
                 add_css_class: "avatar",
-                
+
                 gtk::Image {
                     #[watch] set_from_paintable: Some(self.avatar.as_ref()),
                     set_halign: gtk::Align::Center,
                     set_valign: gtk::Align::Start,
                 },
-                
+
                 gtk::Box {
                     #[watch] set_visible: self.show_hidden_buttons,
                     add_css_class: "hidden-buttons",
@@ -86,8 +87,9 @@ impl FactoryComponent for Note {
                     #[watch] set_persona: &self.author,
                     #[watch] set_nip05_verified: self.nip05_verified,
                     connect_clicked[sender, author = self.author.clone(), relays = self.relays.clone()] => move |_| {
-                        let r = relays.first().unwrap().clone();
-                        sender.output(NoteOutput::OpenProfile(author.clone(), r));
+                        sender.output(
+                            NoteOutput::LinkClicked(InternalLink::profile(author.clone(), relays.clone()))
+                        );
                     }
                 },
                 add_overlay = &gtk::Label {
@@ -112,15 +114,15 @@ impl FactoryComponent for Note {
                 add_css_class: "content",
 
                 connect_activate_link[sender] => move |_, uri| {
-                    if uri.starts_with("nostr") || uri.starts_with("gnostique") {
-                        sender.output(NoteOutput::LinkClicked(uri.to_string()));
+                    if let Some(link) = InternalLink::from_url_str(uri) {
+                        sender.output(NoteOutput::LinkClicked(link));
                         gtk::Inhibit(true)
                     } else { gtk::Inhibit(false) }
                 }
             },
 
             // here be QUOTES
-                    
+
             // here be REPLIES
 
             // REACTIONS
@@ -225,8 +227,7 @@ impl FactoryComponent for Note {
     fn forward_to_parent(output: Self::Output) -> Option<Self::ParentInput> {
         match output {
             NoteOutput::ShowDetails(details) => Some(LaneMsg::ShowDetails(details)),
-            NoteOutput::LinkClicked(uri) => uri.parse().map(LaneMsg::LinkClicked).ok(),
-            NoteOutput::OpenProfile(persona, relay) => Some(LaneMsg::OpenProfile(persona, relay))
+            NoteOutput::LinkClicked(link) => Some(LaneMsg::LinkClicked(link)),
         }
     }
 
@@ -241,11 +242,12 @@ impl FactoryComponent for Note {
 
         // TODO: Now we make only one of the referenced notes a quote.
         // Perhaps we could show all of them somehow?
-        let quote = init.referenced_notes
+        let quote = init
+            .referenced_notes
             .into_iter()
             .next()
             .map(|q| Quote::builder().launch(q).detach());
-        
+
         let (event, author) = init.note.underlying();
 
         Note {
@@ -301,7 +303,7 @@ impl FactoryComponent for Note {
 
             widgets.root.attach(&reposter_box, 0, 0, 2, 1);
         }
-        
+
         // If controller for Quote has been created in `init_model`,
         // add its widget to the note. If note and a quote arrives
         // later, the controller will be created in note::model::receive.
@@ -316,8 +318,8 @@ impl FactoryComponent for Note {
         &mut self,
         widgets: &mut Self::Widgets,
         message: Self::Input,
-        sender: FactorySender<Self>)
-    {
+        sender: FactorySender<Self>,
+    ) {
         match message {
             NoteInput::UpdatedProfile { author } => {
                 if self.author.pubkey == author.pubkey {
@@ -325,7 +327,7 @@ impl FactoryComponent for Note {
                     self.nip05_verified = author.nip05_preverified;
                 };
                 self.content.provide(&author);
-                if let Some(replies)  = &self.replies {                
+                if let Some(replies) = &self.replies {
                     replies.emit(RepliesInput::UpdatedProfile { author });
                 };
             }
@@ -345,7 +347,7 @@ impl FactoryComponent for Note {
                 content: _, // NOTE: I guess someday we will need it to augment replies, quotes etc.
                 relays,
                 repost,
-                ..                
+                ..
             } => self.receive(widgets, note, relays, repost),
             NoteInput::Nip05Verified(pubkey) => {
                 if pubkey == self.author.pubkey {

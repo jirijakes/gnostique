@@ -22,27 +22,7 @@ impl Author {
     pub fn set_persona(&self, persona: &Persona) {
         self.set_name(persona.name.clone());
         self.set_display_name(persona.display_name.clone());
-        self.set_name_to_show(
-            persona
-                .display_name
-                .clone()
-                .filter(|s| !s.trim().is_empty())
-                .or_else(|| {
-                    persona
-                        .name
-                        .as_ref()
-                        .filter(|s| !s.trim().is_empty())
-                        .map(|n| format!("@{n}"))
-                })
-                .map(|mut s| {
-                    if s.len() > 60 {
-                        s.truncate(60);
-                        format!("{s}…")
-                    } else {
-                        s
-                    }
-                }),
-        );
+        self.set_name_to_show(persona.show_name());
         self.set_nip05(persona.nip05.clone());
     }
 

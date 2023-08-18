@@ -13,12 +13,11 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::BroadcastStream;
 use tracing::info;
 
+use self::feedback::{deal_with_feedback, Feedback};
 use crate::gnostique::Gnostique;
 use crate::nostr::content::{DynamicContent, Reference};
 use crate::nostr::gnevent::GnEvent;
 use crate::nostr::{EventExt, Persona, Repost, TextNote};
-
-use self::feedback::{deal_with_feedback, Feedback};
 
 #[derive(Debug)]
 pub enum Incoming {
