@@ -86,7 +86,7 @@ impl Note {
                 .get_or_insert_with(|| {
                     trace!("Creating new Replies component as first reply arrived.");
                     let r = Replies::builder().launch(()).detach();
-                    widgets.root.attach(r.widget(), 1, 4, 1, 1);
+                    widgets.root.attach(r.widget(), 1, 5, 1, 1);
                     r
                 })
                 .emit(RepliesInput::NewReply(event.clone()));
