@@ -125,6 +125,10 @@ impl AsyncFactoryComponent for Lane {
                 sender.output(LaneOutput::ShowDetails(details));
             }
 
+            LaneMsg::Preview(preview) => {
+                self.text_notes.broadcast(NoteInput::Preview(preview));
+            }
+
             LaneMsg::UpdatedProfile { author } => {
                 if self.kind.is_profile(&author.pubkey) {
                     if let Some(p) = &self.profile_box {

@@ -196,7 +196,7 @@ impl AsyncComponent for Main {
             }
 
             MainInput::Incoming(Incoming::Preview(p)) => {
-                dbg!(p);
+                self.lanes.broadcast(LaneMsg::Preview(p));
             }
 
             MainInput::WriteNote => self.write_note.emit(WriteNoteInput::Show),

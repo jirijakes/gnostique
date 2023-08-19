@@ -353,6 +353,15 @@ impl FactoryComponent for Note {
                 repost,
                 ..
             } => self.receive(widgets, note, relays, repost),
+            NoteInput::Preview(preview) => {
+                if self.content.has_reference(preview.url().clone()) {
+                    if let Some(t) = preview.thumbnail() {
+                        let image = gtk::Image::from_paintable(Some(t));
+                        image.add_css_class("preview");
+                        widgets.root.attach(&image, 1, 3, 1, 1);
+                    }
+                }
+            }
             NoteInput::Nip05Verified(pubkey) => {
                 if pubkey == self.author.pubkey {
                     self.nip05_verified = true;

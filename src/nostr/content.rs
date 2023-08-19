@@ -328,6 +328,12 @@ impl ToReference for EventId {
     }
 }
 
+impl ToReference for Url {
+    fn to_reference(&self) -> Reference {
+        Reference::Url(self.clone())
+    }
+}
+
 #[allow(non_upper_case_globals)]
 #[cfg(test)]
 mod tests {

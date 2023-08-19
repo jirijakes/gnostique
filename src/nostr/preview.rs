@@ -66,6 +66,10 @@ impl Preview {
             Ok(response) => make_preview(response).await,
         }
     }
+
+    pub fn thumbnail(&self) -> Option<&gdk::Texture> {
+        self.thumbnail.as_ref()
+    }
 }
 
 /// Generates preview of whatever a given HTTP response contains.

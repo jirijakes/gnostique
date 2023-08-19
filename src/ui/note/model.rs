@@ -73,7 +73,7 @@ impl Note {
         // it as Quote (but only once).
         if self.quote.is_none() && self.content.has_reference(event.id) {
             let quote = Quote::builder().launch(note).detach();
-            widgets.root.attach(quote.widget(), 1, 3, 1, 1);
+            widgets.root.attach(quote.widget(), 1, 4, 1, 1);
             self.quote = Some(quote);
         }
 

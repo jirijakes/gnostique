@@ -14,6 +14,7 @@ use tracing::trace;
 
 use crate::follow::Follow;
 use crate::nostr::content::DynamicContent;
+use crate::nostr::preview::Preview;
 use crate::nostr::subscriptions::Subscription;
 use crate::nostr::{EventExt, Persona, Repost, TextNote};
 use crate::ui::details::Details;
@@ -103,6 +104,7 @@ pub enum LaneMsg {
         author: Arc<Persona>,
     },
     ShowDetails(Details),
+    Preview(Preview),
     MetadataBitmap {
         pubkey: XOnlyPublicKey,
         url: Url,
