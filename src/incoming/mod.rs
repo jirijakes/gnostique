@@ -259,6 +259,8 @@ async fn received_text_note(
                 }
             }
             Reference::Url(url) => {
+                let preview = get_link_preview_or_demand(gnostique, feedback.clone(), url).await;
+                dbg!(preview);
                 referenced_urls.insert(url);
             }
         }

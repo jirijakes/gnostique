@@ -33,6 +33,8 @@ tracing = "0.1.37"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 toml = "0.7.6"
 lazy_static = "1.4.0"
+mediatype = "0.19.15"
+webpage = { version = "1.6.0", default-features = false }
 
 [build-dependencies]
 glib-build-tools = "0.18.0"
