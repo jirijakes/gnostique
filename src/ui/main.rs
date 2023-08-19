@@ -30,7 +30,7 @@ pub struct Main {
 
 #[derive(Debug)]
 pub enum MainInput {
-    Event(Incoming),
+    Incoming(Incoming),
     ShowDetail(Details),
     WriteNote,
     EditProfile,
@@ -127,7 +127,7 @@ impl AsyncComponent for Main {
         _root: &Self::Root,
     ) {
         match msg {
-            MainInput::Event(Incoming::TextNote {
+            MainInput::Incoming(Incoming::TextNote {
                 note,
                 content,
                 relays,
@@ -164,14 +164,14 @@ impl AsyncComponent for Main {
                 }
             }
 
-            MainInput::Event(Incoming::Reaction { event_id, content }) => {
+            MainInput::Incoming(Incoming::Reaction { event_id, content }) => {
                 self.lanes.broadcast(LaneMsg::Reaction {
                     event: event_id,
                     reaction: content,
                 })
             }
 
-            MainInput::Event(Incoming::Metadata { persona, avatar }) => {
+            MainInput::Incoming(Incoming::Metadata { persona, avatar }) => {
                 let url = persona.avatar.clone();
                 let pubkey = persona.pubkey;
 
@@ -193,6 +193,10 @@ impl AsyncComponent for Main {
                         }
                     }
                 }
+            }
+
+            MainInput::Incoming(Incoming::Preview(p)) => {
+                dbg!(p);
             }
 
             MainInput::WriteNote => self.write_note.emit(WriteNoteInput::Show),

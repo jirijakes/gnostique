@@ -18,7 +18,7 @@ pub async fn receive_events(gnostique: Gnostique, sender: AsyncComponentSender<M
 
     crate::incoming::incoming_stream(&gnostique)
         .for_each(|received| {
-            sender.input(MainInput::Event(received));
+            sender.input(MainInput::Incoming(received));
             future::ready(())
         })
         .await;

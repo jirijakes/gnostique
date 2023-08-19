@@ -20,7 +20,8 @@ use crate::nostr::gnevent::GnEvent;
 use crate::nostr::preview::Preview;
 use crate::nostr::{EventExt, Persona, Repost, TextNote};
 
-#[derive(Debug)]
+// Note: Clone is required by broadcast::channel.
+#[derive(Clone, Debug)]
 pub enum Incoming {
     TextNote {
         note: TextNote,
@@ -39,6 +40,7 @@ pub enum Incoming {
         persona: Persona,
         avatar: Option<PathBuf>,
     },
+    Preview(Preview),
 }
 
 /// Stream of incoming messages. These are not only Nostr messages but any that can
@@ -49,7 +51,7 @@ pub fn incoming_stream(gnostique: &Gnostique) -> impl Stream<Item = Incoming> + 
     let (feedback, rx) = mpsc::channel(10);
     tokio::spawn(deal_with_feedback(gnostique.clone(), rx));
 
-    BroadcastStream::new(gnostique.client().notifications())
+    let nostream = BroadcastStream::new(gnostique.client().notifications())
         .filter_map(|r| async {
             if let Ok(RelayPoolNotification::Event(relay, event)) = r {
                 Some((relay, event))
@@ -64,7 +66,14 @@ pub fn incoming_stream(gnostique: &Gnostique) -> impl Stream<Item = Incoming> + 
         })
         .map(move |(relay, event)| received_event(gnostique, feedback.clone(), relay, event))
         .buffer_unordered(64)
-        .filter_map(future::ready)
+        .filter_map(future::ready);
+
+    let other = BroadcastStream::new(gnostique.external()).filter_map(|r| future::ready(r.ok()));
+
+    {
+        use tokio_stream::StreamExt;
+        nostream.merge(other)
+    }
 }
 
 async fn received_event(
@@ -119,7 +128,7 @@ ON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event
     };
 
     let verified: bool = if let Some(ref nip05) = metadata.nip05 {
-        verify_nip05(gnostique, event.pubkey, nip05).await
+        !nip05.trim().is_empty() && verify_nip05(gnostique, event.pubkey, nip05).await
     } else {
         false
     };

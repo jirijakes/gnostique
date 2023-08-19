@@ -11,10 +11,12 @@ use reqwest::Url;
 use secrecy::SecretString;
 use sqlx::{query, SqlitePool};
 use tokio::io::AsyncReadExt;
+use tokio::sync::broadcast;
 
 use crate::demand::Demand;
 use crate::download::Download;
 use crate::identity::Identity;
+use crate::incoming::Incoming;
 use crate::nostr::preview::Preview;
 use crate::nostr::Persona;
 
@@ -35,16 +37,20 @@ struct GnostiqueInner {
     client: Client,
     download: Download,
     demand: Demand,
+    // TODO: Should this be Incoming or a new type?
+    external: broadcast::Sender<Incoming>,
 }
 
 impl Gnostique {
     fn new(pool: SqlitePool, dirs: ProjectDirs, client: Client) -> Gnostique {
+        let (external_tx, _) = broadcast::channel(10);
         Gnostique(Arc::new(GnostiqueInner {
-            demand: Demand::new(client.clone()),
+            demand: Demand::new(client.clone(), external_tx.clone()),
             download: Download::new(dirs.clone()),
             dirs,
             client,
             pool,
+            external: external_tx,
         }))
     }
 
@@ -54,6 +60,12 @@ impl Gnostique {
 
     pub fn download(&self) -> &Download {
         &self.0.download
+    }
+
+    /// A channel with messages coming from other sources
+    /// than Nostr. For Nostr messages, see `client()`.
+    pub fn external(&self) -> broadcast::Receiver<Incoming> {
+        self.0.external.subscribe()
     }
 
     pub fn pool(&self) -> &SqlitePool {
