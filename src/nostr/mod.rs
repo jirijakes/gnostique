@@ -1,6 +1,7 @@
 pub mod content;
 pub mod gnevent;
 mod parse;
+pub mod preview;
 pub mod subscriptions;
 
 pub use std::sync::Arc;

@@ -17,6 +17,7 @@ use self::feedback::{deal_with_feedback, Feedback};
 use crate::gnostique::Gnostique;
 use crate::nostr::content::{DynamicContent, Reference};
 use crate::nostr::gnevent::GnEvent;
+use crate::nostr::preview::Preview;
 use crate::nostr::{EventExt, Persona, Repost, TextNote};
 
 #[derive(Debug)]
@@ -40,36 +41,30 @@ pub enum Incoming {
     },
 }
 
-pub fn x<'a>(
-    gnostique: &'a Gnostique,
-    a: Option<Box<impl Stream<Item = (Url, Event)> + 'a>>,
-) -> impl Stream<Item = Incoming> + 'a {
+/// Stream of incoming messages. These are not only Nostr messages but any that can
+/// be of interest to consumers (see `Incoming` enum to see what it offers).
+pub fn incoming_stream(gnostique: &Gnostique) -> impl Stream<Item = Incoming> + '_ {
     // A feedback from processing functions. If they need something,
-    // they can ask by sending a message to `tx`.
+    // they can ask by sending a message to `feedback`.
     let (feedback, rx) = mpsc::channel(10);
     tokio::spawn(deal_with_feedback(gnostique.clone(), rx));
 
-    let sss = match a {
-        Some(s) => (*s).left_stream(),
-        None => BroadcastStream::new(gnostique.client().notifications())
-            .filter_map(|r| async {
-                if let Ok(RelayPoolNotification::Event(relay, event)) = r {
-                    Some((relay, event))
-                } else {
-                    // println!("\n{r:?}\n");
-                    None
-                }
-            })
-            .right_stream(),
-    };
-
-    sss.then(|(relay, event)| async {
-        offer_relays(gnostique, &relay, &event).await;
-        (relay, event)
-    })
-    .map(move |(relay, event)| received_event(gnostique, feedback.clone(), relay, event))
-    .buffer_unordered(64)
-    .filter_map(future::ready)
+    BroadcastStream::new(gnostique.client().notifications())
+        .filter_map(|r| async {
+            if let Ok(RelayPoolNotification::Event(relay, event)) = r {
+                Some((relay, event))
+            } else {
+                // println!("\n{r:?}\n");
+                None
+            }
+        })
+        .then(|(relay, event)| async {
+            offer_relays(gnostique, &relay, &event).await;
+            (relay, event)
+        })
+        .map(move |(relay, event)| received_event(gnostique, feedback.clone(), relay, event))
+        .buffer_unordered(64)
+        .filter_map(future::ready)
 }
 
 async fn received_event(
@@ -168,6 +163,23 @@ async fn get_persona_or_demand(
     persona
 }
 
+async fn get_link_preview_or_demand(
+    gnostique: &Gnostique,
+    feedback: mpsc::Sender<Feedback>,
+    url: &Url,
+) -> Option<Preview> {
+    let preview = gnostique.get_link_preview(url).await;
+
+    if preview.is_none() {
+        feedback
+            .send(Feedback::MakePreview { url: url.clone() })
+            .await
+            .unwrap_or_default();
+    }
+
+    preview
+}
+
 /// Attempts to load text note with `event_id` from storage and return it.
 /// If the text note is unknown, demand is created in the background and
 /// `None` is returned immediately.
@@ -212,6 +224,7 @@ async fn received_text_note(
 
     let mut referenced_notes: HashSet<TextNote> = Default::default();
     let mut referenced_profiles: HashSet<Persona> = Default::default();
+    let mut referenced_urls: HashSet<&Url> = Default::default();
 
     for r in content.references() {
         match r {
@@ -235,6 +248,9 @@ async fn received_text_note(
                 if let Some(p) = persona {
                     referenced_profiles.insert(p);
                 }
+            }
+            Reference::Url(url) => {
+                referenced_urls.insert(url);
             }
         }
     }

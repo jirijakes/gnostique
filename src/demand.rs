@@ -101,4 +101,6 @@ impl Demand {
             }
         };
     }
+
+    pub async fn link_preview(&self, url: &Url) {}
 }

@@ -10,10 +10,16 @@ use crate::gnostique::Gnostique;
 #[derive(Debug)]
 pub enum Feedback {
     /// Metadata for `pubkey` are requested from `relay`.
-    NeedMetadata { relay: Url, pubkey: XOnlyPublicKey },
+    NeedMetadata {
+        relay: Url,
+        pubkey: XOnlyPublicKey,
+    },
     NeedNote {
         event_id: EventId,
         relay: Option<Url>,
+    },
+    MakePreview {
+        url: Url,
     },
 }
 
@@ -28,6 +34,9 @@ pub async fn deal_with_feedback(gnostique: Gnostique, rx: mpsc::Receiver<Feedbac
                 }
                 Feedback::NeedNote { event_id, relay } => {
                     gnostique.demand().text_note(event_id, relay).await;
+                }
+                Feedback::MakePreview { url } => {
+                    gnostique.demand().link_preview(&url).await;
                 }
             }
         })

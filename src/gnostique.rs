@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use age::Decryptor;
 use directories::ProjectDirs;
+use gtk::{gdk, glib};
 use nostr_sdk::prelude::{Event, EventId, Metadata, XOnlyPublicKey};
 use nostr_sdk::{Client, Filter, Timestamp};
 use reqwest::Url;
@@ -14,6 +15,7 @@ use tokio::io::AsyncReadExt;
 use crate::demand::Demand;
 use crate::download::Download;
 use crate::identity::Identity;
+use crate::nostr::preview::Preview;
 use crate::nostr::Persona;
 
 /// Gnostique session. In order to use Gnostique, an instance of this
@@ -116,6 +118,36 @@ WHERE url IN (SELECT relay FROM textnotes_relays WHERE textnote = ?)"#,
             .ok()
             .flatten()
             .and_then(|record| serde_json::from_str::<Event>(&record.event).ok())
+    }
+
+    pub async fn get_link_preview(&self, url: &Url) -> Option<Preview> {
+        use crate::nostr::preview::PreviewKind;
+
+        let url = url.to_string();
+        query!(
+            r#"
+SELECT url, kind AS "kind: PreviewKind", title, description, thumbnail, error, time
+FROM previews
+WHERE url = ?
+"#,
+            url
+        )
+        .fetch_optional(self.pool())
+        .await
+        .ok()
+        .flatten()
+        .and_then(|record| {
+            Some(Preview::new(
+                Url::parse(&record.url).ok()?,
+                record.kind,
+                record.title,
+                record.description,
+                record
+                    .thumbnail
+                    .and_then(|bs| gdk::Texture::from_bytes(&glib::Bytes::from(&bs)).ok()),
+                record.error,
+            ))
+        })
     }
 
     /// Attempts to obtain [`Person`] from database for a given `pubkey`, runs
