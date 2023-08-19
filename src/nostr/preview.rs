@@ -68,6 +68,7 @@ impl Preview {
     }
 }
 
+/// Generates preview of whatever a given HTTP response contains.
 async fn make_preview(response: Response) -> Preview {
     let status = response.status();
     if status.is_server_error() || status.is_client_error() {
@@ -81,12 +82,17 @@ async fn make_preview(response: Response) -> Preview {
 
         match mt {
             Some(mt) if mt.ty() == IMAGE => image_preview(response).await,
-            Some(mt) if mt == media_type!(TEXT / HTML) => html_preview(response).await,
+            Some(mt) if mt.essence() == media_type!(TEXT / HTML) => html_preview(response).await,
+            Some(mt) => {
+                dbg!(mt);
+                Preview::unknown(response.url().clone())
+            }
             _ => Preview::unknown(response.url().clone()),
         }
     }
 }
 
+/// Generates preview of a webpage.
 async fn html_preview(response: Response) -> Preview {
     let url = response.url().clone();
     let body = response.text().await.ok();
@@ -94,24 +100,71 @@ async fn html_preview(response: Response) -> Preview {
 
     match html {
         None => Preview::unknown(url),
-        Some(html) => Preview {
-            kind: PreviewKind::Webpage,
-            url,
-            title: html.title,
-            description: html.description,
-            thumbnail: None,
-            error: None,
-        },
+        Some(html) => {
+            let og = &html.opengraph;
+            let image_url = {
+                og.images
+                    .iter()
+                    .min_by(|obj1, obj2| {
+                        let w1 = obj1
+                            .properties
+                            .get("width")
+                            .and_then(|w| w.parse::<u16>().ok());
+                        let w2 = obj2
+                            .properties
+                            .get("width")
+                            .and_then(|w| w.parse::<u16>().ok());
+
+                        w1.cmp(&w2)
+                    })
+                    .and_then(|obj| Url::parse(&obj.url).ok())
+            };
+
+            let thumbnail = match image_url {
+                Some(url) => {
+                    let res = reqwest::get(url).await.ok();
+                    match res {
+                        Some(r) => r.bytes().await.ok().and_then(|b| {
+                            gdk::Texture::from_bytes(&gtk::glib::Bytes::from(&b)).ok()
+                        }),
+                        None => None,
+                    }
+                }
+                None => None,
+            };
+
+            Preview {
+                kind: PreviewKind::Webpage,
+                url,
+                title: html.title,
+                description: html.description,
+                thumbnail,
+                error: None,
+            }
+        }
     }
 }
 
+/// Generates preview of an image.
 async fn image_preview(response: Response) -> Preview {
+    let thumbnail = {
+        let res = reqwest::get(response.url().clone()).await.ok();
+        match res {
+            Some(r) => r
+                .bytes()
+                .await
+                .ok()
+                .and_then(|b| gdk::Texture::from_bytes(&gtk::glib::Bytes::from(&b)).ok()),
+            None => None,
+        }
+    };
+
     Preview {
         kind: PreviewKind::Image,
         url: response.url().clone(),
         title: None,
         description: None,
-        thumbnail: None,
+        thumbnail,
         error: None,
     }
 }
