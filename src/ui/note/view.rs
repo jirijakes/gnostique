@@ -9,7 +9,6 @@ use relm4::prelude::*;
 
 use super::model::*;
 use super::msg::*;
-use super::quote::Quote;
 use crate::app::action::*;
 use crate::nostr::*;
 use crate::ui::details::Details;
@@ -17,6 +16,7 @@ use crate::ui::lane::LaneMsg;
 use crate::ui::link::InternalLink;
 use crate::ui::replies::RepliesInput;
 use crate::ui::widgets::author::Author;
+use crate::ui::widgets::quote::Quote;
 
 /*
     +-------------------------------------+
