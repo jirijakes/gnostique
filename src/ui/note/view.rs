@@ -16,6 +16,7 @@ use crate::ui::lane::LaneMsg;
 use crate::ui::link::InternalLink;
 use crate::ui::replies::RepliesInput;
 use crate::ui::widgets::author::Author;
+use crate::ui::widgets::preview::Preview;
 use crate::ui::widgets::quote::Quote;
 
 /*
@@ -355,11 +356,8 @@ impl FactoryComponent for Note {
             } => self.receive(widgets, note, relays, repost),
             NoteInput::Preview(preview) => {
                 if self.content.has_reference(preview.url().clone()) {
-                    if let Some(t) = preview.thumbnail() {
-                        let image = gtk::Image::from_paintable(Some(t));
-                        image.add_css_class("preview");
-                        widgets.root.attach(&image, 1, 3, 1, 1);
-                    }
+                    let preview_widget = Preview::builder().launch(preview).detach();
+                    widgets.root.attach(preview_widget.widget(), 1, 3, 1, 1);
                 }
             }
             NoteInput::Nip05Verified(pubkey) => {

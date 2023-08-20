@@ -119,7 +119,11 @@
 /*        PREVIEW
  */
 
-.preview {
+.preview label {
+    font-size: .6em;
+}
+
+.preview img {
     min-width: 300px;
     min-height: 200px;
 }

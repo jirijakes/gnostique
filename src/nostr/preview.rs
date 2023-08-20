@@ -70,6 +70,10 @@ impl Preview {
     pub fn thumbnail(&self) -> Option<&gdk::Texture> {
         self.thumbnail.as_ref()
     }
+
+    pub fn description(&self) -> Option<&String> {
+        self.description.as_ref()
+    }
 }
 
 /// Generates preview of whatever a given HTTP response contains.
