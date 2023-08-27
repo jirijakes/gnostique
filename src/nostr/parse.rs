@@ -108,11 +108,17 @@ pub fn parse_content(event: &Event) -> DynamicContent {
 
     LinkFinder::new().spans(message).for_each(|span| {
         if let Some(LinkKind::Url) = span.kind() {
-            let s = html_escape::encode_text(span.as_str());
-            dcontent.add_fixed(
-                span.start()..span.end(),
-                format!(r#"<a href="{s}" title="{s}">{s}</a>"#),
-            );
+            let str = span.as_str();
+            let safe = html_escape::encode_text(span.as_str());
+            if let Ok(url) = Url::parse(str) {
+                dcontent.add(
+                    span.start()..span.end(),
+                    format!(r#"<a href="{safe}" title="{safe}">{safe}</a>"#),
+                    url,
+                );
+            } else {
+                tracing::error!("{:?}", Url::parse(str));
+            }
         }
     });
 

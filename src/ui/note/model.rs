@@ -12,8 +12,8 @@ use tracing::trace;
 use super::view::NoteWidgets;
 use crate::nostr::content::DynamicContent;
 use crate::nostr::*;
-use crate::ui::note::quote::Quote;
 use crate::ui::replies::{Replies, RepliesInput};
+use crate::ui::widgets::quote::Quote;
 
 #[derive(Debug)]
 pub struct Note {
@@ -73,7 +73,7 @@ impl Note {
         // it as Quote (but only once).
         if self.quote.is_none() && self.content.has_reference(event.id) {
             let quote = Quote::builder().launch(note).detach();
-            widgets.root.attach(quote.widget(), 1, 3, 1, 1);
+            widgets.root.attach(quote.widget(), 1, 4, 1, 1);
             self.quote = Some(quote);
         }
 
@@ -86,7 +86,7 @@ impl Note {
                 .get_or_insert_with(|| {
                     trace!("Creating new Replies component as first reply arrived.");
                     let r = Replies::builder().launch(()).detach();
-                    widgets.root.attach(r.widget(), 1, 4, 1, 1);
+                    widgets.root.attach(r.widget(), 1, 5, 1, 1);
                     r
                 })
                 .emit(RepliesInput::NewReply(event.clone()));

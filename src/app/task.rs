@@ -4,7 +4,6 @@ use std::time::Duration;
 
 use futures_util::future;
 use nostr_sdk::nostr::nips::nip11;
-use nostr_sdk::prelude::Event;
 use relm4::AsyncComponentSender;
 use reqwest::Url;
 use sqlx::query;
@@ -15,28 +14,11 @@ use crate::ui::main::{Main, MainInput};
 
 /// Obtains Nostr events and forwards them to the provided `sender`.
 pub async fn receive_events(gnostique: Gnostique, sender: AsyncComponentSender<Main>) {
-    // let url: Url = "http://example.com".parse().unwrap();
-    // let s = Some(Box::new(futures_util::stream::iter(
-    //     (String::new()
-    //         // + include_str!("../../resources/nvktony.json")
-    //     + include_str!(
-    //     "../../resources/b4ee4de98a07d143f989d0b2cdba70af0366a7167712f3099d7c7a750533f15b.json"
-    //     )
-    //     + include_str!(
-    //     "../../resources/febbaba219357c6c64adfa2e01789f274aa60e90c289938bfc80dd91facb2899.json"
-    //     ))
-    //     .lines()
-    //     .map(|s| (url.clone(), Event::from_json(s).unwrap()))
-    //     .collect::<Vec<_>>(),
-    // )));
-    let s: Option<Box<futures_util::stream::Empty<(Url, Event)>>> = None;
-
     use futures_util::StreamExt;
 
-    crate::incoming::x(&gnostique, s)
+    crate::incoming::incoming_stream(&gnostique)
         .for_each(|received| {
-            sender.input(MainInput::Event(received));
-
+            sender.input(MainInput::Incoming(received));
             future::ready(())
         })
         .await;

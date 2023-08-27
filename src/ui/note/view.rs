@@ -3,13 +3,12 @@ use std::time::Duration;
 use chrono::{TimeZone, Utc};
 use gtk::pango::WrapMode;
 use gtk::prelude::*;
-use nostr_sdk::prelude::{ToBech32, Url};
+use nostr_sdk::prelude::ToBech32;
 use relm4::component::AsyncComponentController;
 use relm4::prelude::*;
 
 use super::model::*;
 use super::msg::*;
-use super::quote::Quote;
 use crate::app::action::*;
 use crate::nostr::*;
 use crate::ui::details::Details;
@@ -17,6 +16,8 @@ use crate::ui::lane::LaneMsg;
 use crate::ui::link::InternalLink;
 use crate::ui::replies::RepliesInput;
 use crate::ui::widgets::author::Author;
+use crate::ui::widgets::preview::Preview;
+use crate::ui::widgets::quote::Quote;
 
 /*
     +-------------------------------------+
@@ -24,15 +25,17 @@ use crate::ui::widgets::author::Author;
     +-------------------------------------+
     |   AVATAR    |        AUTHOR         |   1 1 1 1
     |             +-----------------------+
-    |  0 1 1 6    |        CONTENT        |   1 2 1 1
+    |  0 1 1 7    |        CONTENT        |   1 2 1 1
     |             +-----------------------+
-    |             |        [QUOTE]        |   1 3 1 1
+    |             |        [MEDIA]        |   1 3 1 1
     |             +-----------------------+
-    |             |       [REPLIES]       |   1 4 1 1
+    |             |        [QUOTE]        |   1 4 1 1
     |             +-----------------------+
-    |             |       REACTIONS       |   1 5 1 1
+    |             |       [REPLIES]       |   1 5 1 1
     |             +-----------------------+
-    |             |        STATUS         |   1 6 1 1
+    |             |       REACTIONS       |   1 6 1 1
+    |             +-----------------------+
+    |             |        STATUS         |   1 7 1 1
     +-------------+-----------------------+
 */
 
@@ -57,7 +60,7 @@ impl FactoryComponent for Note {
             // here be REPOSTER
 
             // AVATAR
-            attach[0, 1, 1, 6] = &gtk::Box {
+            attach[0, 1, 1, 7] = &gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
                 set_visible: !self.is_profile,
                 add_css_class: "avatar",
@@ -110,7 +113,7 @@ impl FactoryComponent for Note {
                 set_valign: gtk::Align::Start,
                 set_vexpand: true,
                 set_xalign: 0.0,
-                set_selectable: true,
+                set_selectable: false,
                 add_css_class: "content",
 
                 connect_activate_link[sender] => move |_, uri| {
@@ -126,7 +129,7 @@ impl FactoryComponent for Note {
             // here be REPLIES
 
             // REACTIONS
-            attach[1, 5, 1, 1]: reactions = &gtk::Grid {
+            attach[1, 6, 1, 1]: reactions = &gtk::Grid {
                 set_widget_name: "reactions",
                 // set_column_spacing: 20,
                 set_column_homogeneous: true,
@@ -181,8 +184,8 @@ impl FactoryComponent for Note {
                     }
             },
 
-            // status
-            attach[1, 6, 1, 1] = &gtk::Box {
+            // STATUS
+            attach[1, 7, 1, 1] = &gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
                 set_halign: gtk::Align::End,
                 set_hexpand: true,
@@ -301,6 +304,7 @@ impl FactoryComponent for Note {
                 }
             }
 
+            // REPOST
             widgets.root.attach(&reposter_box, 0, 0, 2, 1);
         }
 
@@ -308,7 +312,8 @@ impl FactoryComponent for Note {
         // add its widget to the note. If note and a quote arrives
         // later, the controller will be created in note::model::receive.
         if let Some(quote) = &self.quote {
-            widgets.root.attach(quote.widget(), 1, 3, 1, 1);
+            // QUOTE
+            widgets.root.attach(quote.widget(), 1, 4, 1, 1);
         }
 
         widgets
@@ -349,6 +354,12 @@ impl FactoryComponent for Note {
                 repost,
                 ..
             } => self.receive(widgets, note, relays, repost),
+            NoteInput::Preview(preview) => {
+                if self.content.has_reference(preview.url().clone()) {
+                    let preview_widget = Preview::builder().launch(preview).detach();
+                    widgets.root.attach(preview_widget.widget(), 1, 3, 1, 1);
+                }
+            }
             NoteInput::Nip05Verified(pubkey) => {
                 if pubkey == self.author.pubkey {
                     self.nip05_verified = true;

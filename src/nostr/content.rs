@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use nostr_sdk::prelude::*;
 
+use super::preview::Preview;
 use super::Persona;
 
 #[derive(Clone)]
@@ -30,6 +31,7 @@ struct Void;
 pub struct DynamicContent {
     profiles: Vec<Hole<Persona>>,
     events: Vec<Hole<Event>>,
+    urls: Vec<Hole<Preview>>,
     other: Vec<Hole<Void>>,
     references: Vec<Reference>,
 }
@@ -49,6 +51,10 @@ impl DynamicContent {
         }
 
         for e in &self.events {
+            ranges.push((e.range.clone(), if e.hidden { "" } else { &e.replace_with }));
+        }
+
+        for e in &self.urls {
             ranges.push((e.range.clone(), if e.hidden { "" } else { &e.replace_with }));
         }
 
@@ -270,6 +276,23 @@ impl Anchor<Event> for (Kind, EventId) {
     }
 }
 
+impl Anchor<Preview> for Url {
+    fn accept(&self, what: &Preview) -> Option<String> {
+        if self == what.url() {
+            what.title().map(|s| s.to_string()).or_else(|| {
+                let safe = html_escape::encode_text(what.url().as_str());
+                Some(format!(r#"<a href="{safe}" title="{safe}">{safe}</a>"#))
+            })
+        } else {
+            None
+        }
+    }
+
+    fn reference(&self) -> Option<Reference> {
+        Some(Reference::Url(self.clone()))
+    }
+}
+
 impl Slot<DynamicContent> for Persona {
     fn holes(content: &mut DynamicContent) -> &mut Vec<Hole<Self>> {
         &mut content.profiles
@@ -282,10 +305,17 @@ impl Slot<DynamicContent> for Event {
     }
 }
 
+impl Slot<DynamicContent> for Preview {
+    fn holes(content: &mut DynamicContent) -> &mut Vec<Hole<Self>> {
+        &mut content.urls
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Reference {
     Event(EventId),
     Profile(XOnlyPublicKey, Option<Vec<String>>),
+    Url(Url),
 }
 
 pub trait ToReference {
@@ -295,6 +325,12 @@ pub trait ToReference {
 impl ToReference for EventId {
     fn to_reference(&self) -> Reference {
         Reference::Event(*self)
+    }
+}
+
+impl ToReference for Url {
+    fn to_reference(&self) -> Reference {
+        Reference::Url(self.clone())
     }
 }
 

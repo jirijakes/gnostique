@@ -4,8 +4,11 @@ use std::time::Instant;
 
 use nostr_sdk::prelude::*;
 use reqwest::Url;
-use tokio::sync::Mutex;
+use tokio::sync::{broadcast, Mutex};
 use tracing::{debug, info};
+
+use crate::incoming::Incoming;
+use crate::nostr::preview::Preview;
 
 #[derive(Clone)]
 pub struct Demand(Arc<DemandInner>);
@@ -15,14 +18,16 @@ struct DemandInner {
     client: Client,
     notes: Arc<Mutex<HashMap<EventId, Instant>>>,
     metadata: Arc<Mutex<HashMap<XOnlyPublicKey, Instant>>>,
+    external: broadcast::Sender<Incoming>,
 }
 
 impl Demand {
-    pub fn new(client: Client) -> Demand {
+    pub fn new(client: Client, external: broadcast::Sender<Incoming>) -> Demand {
         Demand(Arc::new(DemandInner {
             client,
             notes: Default::default(),
             metadata: Default::default(),
+            external,
         }))
     }
 
@@ -100,5 +105,14 @@ impl Demand {
                 }
             }
         };
+    }
+
+    pub async fn link_preview(&self, url: &Url) {
+        info!("Requesting preview for {}", url);
+        let preview = Preview::create(url.clone()).await;
+        self.0
+            .external
+            .send(Incoming::Preview(preview))
+            .unwrap_or_default();
     }
 }

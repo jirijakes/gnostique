@@ -5,6 +5,7 @@ use gtk::gdk;
 use nostr_sdk::prelude::*;
 
 use crate::nostr::content::DynamicContent;
+use crate::nostr::preview::Preview;
 use crate::nostr::*;
 use crate::ui::details::Details;
 use crate::ui::link::InternalLink;
@@ -53,6 +54,7 @@ pub enum NoteInput {
         referenced_notes: HashSet<TextNote>,
         referenced_profiles: HashSet<Persona>,
     },
+    Preview(Preview),
     Tick,
 }
 

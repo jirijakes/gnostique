@@ -116,6 +116,43 @@
     background-image: none;
 }
 
+/*        PREVIEW
+ */
+
+.preview {
+    border: 1px solid black;
+    border-radius: 8px;
+    margin-right: 16px;
+}
+
+.preview picture {
+    border-radius: 8px 8px 0 0;
+}
+
+.preview label:not(:first-child) {
+    margin-top: 4px;
+}
+
+.preview label.title {
+    font-size: .9em;
+    font-weight: bold;
+}
+
+.preview label.description {
+    font-size: .8em;
+    font-style: italic;
+}
+
+.preview label.url {
+    font-size: .8em;
+    color: gray;
+}
+
+.preview .infobox {
+    padding: 8px;
+    background-color: alpha(black, 0.75);
+}
+
 /*        QUOTE
  */
 

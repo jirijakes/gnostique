@@ -20,11 +20,11 @@ html-escape = "0.2.13"
 linkify = "0.10.0"
 nostr-sdk = { git = "https://www.github.com/rust-nostr/nostr" }
 once_cell = "1.18.0"
-regex = "1.9.3"
+regex = "1.9.4"
 relm4 = "0.6.1"
-reqwest = { version = "0.11.18", features = ["stream"] }
+reqwest = { version = "0.11.20", features = ["stream"] }
 secrecy = { version = "0.8.0", features = ["serde"] }
-serde = { version = "1.0.183", features = ["derive"] }
+serde = { version = "1.0.188", features = ["derive"] }
 serde_json = "1.0.105"
 sqlx = { version = "0.7.1", features = ["sqlite", "runtime-tokio-native-tls", "chrono"] }
 tokio = { version = "1.32.0" }
@@ -33,6 +33,9 @@ tracing = "0.1.37"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 toml = "0.7.6"
 lazy_static = "1.4.0"
+mediatype = "0.19.15"
+webpage = { version = "1.6.0", default-features = false }
+fast_image_resize = "2.7.3"
 
 [build-dependencies]
 glib-build-tools = "0.18.0"
