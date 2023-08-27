@@ -233,8 +233,8 @@ impl AsyncComponent for Main {
                             .subscribe(vec![sink_filter, sub_filter.clone()], None)
                             .await;
 
-                        let active_sub = relay.subscription().await;
-                        tracing::debug!("On {} subscribed to {:#?}", relay.url(), active_sub);
+                        let active_subs = relay.subscriptions().await;
+                        tracing::debug!("On {} subscribed to {:#?}", relay.url(), active_subs);
                     }
                 }
 
@@ -268,8 +268,8 @@ impl AsyncComponent for Main {
                             .subscribe(vec![sink_filter, sub_filter.clone()], None)
                             .await;
 
-                        let active_sub = relay.subscription().await;
-                        tracing::debug!("On {} subscribed to {:#?}", relay.url(), active_sub);
+                        let active_subs = relay.subscriptions().await;
+                        tracing::debug!("On {} subscribed to {:#?}", relay.url(), active_subs);
                     }
                 }
 

@@ -87,13 +87,13 @@ impl Subscription {
 fn to_filter(subscriptions: &Subscription, filter: &mut Filter) {
     match subscriptions {
         Subscription::Hashtag(t) => {
-            let ts = filter.hashtags.get_or_insert(vec![]);
+            let ts = &mut filter.hashtags;
             ts.push(t.to_string());
             ts.sort(); // make hashtags distinct
             ts.dedup(); // make hashtags distinct
         }
         Subscription::Profile(p, _) => {
-            let ps = filter.pubkeys.get_or_insert(vec![]);
+            let ps = &mut filter.pubkeys;
             ps.push(*p);
             ps.sort();
             ps.dedup();
