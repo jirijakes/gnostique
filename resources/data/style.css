@@ -119,13 +119,39 @@
 /*        PREVIEW
  */
 
-.preview label {
-    font-size: .6em;
+.preview {
+    border: 1px solid black;
+    border-radius: 8px;
+    margin-right: 16px;
 }
 
-.preview img {
-    min-width: 300px;
-    min-height: 200px;
+.preview picture {
+    border-radius: 8px;
+}
+
+.preview .infobox {
+    padding: 4px;
+}
+
+.preview label.title {
+    font-size: .9em;
+    font-weight: bold;
+}
+
+.preview label.description {
+    font-size: .8em;
+    font-style: italic;
+    margin-top: 4px;
+}
+
+.preview label.url {
+    font-size: .8em;
+    color: lightgray;
+    margin-top: 4px;
+}
+
+.preview .bottom {
+    background-color: alpha(black, 0.75);
 }
 
 /*        QUOTE

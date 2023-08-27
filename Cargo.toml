@@ -35,6 +35,7 @@ toml = "0.7.6"
 lazy_static = "1.4.0"
 mediatype = "0.19.15"
 webpage = { version = "1.6.0", default-features = false }
+fast_image_resize = "2.7.3"
 
 [build-dependencies]
 glib-build-tools = "0.18.0"

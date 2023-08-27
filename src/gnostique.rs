@@ -273,12 +273,11 @@ pub async fn make_gnostique(
 
     gnostique.client().connect().await;
 
-    gnostique
-        .client()
-        // .subscribe(vec![crate::follow::Follow::new().subscriptions()])
-        // .subscribe(vec![Filter::new()]) //.since(Timestamp::now())])
-        .subscribe(vec![Filter::new().since(Timestamp::now())])
-        .await;
+    for (_, r) in gnostique.client().relays().await {
+        r.subscribe(vec![Filter::new().since(Timestamp::now())], None)
+            .await
+            .expect("Did not subscribe successfully.");
+    }
 
     Ok(gnostique)
 }
