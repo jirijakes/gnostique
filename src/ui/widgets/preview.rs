@@ -7,7 +7,6 @@ use crate::nostr::preview;
 #[derive(Debug)]
 pub struct Preview {
     preview: preview::Preview,
-    image: Option<gtk::Picture>,
 }
 
 #[relm4::component(pub)]
@@ -18,34 +17,33 @@ impl SimpleComponent for Preview {
 
     #[rustfmt::skip]
     view! {
-        gtk::Overlay {
+        #[name = "grid"]
+        gtk::Grid {
             add_css_class: "preview",
-            set_child = model.image.as_ref(),
-            add_overlay = &gtk::Box {
+            attach[1, 1, 1, 1] = &gtk::Box {
                 add_css_class: "infobox",
                 set_orientation: gtk::Orientation::Vertical,
-                set_halign: gtk::Align::Fill,
-                set_valign: gtk::Align::End,
+                set_hexpand: true,
                 gtk::Label {
-                    set_label?: model.preview.title(),
+                    set_label?: preview.title(),
                     add_css_class: "title",
                     set_xalign: 0.0,
                     set_wrap_mode: gtk::pango::WrapMode::Word,
                     set_wrap: true,
-                    set_visible: model.preview.title().is_some()
+                    set_visible: preview.title().is_some()
                 },
                 gtk::Label {
-                    set_label?: model.preview.description(),
+                    set_label?: preview.description(),
                     add_css_class: "description",
                     set_xalign: 0.0,
                     set_wrap_mode: gtk::pango::WrapMode::Word,
                     set_wrap: true,
-                    set_visible: model.preview.description().is_some()
+                    set_visible: preview.description().is_some()
                 },
                 gtk::Label {
-                    set_label: model.preview.url().as_ref(),
+                    set_label: preview.url().as_ref(),
                     add_css_class: "url",
-                    set_ellipsize: gtk::pango::EllipsizeMode::End,
+                    set_ellipsize: gtk::pango::EllipsizeMode::Middle,
                     set_xalign: 0.0
                 }
             }
@@ -53,25 +51,27 @@ impl SimpleComponent for Preview {
     }
 
     fn init(
-        init: Self::Init,
+        preview: Self::Init,
         root: &Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let image = init.thumbnail().map(|t| {
-            gtk::Picture::builder()
+        let widgets = view_output!();
+
+        if let Some(t) = preview.thumbnail() {
+            let picture = gtk::Picture::builder()
                 .paintable(t)
                 .content_fit(gtk::ContentFit::Cover)
                 .width_request(400)
                 .height_request(
                     (f64::from(t.height()) / f64::from(t.width()) * 400.0).ceil() as i32,
                 )
-                .build()
-        });
-        let model = Preview {
-            preview: init,
-            image,
-        };
-        let widgets = view_output!();
+                .build();
+
+            widgets.grid.attach(&picture, 1, 0, 1, 1);
+        }
+
+        let model = Preview { preview };
+
         ComponentParts { model, widgets }
     }
 }

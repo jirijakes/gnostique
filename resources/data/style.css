@@ -126,11 +126,11 @@
 }
 
 .preview picture {
-    border-radius: 8px;
+    border-radius: 8px 8px 0 0;
 }
 
-.preview .infobox {
-    padding: 4px;
+.preview label:not(:first-child) {
+    margin-top: 4px;
 }
 
 .preview label.title {
@@ -141,16 +141,15 @@
 .preview label.description {
     font-size: .8em;
     font-style: italic;
-    margin-top: 4px;
 }
 
 .preview label.url {
     font-size: .8em;
-    color: lightgray;
-    margin-top: 4px;
+    color: gray;
 }
 
-.preview .bottom {
+.preview .infobox {
+    padding: 8px;
     background-color: alpha(black, 0.75);
 }
 
