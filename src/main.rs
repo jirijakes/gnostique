@@ -12,7 +12,14 @@ mod ui;
 use relm4::*;
 
 fn main() {
-    let app = RelmApp::new("com.jirijakes.gnostique");
+    gtk::init().unwrap();
+
+    let app = RelmApp::from_app(
+        gtk::Application::builder()
+            .application_id("com.jirijakes.gnostique")
+            .flags(gtk::gio::ApplicationFlags::NON_UNIQUE)
+            .build(),
+    );
 
     // GTK and resources
     gtk::glib::set_application_name("Gnostique");
@@ -32,6 +39,8 @@ fn main() {
 
     let settings = gtk::Settings::default().unwrap();
     settings.set_gtk_application_prefer_dark_theme(true);
+    settings.set_gtk_xft_hinting(1);
+    settings.set_gtk_xft_rgba(Some("rgb"));
 
     app.run::<crate::ui::app::App>(());
 }

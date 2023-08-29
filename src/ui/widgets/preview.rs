@@ -20,10 +20,11 @@ impl SimpleComponent for Preview {
         #[name = "grid"]
         gtk::Grid {
             add_css_class: "preview",
-            attach[1, 1, 1, 1] = &gtk::Box {
+            attach[1, 1, 1, 1]: infobox = &gtk::Box {
                 add_css_class: "infobox",
                 set_orientation: gtk::Orientation::Vertical,
                 set_hexpand: true,
+                set_cursor_from_name: Some("pointer"),
                 gtk::Label {
                     set_label?: preview.title(),
                     add_css_class: "title",

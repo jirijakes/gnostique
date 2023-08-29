@@ -2,6 +2,22 @@
     font-family: "Roboto", sans-serif;
 }
 
+/* Removes shadow box around popover menus, which makes
+   them render on systems without compositors better. */
+popover * {
+  box-shadow: none;
+  border-style: hidden;
+  margin: 0px;
+  border-radius: 0px;
+}
+
+/* Removes shadow box around windows, which makes
+   them render on systems without compositors better. */
+.window-frame {
+    box-shadow: none;
+    margin: 1px;
+}
+
 .monospace {
     font-family: monospace;
 }
