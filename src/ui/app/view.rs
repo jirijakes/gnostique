@@ -54,15 +54,6 @@ impl Component for App {
 
         let widgets = view_output!();
 
-        widgets
-            .window
-            .insert_action_group("author", Some(&crate::app::action::make_author_actions()));
-
-        // widgets.window.insert_action_group(
-        //     "main",
-        //     Some(&crate::app::action::make_main_menu_actions(sender)),
-        // );
-
         ComponentParts { model, widgets }
     }
 
