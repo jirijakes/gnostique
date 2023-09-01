@@ -119,8 +119,8 @@ impl FactoryComponent for Note {
                 connect_activate_link[sender] => move |_, uri| {
                     if let Some(link) = InternalLink::from_url_str(uri) {
                         sender.output(NoteOutput::LinkClicked(link));
-                        gtk::Inhibit(true)
-                    } else { gtk::Inhibit(false) }
+                        gtk::glib::Propagation::Proceed
+                    } else { gtk::glib::Propagation::Stop }
                 }
             },
 

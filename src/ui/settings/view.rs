@@ -22,7 +22,7 @@ impl SimpleComponent for Settings {
 
             connect_close_request[sender] => move |_| {
                 sender.input(SettingsInput::Hide);
-                gtk::Inhibit(false)
+                gtk::glib::Propagation::Stop
             },
 
             gtk::Box {

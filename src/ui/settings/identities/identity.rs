@@ -45,7 +45,7 @@ impl FactoryComponent for IdentityBox {
                 set_active: self.enabled,
                 connect_state_set[sender] => move |_, state| {
                     sender.input(IdentityInput::Enable(state));
-                    gtk::Inhibit(false)
+                    gtk::glib::Propagation::Stop
                 }
             },
 

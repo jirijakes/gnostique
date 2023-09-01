@@ -47,7 +47,7 @@ impl Component for DetailsWindow {
 
             connect_close_request[sender] => move |_| {
                 sender.input(DetailsWindowInput::Hide);
-                gtk::Inhibit(false)
+                gtk::glib::Propagation::Stop
             },
 
             gtk::Box {
