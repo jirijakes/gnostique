@@ -1,10 +1,10 @@
 use gtk;
-use gtk::glib;
 use gtk::glib::clone;
 use gtk::prelude::*;
+use gtk::{gdk, glib};
 use relm4::{ComponentParts, ComponentSender, SimpleComponent};
 
-use crate::app::action::{Copy, CopyImage};
+use crate::app::action::Copy;
 use crate::nostr::preview;
 
 #[derive(Debug)]
@@ -81,7 +81,8 @@ impl SimpleComponent for Preview {
 
             widgets.grid.attach(&picture, 1, 0, 1, 1);
 
-            picture.add_controller(image_context_menu(&picture, thumbnail));
+            picture.add_controller(context_menu(&picture, thumbnail));
+            picture_action_group(texture).register_for_widget(picture);
         }
 
         let model = Preview { preview };
@@ -92,7 +93,7 @@ impl SimpleComponent for Preview {
                 let popover = gtk::PopoverMenu::builder()
                     .menu_model(&menu)
                     .has_arrow(false)
-                    .pointing_to(&gtk::gdk::Rectangle::new(x as i32, y as i32, 1, 1))
+                    .pointing_to(&gdk::Rectangle::new(x as i32, y as i32, 1, 1))
                     .build();
                 popover.set_parent(&infobox);
                 popover.popup();
@@ -104,11 +105,12 @@ impl SimpleComponent for Preview {
     }
 }
 
-fn image_context_menu(picture: &gtk::Picture, thumbnail: &preview::Thumbnail) -> gtk::GestureClick {
+/// Creates an event controller for opening popup menu on picture.
+fn context_menu(picture: &gtk::Picture, thumbnail: &preview::Thumbnail) -> gtk::GestureClick {
     relm4::menu! {
         image_menu: {
+            "Copy image" => CopyImage,
             "Copy image address" => Copy(thumbnail.url().to_string()),
-            // "Copy image" => CopyImage(picture.
         }
     }
 
@@ -118,7 +120,7 @@ fn image_context_menu(picture: &gtk::Picture, thumbnail: &preview::Thumbnail) ->
             let popover = gtk::PopoverMenu::builder()
                 .menu_model(&menu)
                 .has_arrow(false)
-                .pointing_to(&gtk::gdk::Rectangle::new(x as i32, y as i32, 1, 1))
+                .pointing_to(&gdk::Rectangle::new(x as i32, y as i32, 1, 1))
                 .build();
             popover.set_parent(&picture);
             popover.popup();
@@ -126,4 +128,25 @@ fn image_context_menu(picture: &gtk::Picture, thumbnail: &preview::Thumbnail) ->
     );
 
     click
+}
+
+use relm4::actions::{RelmAction, RelmActionGroup};
+
+relm4::new_action_group!(PictureActionGroup, "picture");
+relm4::new_stateless_action!(CopyImage, PictureActionGroup, "copy-image");
+
+/// Creates an action group 'picture' with all the actions available
+/// on a single picture.
+fn picture_action_group(texture: &gdk::Texture) -> RelmActionGroup<PictureActionGroup> {
+    let mut group = RelmActionGroup::<PictureActionGroup>::new();
+
+    group.add_action(RelmAction::<CopyImage>::new_stateless(
+        clone!(@weak texture => move |_| {
+            if let Some(display) = gdk::Display::default() {
+                display.clipboard().set_texture(&texture);
+            }
+        }),
+    ));
+
+    group
 }
