@@ -42,5 +42,7 @@ fn main() {
     settings.set_gtk_xft_hinting(1);
     settings.set_gtk_xft_rgba(Some("rgb"));
 
+    crate::app::action::make_app_actions().register_for_main_application();
+
     app.run::<crate::ui::app::App>(());
 }

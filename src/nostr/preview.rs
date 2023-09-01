@@ -18,8 +18,7 @@ pub struct Preview {
     url: Url,
     title: Option<String>,
     description: Option<String>,
-    // TODO: Try not to use GTK-specific type here.
-    thumbnail: Option<gdk::Texture>,
+    thumbnail: Option<Thumbnail>,
     error: Option<String>,
 }
 
@@ -29,7 +28,7 @@ impl Preview {
         kind: PreviewKind,
         title: Option<String>,
         description: Option<String>,
-        thumbnail: Option<gdk::Texture>,
+        thumbnail: Option<Thumbnail>,
         error: Option<String>,
     ) -> Self {
         Self {
@@ -67,12 +66,29 @@ impl Preview {
         }
     }
 
-    pub fn thumbnail(&self) -> Option<&gdk::Texture> {
+    pub fn thumbnail(&self) -> Option<&Thumbnail> {
         self.thumbnail.as_ref()
     }
 
     pub fn description(&self) -> Option<&String> {
         self.description.as_ref()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Thumbnail {
+    // TODO: Try not to use GTK-specific type here.
+    texture: gdk::Texture,
+    url: Url,
+}
+
+impl Thumbnail {
+    pub fn texture(&self) -> &gdk::Texture {
+        &self.texture
+    }
+
+    pub fn url(&self) -> &str {
+        self.url.as_ref()
     }
 }
 
@@ -130,10 +146,15 @@ async fn html_preview(response: Response) -> Preview {
 
             let thumbnail = match image_url {
                 Some(url) => {
-                    let res = reqwest::get(url).await.ok();
+                    let res = reqwest::get(url.clone()).await.ok();
                     match res {
                         Some(r) => r.bytes().await.ok().and_then(|b| {
-                            gdk::Texture::from_bytes(&gtk::glib::Bytes::from(&b)).ok()
+                            gdk::Texture::from_bytes(&gtk::glib::Bytes::from(&b))
+                                .ok()
+                                .map(|t| Thumbnail {
+                                    texture: t,
+                                    url: url.clone(),
+                                })
                         }),
                         None => None,
                     }
@@ -158,11 +179,14 @@ async fn image_preview(response: Response) -> Preview {
     let thumbnail = {
         let res = reqwest::get(response.url().clone()).await.ok();
         match res {
-            Some(r) => r
-                .bytes()
-                .await
-                .ok()
-                .and_then(|b| gdk::Texture::from_bytes(&gtk::glib::Bytes::from(&b)).ok()),
+            Some(r) => r.bytes().await.ok().and_then(|b| {
+                gdk::Texture::from_bytes(&gtk::glib::Bytes::from(&b))
+                    .ok()
+                    .map(|t| Thumbnail {
+                        texture: t,
+                        url: response.url().clone(),
+                    })
+            }),
             None => None,
         }
     };
