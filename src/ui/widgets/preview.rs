@@ -4,7 +4,7 @@ use gtk::prelude::*;
 use gtk::{gdk, glib};
 use relm4::{ComponentParts, ComponentSender, SimpleComponent};
 
-use crate::app::action::Copy;
+use crate::app::action::CopyText;
 use crate::nostr::preview;
 
 #[derive(Debug)]
@@ -56,7 +56,7 @@ impl SimpleComponent for Preview {
 
     menu! {
         link_menu: {
-            "Copy link address" => Copy(preview.url().to_string())
+            "Copy link address" => CopyText(preview.url().to_string())
         }
     }
 
@@ -110,7 +110,7 @@ fn context_menu(picture: &gtk::Picture, thumbnail: &preview::Thumbnail) -> gtk::
     relm4::menu! {
         image_menu: {
             "Copy image" => CopyImage,
-            "Copy image address" => Copy(thumbnail.url().to_string()),
+            "Copy image address" => CopyText(thumbnail.url().to_string()),
         }
     }
 

@@ -10,22 +10,19 @@ use crate::ui::main::{Main, MainInput};
 pub fn make_app_actions() -> RelmActionGroup<AppActionGroup> {
     let mut group = RelmActionGroup::<AppActionGroup>::new();
 
-    group.add_action(copy_text());
+    group.add_action(RelmAction::<CopyText>::new_with_target_value(
+        |_, string: String| {
+            let display = gdk::Display::default().unwrap();
+            let clipboard = display.clipboard();
+            clipboard.set_text(&string);
+        },
+    ));
 
     group
 }
 
-/// Copies a textual value into clipboard.
-fn copy_text() -> RelmAction<Copy> {
-    RelmAction::new_with_target_value(|_, string: String| {
-        let display = gdk::Display::default().unwrap();
-        let clipboard = display.clipboard();
-        clipboard.set_text(&string);
-    })
-}
-
 relm4::new_action_group!(pub AppActionGroup, "app");
-relm4::new_stateful_action!(pub Copy, AppActionGroup, "copy-text", String, ());
+relm4::new_stateful_action!(pub CopyText, AppActionGroup, "copy-text", String, ());
 
 relm4::new_action_group!(pub MainMenuActionGroup, "main");
 relm4::new_stateless_action!(pub EditProfile, MainMenuActionGroup, "profile");

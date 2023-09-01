@@ -215,14 +215,14 @@ impl FactoryComponent for Note {
 
     menu! {
         author_menu: {
-            "Copy pubkey as hex" => Copy(self.author.pubkey.to_string()),
-            "Copy pubkey as bech32" => Copy(self.author.pubkey.to_bech32().unwrap()),
+            "Copy pubkey as hex" => CopyText(self.author.pubkey.to_string()),
+            "Copy pubkey as bech32" => CopyText(self.author.pubkey.to_bech32().unwrap()),
         },
 
         note_menu: {
             section! {
-                "Copy event ID as hex" => Copy(self.event.id.to_hex()),
-                "Copy event ID as bech32" => Copy(self.event.id.to_bech32().unwrap())
+                "Copy event ID as hex" => CopyText(self.event.id.to_hex()),
+                "Copy event ID as bech32" => CopyText(self.event.id.to_bech32().unwrap())
             }
         }
     }
