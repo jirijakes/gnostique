@@ -32,7 +32,6 @@ impl FactoryComponent for IdentityBox {
     type Input = IdentityInput;
     type Output = IdentityOutput;
     type CommandOutput = ();
-    type ParentInput = IdentitiesInput;
     type ParentWidget = gtk::Box;
 
     view! {
@@ -70,13 +69,6 @@ impl FactoryComponent for IdentityBox {
                 }
             },
 
-        }
-    }
-
-    fn forward_to_parent(output: Self::Output) -> Option<Self::ParentInput> {
-        match output {
-            IdentityOutput::Remove(idx) => Some(IdentitiesInput::Remove(idx)),
-            IdentityOutput::Edit(idx) => Some(IdentitiesInput::Edit(idx)),
         }
     }
 

@@ -45,7 +45,6 @@ impl FactoryComponent for Note {
     type Input = NoteInput;
     type Output = NoteOutput;
     type CommandOutput = ();
-    type ParentInput = LaneMsg;
     type ParentWidget = gtk::ListBox;
 
     #[rustfmt::skip]
@@ -224,13 +223,6 @@ impl FactoryComponent for Note {
                 "Copy event ID as hex" => CopyText(self.event.id.to_hex()),
                 "Copy event ID as bech32" => CopyText(self.event.id.to_bech32().unwrap())
             }
-        }
-    }
-
-    fn forward_to_parent(output: Self::Output) -> Option<Self::ParentInput> {
-        match output {
-            NoteOutput::ShowDetails(details) => Some(LaneMsg::ShowDetails(details)),
-            NoteOutput::LinkClicked(link) => Some(LaneMsg::LinkClicked(link)),
         }
     }
 

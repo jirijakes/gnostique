@@ -5,6 +5,7 @@ use relm4::prelude::*;
 /// Widget temlate for displaying author name and author pubkey.
 #[relm4::widget_template(pub)]
 impl WidgetTemplate for Author {
+    type Init = i32;
     view! {
         gtk::Box {
             set_orientation: gtk::Orientation::Horizontal,

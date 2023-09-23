@@ -276,7 +276,7 @@ impl Anchor<Event> for (Kind, EventId) {
     }
 }
 
-impl Anchor<Preview> for Url {
+impl Anchor<Preview> for reqwest::Url {
     fn accept(&self, what: &Preview) -> Option<String> {
         if self == what.url() {
             what.title().map(|s| s.to_string()).or_else(|| {
@@ -315,7 +315,7 @@ impl Slot<DynamicContent> for Preview {
 pub enum Reference {
     Event(EventId),
     Profile(XOnlyPublicKey, Option<Vec<String>>),
-    Url(Url),
+    Url(reqwest::Url),
 }
 
 pub trait ToReference {
@@ -328,7 +328,7 @@ impl ToReference for EventId {
     }
 }
 
-impl ToReference for Url {
+impl ToReference for reqwest::Url {
     fn to_reference(&self) -> Reference {
         Reference::Url(self.clone())
     }

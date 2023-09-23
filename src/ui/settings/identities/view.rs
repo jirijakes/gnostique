@@ -5,6 +5,7 @@ use relm4::prelude::*;
 use super::edit::{Edit, EditInput, EditOutput};
 use super::identity::IdentityInit;
 use super::model::{Identities, IdentitiesInput};
+use crate::ui::settings::identities::identity::IdentityOutput;
 
 /// Component that contains a settings section for managing identities.
 /// It is only displayed as part of Settings.
@@ -71,7 +72,12 @@ impl Component for Identities {
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let model = Identities {
-            identities: FactoryVecDeque::new(gtk::Box::default(), sender.input_sender()),
+            identities: FactoryVecDeque::builder(gtk::Box::default())
+                .launch()
+                .forward(sender.input_sender(), |msg| match msg {
+                    IdentityOutput::Remove(idx) => IdentitiesInput::Remove(idx),
+                    IdentityOutput::Edit(idx) => IdentitiesInput::Edit(idx),
+                }),
             identity_counter: 1,
             edit: Edit::builder().launch(()).forward(
                 sender.input_sender(),

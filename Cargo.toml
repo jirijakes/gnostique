@@ -11,27 +11,27 @@ exclude = ["doc/"]
 [dependencies]
 bip39 = "2.0.0"
 age = "0.9.2"
-chrono = "0.4.28"
+chrono = "0.4.31"
 config = { version = "0.13.3", default-features = false, features = ["toml"] }
 directories = "5.0.1"
 futures-util = "0.3.28"
-gtk = { package = "gtk4", version = "0.7.2", features = ["v4_8"] }
+gtk = { package = "gtk4", version = "0.7.3", features = ["v4_8"] }
 html-escape = "0.2.13"
 linkify = "0.10.0"
-nostr-sdk = { git = "https://www.github.com/rust-nostr/nostr" }
+nostr-sdk = "0.24.0"
 once_cell = "1.18.0"
-regex = "1.9.4"
-relm4 = "0.7.0-alpha.1"
+regex = "1.9.5"
+relm4 = { git = "https://www.github.com/relm4/Relm4", package = "relm4" }
 reqwest = { version = "0.11.20", features = ["stream"] }
 secrecy = { version = "0.8.0", features = ["serde"] }
 serde = { version = "1.0.188", features = ["derive"] }
-serde_json = "1.0.105"
+serde_json = "1.0.107"
 sqlx = { version = "0.7.1", features = ["sqlite", "runtime-tokio-native-tls", "chrono"] }
 tokio = { version = "1.32.0" }
 tokio-stream = { version = "0.1.14", features = ["sync"] }
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
-toml = "0.7.6"
+toml = "0.8.0"
 lazy_static = "1.4.0"
 mediatype = "0.19.15"
 webpage = { version = "1.6.0", default-features = false }

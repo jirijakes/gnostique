@@ -110,7 +110,7 @@ pub fn parse_content(event: &Event) -> DynamicContent {
         if let Some(LinkKind::Url) = span.kind() {
             let str = span.as_str();
             let safe = html_escape::encode_text(span.as_str());
-            if let Ok(url) = Url::parse(str) {
+            if let Ok(url) = reqwest::Url::parse(str) {
                 dcontent.add(
                     span.start()..span.end(),
                     format!(r#"<a href="{safe}" title="{safe}">{safe}</a>"#),

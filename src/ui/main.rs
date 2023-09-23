@@ -39,7 +39,7 @@ pub enum MainInput {
     Noop,
     MetadataBitmap {
         pubkey: XOnlyPublicKey,
-        url: Url,
+        url: reqwest::Url,
         file: PathBuf,
     },
     Nip05Verified(XOnlyPublicKey),

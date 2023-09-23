@@ -15,7 +15,7 @@ pub enum PreviewKind {
 #[derive(Debug, Clone)]
 pub struct Preview {
     kind: PreviewKind,
-    url: Url,
+    url: reqwest::Url,
     title: Option<String>,
     description: Option<String>,
     thumbnail: Option<Thumbnail>,
@@ -24,7 +24,7 @@ pub struct Preview {
 
 impl Preview {
     pub const fn new(
-        url: Url,
+        url: reqwest::Url,
         kind: PreviewKind,
         title: Option<String>,
         description: Option<String>,
@@ -41,15 +41,15 @@ impl Preview {
         }
     }
 
-    pub const fn unknown(url: Url) -> Preview {
+    pub const fn unknown(url: reqwest::Url) -> Preview {
         Preview::new(url, PreviewKind::Unknown, None, None, None, None)
     }
 
-    pub const fn error(url: Url, error: String) -> Preview {
+    pub const fn error(url: reqwest::Url, error: String) -> Preview {
         Preview::new(url, PreviewKind::Unknown, None, None, None, Some(error))
     }
 
-    pub fn url(&self) -> &Url {
+    pub fn url(&self) -> &reqwest::Url {
         &self.url
     }
 
@@ -58,7 +58,7 @@ impl Preview {
     }
 
     // TODO: Move to Download so we can reuse client and caching and stats.
-    pub async fn create(url: Url) -> Preview {
+    pub async fn create(url: reqwest::Url) -> Preview {
         let orig_url = url.clone();
         match reqwest::get(url).await {
             Err(err) => Preview::error(orig_url, err.to_string()),
@@ -79,7 +79,7 @@ impl Preview {
 pub struct Thumbnail {
     // TODO: Try not to use GTK-specific type here.
     texture: gdk::Texture,
-    url: Url,
+    url: reqwest::Url,
 }
 
 impl Thumbnail {
@@ -141,7 +141,7 @@ async fn html_preview(response: Response) -> Preview {
 
                         w1.cmp(&w2)
                     })
-                    .and_then(|obj| Url::parse(&obj.url).ok())
+                    .and_then(|obj| reqwest::Url::parse(&obj.url).ok())
             };
 
             let thumbnail = match image_url {

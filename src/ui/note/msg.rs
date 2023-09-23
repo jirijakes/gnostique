@@ -37,7 +37,7 @@ pub enum NoteInput {
     /// (New) avatar bitmap is available.
     MetadataBitmap {
         pubkey: XOnlyPublicKey,
-        url: Url,
+        url: reqwest::Url,
         bitmap: Arc<gdk::Texture>,
     },
     Reaction {

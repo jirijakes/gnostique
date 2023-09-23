@@ -7,7 +7,6 @@ use futures_util::*;
 use nostr_sdk::nostr::nips::nip05;
 use nostr_sdk::prelude::*;
 use nostr_sdk::RelayPoolNotification;
-use reqwest::Url;
 use sqlx::query;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::BroadcastStream;
@@ -117,8 +116,14 @@ ON CONFLICT (author) DO UPDATE SET event = EXCLUDED.event
 
     let metadata = event.as_metadata().unwrap();
 
-    let avatar_url = metadata.picture.as_ref().and_then(|p| Url::parse(p).ok());
-    let banner_url = metadata.banner.as_ref().and_then(|p| Url::parse(p).ok());
+    let avatar_url = metadata
+        .picture
+        .as_ref()
+        .and_then(|p| reqwest::Url::parse(p).ok());
+    let banner_url = metadata
+        .banner
+        .as_ref()
+        .and_then(|p| reqwest::Url::parse(p).ok());
 
     // If the metadata's picture contains valid URL, download it.
     let avatar = if let Some(ref url) = avatar_url {
@@ -175,7 +180,7 @@ async fn get_persona_or_demand(
 async fn get_link_preview_or_demand(
     gnostique: &Gnostique,
     feedback: mpsc::Sender<Feedback>,
-    url: &Url,
+    url: &reqwest::Url,
 ) -> Option<Preview> {
     let preview = gnostique.get_link_preview(url).await;
 
@@ -233,7 +238,7 @@ async fn received_text_note(
 
     let mut referenced_notes: HashSet<TextNote> = Default::default();
     let mut referenced_profiles: HashSet<Persona> = Default::default();
-    let mut referenced_urls: HashSet<&Url> = Default::default();
+    let mut referenced_urls: HashSet<&reqwest::Url> = Default::default();
 
     for r in content.references() {
         match r {

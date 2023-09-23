@@ -6,10 +6,9 @@ use std::sync::Arc;
 use gtk::gdk;
 use nostr_sdk::nostr::secp256k1::XOnlyPublicKey;
 use nostr_sdk::nostr::{Event, EventId};
-use nostr_sdk::Tag;
+use nostr_sdk::{Tag, Url};
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::*;
-use reqwest::Url;
 use tracing::trace;
 
 use crate::follow::Follow;
@@ -107,7 +106,7 @@ pub enum LaneMsg {
     Preview(Preview),
     MetadataBitmap {
         pubkey: XOnlyPublicKey,
-        url: Url,
+        url: reqwest::Url,
         bitmap: Arc<gdk::Texture>,
     },
     Reaction {

@@ -4,8 +4,8 @@ use std::time::Duration;
 
 use futures_util::future;
 use nostr_sdk::nostr::nips::nip11;
+use nostr_sdk::Url;
 use relm4::AsyncComponentSender;
-use reqwest::Url;
 use sqlx::query;
 use tracing::info;
 
@@ -47,7 +47,7 @@ FROM relays
         let old_info: HashSet<_> = if let Ok(rec) = old_info {
             rec.iter()
                 .filter_map(|r| {
-                    let url: reqwest::Url = r.url.parse().unwrap();
+                    let url = r.url.parse().unwrap();
                     client_relays.remove(&url);
 
                     if r.old {

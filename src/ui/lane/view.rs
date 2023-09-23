@@ -8,7 +8,7 @@ use crate::nostr::Persona;
 use crate::ui::lane::model::*;
 use crate::ui::lane_header::{LaneHeader, LaneHeaderInput, LaneHeaderOutput};
 use crate::ui::main::MainInput;
-use crate::ui::note::NoteInput;
+use crate::ui::note::{NoteInput, NoteOutput};
 use crate::ui::profilebox;
 use crate::ui::profilebox::model::Profilebox;
 
@@ -69,17 +69,23 @@ impl AsyncFactoryComponent for Lane {
                 })
         };
 
+        let text_notes = FactoryVecDeque::builder(
+            gtk::ListBox::builder()
+                .selection_mode(gtk::SelectionMode::None)
+                .build(),
+        )
+        .launch()
+        .forward(sender.input_sender(), |msg| match msg {
+            NoteOutput::ShowDetails(details) => LaneMsg::ShowDetails(details),
+            NoteOutput::LinkClicked(link) => LaneMsg::LinkClicked(link),
+        });
+
         Self {
             kind,
             profile_box,
             index: index.clone(),
             header,
-            text_notes: FactoryVecDeque::new(
-                gtk::ListBox::builder()
-                    .selection_mode(gtk::SelectionMode::None)
-                    .build(),
-                sender.input_sender(),
-            ),
+            text_notes,
             hash_index: Default::default(),
         }
     }

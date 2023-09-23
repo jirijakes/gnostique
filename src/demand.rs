@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use nostr_sdk::prelude::*;
-use reqwest::Url;
 use tokio::sync::{broadcast, Mutex};
 use tracing::{debug, info};
 
@@ -62,7 +61,7 @@ impl Demand {
                             .kind(Kind::Metadata)
                             .author(pubkey.to_string())
                             .limit(1)],
-                        None,
+                        Duration::from_secs(3),
                         FilterOptions::ExitOnEOSE,
                     );
                 }
@@ -98,7 +97,7 @@ impl Demand {
                 if let Some(r) = relay {
                     let relays = self.0.client.relays().await;
                     if let Some(r) = relays.get(&r) {
-                        r.req_events_of(sub, None, FilterOptions::ExitOnEOSE);
+                        r.req_events_of(sub, Duration::from_secs(3), FilterOptions::ExitOnEOSE);
                     }
                 } else {
                     self.0.client.req_events_of(sub, None).await;
@@ -107,7 +106,7 @@ impl Demand {
         };
     }
 
-    pub async fn link_preview(&self, url: &Url) {
+    pub async fn link_preview(&self, url: &reqwest::Url) {
         info!("Requesting preview for {}", url);
         let preview = Preview::create(url.clone()).await;
         self.0

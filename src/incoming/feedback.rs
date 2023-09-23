@@ -19,7 +19,7 @@ pub enum Feedback {
         relay: Option<Url>,
     },
     MakePreview {
-        url: Url,
+        url: reqwest::Url,
     },
 }
 

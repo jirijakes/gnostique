@@ -2,10 +2,9 @@ use std::collections::HashSet;
 use std::time::Duration;
 
 use gtk::prelude::*;
-use nostr_sdk::Client;
+use nostr_sdk::{Client, Url};
 use relm4::gtk;
 use relm4::prelude::*;
-use reqwest::Url;
 use tokio::time::interval;
 
 use crate::gnostique::Gnostique;

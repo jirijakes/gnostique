@@ -6,8 +6,7 @@ use age::Decryptor;
 use directories::ProjectDirs;
 use gtk::{gdk, glib};
 use nostr_sdk::prelude::{Event, EventId, Metadata, XOnlyPublicKey};
-use nostr_sdk::{Client, Filter, Timestamp};
-use reqwest::Url;
+use nostr_sdk::{Client, Filter, Timestamp, Url};
 use secrecy::SecretString;
 use sqlx::{query, SqlitePool};
 use tokio::io::AsyncReadExt;
@@ -133,7 +132,7 @@ WHERE url IN (SELECT relay FROM textnotes_relays WHERE textnote = ?)"#,
     }
 
     // TODO: Consider whether caching previews makes sense.
-    pub async fn get_link_preview(&self, url: &Url) -> Option<Preview> {
+    pub async fn get_link_preview(&self, url: &reqwest::Url) -> Option<Preview> {
         None
         //         use crate::nostr::preview::PreviewKind;
 
