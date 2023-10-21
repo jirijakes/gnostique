@@ -151,9 +151,14 @@ impl Lane {
             } else {
                 // Find index of first text note that was created later
                 // than the text note being inserted.
+                let subscribes_events = !self.subscription.events().is_empty();
                 let idx = self.text_notes.iter().position(|tn| {
                     let ord = tn.time.timestamp().cmp(&event_time.as_i64());
-                    ord == Ordering::Less
+                    ord == if subscribes_events {
+                        Ordering::Greater
+                    } else {
+                        Ordering::Less
+                    }
                 });
 
                 if let Some(idx) = idx {
