@@ -46,6 +46,7 @@ pub enum MainInput {
     DemandProfile(XOnlyPublicKey, Vec<Url>),
     CloseLane(DynamicIndex),
     LinkClicked(InternalLink),
+    RefreshSubscriptions,
 }
 
 #[relm4::component(pub async)]
@@ -105,7 +106,10 @@ impl AsyncComponent for Main {
         let status_bar = model.status_bar.widget();
         let widgets = view_output!();
 
-        model.lanes.guard().push_back(LaneKind::Sink);
+        model
+            .lanes
+            .guard()
+            .push_back(LaneInit::subscription(Subscription::Sink));
 
         // widgets
         //     .window
@@ -202,78 +206,54 @@ impl AsyncComponent for Main {
             MainInput::WriteNote => self.write_note.emit(WriteNoteInput::Show),
 
             MainInput::CloseLane(id) => {
-                // TODO: Resubscribe.
                 self.lanes.guard().remove(id.current_index());
+                sender.input(MainInput::RefreshSubscriptions);
             }
 
-            MainInput::LinkClicked(InternalLink::Tag(tag)) => {
+            MainInput::RefreshSubscriptions => {
                 let client = self.gnostique.client();
                 let relays = client.relays().await;
                 let relays = relays.values();
 
-                let sub = Subscription::hashtag(tag);
+                let lane_subs = self
+                    .lanes
+                    .iter()
+                    .filter_map(|l| l.map(|l| l.subscription().clone()))
+                    .reduce(|x, y| x.add(y));
 
-                let mut lanes = self.lanes.guard();
+                tracing::info!("Subscribing to {lane_subs:?}");
 
-                {
-                    let lane_subs = lanes
-                        .iter()
-                        .filter_map(|l| l.and_then(|l| l.subscription()))
-                        .fold(sub.clone(), |x, y| x.add(y.clone()));
-
-                    tracing::info!("Subscribing to {lane_subs:?}");
-
-                    let sub_filter = lane_subs.to_filter().since(Timestamp::now());
-
+                if let Some(subs) = lane_subs {
+                    let sub_filter = subs.to_filters();
                     for relay in relays {
-                        // TODO: now first lane is hardcoded as Sink, when the Sink
-                        // is removed, the sink_filter will be removed, too.
-                        let sink_filter = Filter::new().since(Timestamp::now());
-                        let _ = relay
-                            .subscribe(vec![sink_filter, sub_filter.clone()], None)
-                            .await;
+                        let _ = relay.subscribe(sub_filter.clone(), None).await;
 
                         let active_subs = relay.subscriptions().await;
                         tracing::debug!("On {} subscribed to {:#?}", relay.url(), active_subs);
                     }
                 }
+            }
 
-                lanes.push_back(LaneKind::Subscription(sub));
+            MainInput::LinkClicked(InternalLink::Tag(tag)) => {
+                self.lanes
+                    .guard()
+                    .push_back(LaneInit::subscription(Subscription::hashtag(tag)));
+            }
+
+            MainInput::LinkClicked(InternalLink::Event(event)) => {
+                self.lanes.guard().push_back(LaneInit::with_focused(
+                    Subscription::thread(event.id()),
+                    event.id(),
+                ));
             }
 
             MainInput::LinkClicked(InternalLink::Profile(persona, relays)) => {
-                let client = self.gnostique.client();
-
-                let sub = Subscription::profile(persona.pubkey, relays);
-
-                let connected_relays = client.relays().await;
-                let connected_relays = connected_relays.values();
-
-                let mut lanes = self.lanes.guard();
-                {
-                    let lane_subs = lanes
-                        .iter()
-                        .filter_map(|l| l.and_then(|l| l.subscription()))
-                        .fold(sub.clone(), |x, y| x.add(y.clone()));
-
-                    tracing::info!("Subscribing to {lane_subs:?}");
-
-                    let sub_filter = lane_subs.to_filter().since(Timestamp::now());
-
-                    for relay in connected_relays {
-                        // TODO: now first lane is hardcoded as Sink, when the Sink
-                        // is removed, the sink_filter will be removed, too.
-                        let sink_filter = Filter::new().since(Timestamp::now());
-                        let _ = relay
-                            .subscribe(vec![sink_filter, sub_filter.clone()], None)
-                            .await;
-
-                        let active_subs = relay.subscriptions().await;
-                        tracing::debug!("On {} subscribed to {:#?}", relay.url(), active_subs);
-                    }
-                }
-
-                lanes.push_back(LaneKind::Subscription(sub));
+                self.lanes
+                    .guard()
+                    .push_back(LaneInit::subscription(Subscription::profile(
+                        persona.pubkey,
+                        relays,
+                    )));
             }
 
             MainInput::Noop => {}

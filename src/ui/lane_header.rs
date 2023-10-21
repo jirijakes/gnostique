@@ -2,7 +2,7 @@ use gtk::prelude::*;
 use relm4::*;
 
 use crate::app::action::EditProfile;
-use crate::ui::lane::LaneKind;
+use crate::nostr::subscriptions::Subscription;
 
 #[derive(Debug)]
 pub struct LaneHeader {
@@ -21,7 +21,7 @@ pub enum LaneHeaderInput {
 
 #[relm4::component(pub)]
 impl SimpleComponent for LaneHeader {
-    type Init = LaneKind;
+    type Init = Subscription;
     type Input = LaneHeaderInput;
     type Output = LaneHeaderOutput;
 
@@ -89,12 +89,7 @@ impl SimpleComponent for LaneHeader {
         _root: &Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let title = match init {
-            LaneKind::Feed(_) => "Feed".to_string(),
-            LaneKind::Thread(_) => "Thread".to_string(),
-            LaneKind::Subscription(sub) => sub.to_string(),
-            LaneKind::Sink => "All".to_string(),
-        };
+        let title = "TODO".to_string();
 
         let model = LaneHeader { title };
 

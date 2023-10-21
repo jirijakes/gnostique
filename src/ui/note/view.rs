@@ -12,7 +12,6 @@ use super::msg::*;
 use crate::app::action::*;
 use crate::nostr::*;
 use crate::ui::details::Details;
-use crate::ui::lane::LaneMsg;
 use crate::ui::link::InternalLink;
 use crate::ui::replies::RepliesInput;
 use crate::ui::widgets::author::Author;
@@ -208,6 +207,13 @@ impl FactoryComponent for Note {
             add_controller = gtk::EventControllerMotion::new() {
                 connect_enter[sender] => move |_, _, _| { sender.input(NoteInput::FocusIn) },
                 connect_leave[sender] => move |_| { sender.input(NoteInput::FocusOut) }
+            },
+            add_controller = gtk::GestureClick::new() {
+                connect_pressed[sender, event_id = self.event.id, relays = self.relays.clone()] => move |_, n, _, _| {
+                    if n == 2 {
+                        sender.output(NoteOutput::LinkClicked(InternalLink::event(event_id, relays.clone())))
+                    }
+                }
             }
         }
     }

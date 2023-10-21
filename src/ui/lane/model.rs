@@ -5,17 +5,16 @@ use std::sync::Arc;
 
 use gtk::gdk;
 use nostr_sdk::nostr::secp256k1::XOnlyPublicKey;
-use nostr_sdk::nostr::{Event, EventId};
-use nostr_sdk::{Tag, Url};
+use nostr_sdk::nostr::EventId;
+use nostr_sdk::Url;
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::*;
 use tracing::trace;
 
-use crate::follow::Follow;
 use crate::nostr::content::DynamicContent;
 use crate::nostr::preview::Preview;
 use crate::nostr::subscriptions::Subscription;
-use crate::nostr::{EventExt, Persona, Repost, TextNote};
+use crate::nostr::{EventRef, Persona, Repost, TextNote};
 use crate::ui::details::Details;
 use crate::ui::lane_header::LaneHeader;
 use crate::ui::link::InternalLink;
@@ -24,68 +23,55 @@ use crate::ui::profilebox::model::Profilebox;
 
 #[derive(Debug)]
 pub struct Lane {
-    pub(super) kind: LaneKind,
+    /// Subscription of this lane. The lane will display
+    /// all the notes and other stuff as specified by
+    /// the subscription.
+    pub(super) subscription: Subscription,
+
+    /// Event in the lane that the lane should be focused on.
+    /// Typically if the lane is subscribed to a single event,
+    /// it will be focused.
+    pub(super) focused: Option<EventId>,
+
+    /// Dynamic index of this lane.
     pub(super) index: DynamicIndex,
+
+    /// All the notes currently displayed in the lane.
     pub(super) text_notes: FactoryVecDeque<Note>,
+
     pub(super) hash_index: HashMap<EventId, DynamicIndex>,
+
     /// Component of profile box; exists only when the lane
     /// is of kind Profile.
     pub(super) profile_box: Option<Controller<Profilebox>>,
+
     pub(super) header: Controller<LaneHeader>,
 }
 
-#[derive(Clone, Debug)]
-pub enum LaneKind {
-    Thread(EventId),
-    Feed(Follow),
-    Subscription(Subscription), // TODO: perhaps more general Search?
-    Sink,
+/// Initial object of a new lane.
+pub struct LaneInit {
+    /// Initial subscription of the lane.
+    pub(super) subscription: Subscription,
+
+    /// Focused event, if any.
+    pub(super) focused: Option<EventId>,
 }
 
-impl LaneKind {
-    pub fn is_thread(&self, event_id: &EventId) -> bool {
-        matches!(self, LaneKind::Thread(e) if e == event_id)
-    }
-
-    pub fn is_profile(&self, pubkey: &XOnlyPublicKey) -> bool {
-        matches!(self, LaneKind::Subscription(Subscription::Profile(p, _)) if p == pubkey)
-    }
-
-    pub fn is_a_profile(&self) -> bool {
-        matches!(self, LaneKind::Subscription(Subscription::Profile(..)))
-    }
-
-    pub fn accepts(&self, event: &Event) -> bool {
-        match self {
-            LaneKind::Sink => true,
-            LaneKind::Subscription(sub) => LaneKind::accepts_subscription(event, sub),
-            LaneKind::Feed(f) => f.follows(&event.pubkey) && event.replies_to().is_none(),
-            LaneKind::Thread(id) => {
-                event.id == *id
-                    || event.replies_to() == Some(*id)
-                    || matches!(event.thread_root(), Some((i, _)) if i == *id)
-            }
+impl LaneInit {
+    /// Creates new Lane initial for given subscription.
+    /// No event is focused.
+    pub fn subscription(subscription: Subscription) -> LaneInit {
+        LaneInit {
+            subscription,
+            focused: None,
         }
     }
 
-    /// Determines whether the incoming `event` is going to be placed in this lane.
-    /// Gradually, it will cover all cases and at the end will replace lane kind.
-    fn accepts_subscription(event: &Event, subscription: &Subscription) -> bool {
-        let tags = subscription
-            .hashtags()
-            .iter()
-            .map(|t| t.to_lowercase())
-            .collect::<HashSet<_>>();
-
-        // TODO: could also consider content of the text note, not only event.tags.
-        let accepts_tags = event
-            .tags
-            .iter()
-            .any(|t| matches!(t, Tag::Hashtag(h) if tags.contains(h.to_lowercase().as_str())));
-
-        let accept_pubkeys = subscription.pubkeys().contains(&event.pubkey);
-
-        accepts_tags || accept_pubkeys
+    pub fn with_focused(subscription: Subscription, focused: EventId) -> LaneInit {
+        LaneInit {
+            subscription,
+            focused: Some(focused),
+        }
     }
 }
 
@@ -123,8 +109,10 @@ pub enum LaneOutput {
     ShowDetails(Details),
     WriteNote,
     DemandProfile(XOnlyPublicKey, Vec<Url>),
+    // DemandTextNote(EventRef),
     CloseLane(DynamicIndex),
     LinkClicked(InternalLink),
+    SubscriptionsChanged,
 }
 
 impl Lane {
@@ -142,8 +130,8 @@ impl Lane {
 
         // Add note iff it has not been added yet (they may arrive multiple times).
         if let Entry::Vacant(e) = self.hash_index.entry(event_id) {
-            let is_central = self.kind.is_thread(&event_id);
-            let is_profile = self.kind.is_a_profile();
+            let is_central = self.focused == Some(event_id);
+            let is_profile = self.subscription.is_a_profile();
             let event_time = note.event().created_at;
 
             let init = NoteInit {
@@ -163,13 +151,13 @@ impl Lane {
             } else {
                 // Find index of first text note that was created later
                 // than the text note being inserted.
+                let subscribes_events = !self.subscription.events().is_empty();
                 let idx = self.text_notes.iter().position(|tn| {
                     let ord = tn.time.timestamp().cmp(&event_time.as_i64());
-                    match self.kind {
-                        LaneKind::Thread(_) => ord == Ordering::Less,
-                        LaneKind::Feed(_) => ord == Ordering::Less,
-                        LaneKind::Sink => ord == Ordering::Less,
-                        LaneKind::Subscription(_) => ord == Ordering::Less,
+                    ord == if subscribes_events {
+                        Ordering::Greater
+                    } else {
+                        Ordering::Less
                     }
                 });
 
@@ -192,9 +180,13 @@ impl Lane {
         {
             let mut g = self.text_notes.guard();
 
-            if g.len() > 10 {
-                trace!("Lane {:?} has {} notes, removing some.", self.kind, g.len());
-            };
+            // if g.len() > 10 {
+            //     trace!(
+            //         "Lane {:?} has {} notes, removing some.",
+            //         self.subscription(),
+            //         g.len()
+            //     );
+            // };
 
             while g.len() > 10 {
                 let _ = g.pop_back();
@@ -203,12 +195,7 @@ impl Lane {
     }
 
     /// Returns a subscription of this lane, if it exists.
-    // TODO: Eventually, every lane should have a subscription, so
-    // there will be no need for Option anymore.
-    pub fn subscription(&self) -> Option<&Subscription> {
-        match &self.kind {
-            LaneKind::Subscription(s) => Some(s),
-            _ => None,
-        }
+    pub fn subscription(&self) -> &Subscription {
+        &self.subscription
     }
 }

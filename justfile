@@ -1,5 +1,5 @@
 export RUST_BACKTRACE := "full"
-export RUST_LOG := "none,gnostique=info,sqlx=info,hyper=info,relm4=warn"
+export RUST_LOG := "none,gnostique=trace,sqlx=info,hyper=info,relm4=warn,nostr=warn"
 
 @_default:
     just --list
@@ -45,3 +45,6 @@ prepare:
 [no-exit-message]
 check:
     cargo +nightly fmt --check
+
+rg term:
+    rg -trust {{term}}

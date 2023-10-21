@@ -12,6 +12,7 @@ use nostr_sdk::prelude::rand::rngs::OsRng;
 use nostr_sdk::prelude::rand::*;
 use once_cell::sync::Lazy;
 use relm4::gtk::{gdk, glib};
+use vec1::Vec1;
 
 use self::content::DynamicContent;
 use self::gnevent::GnEvent;
@@ -24,6 +25,43 @@ pub static ANONYMOUS_USER: Lazy<Arc<gdk::Texture>> = Lazy::new(|| {
         .unwrap(),
     )
 });
+
+/// Event that we received from a particular relay.
+#[derive(Clone, Debug)]
+pub struct ReceivedEvent {
+    pub event: Event,
+    pub relay: Url,
+}
+
+impl ReceivedEvent {
+    pub fn prepare_content(&self) -> DynamicContent {
+        parse::parse_content(self)
+    }
+}
+
+/// Reference to an event with `id` should be found on `relays`.
+#[derive(Clone, Debug)]
+pub struct EventRef {
+    /// ID of event.
+    event_id: EventId,
+
+    /// Relays that are expected to know this event ID.
+    relays: Vec1<Url>,
+}
+
+impl EventRef {
+    pub fn new(event_id: EventId, relays: Vec1<Url>) -> EventRef {
+        EventRef { event_id, relays }
+    }
+
+    pub fn id(&self) -> EventId {
+        self.event_id
+    }
+
+    pub fn relays(&self) -> &Vec1<Url> {
+        &self.relays
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct Repost(GnEvent);
@@ -195,7 +233,6 @@ pub trait EventExt {
     fn as_metadata(&self) -> Option<Metadata>;
 
     fn as_pretty_json(&self) -> String;
-    fn prepare_content(&self) -> DynamicContent;
 
     /// Find all relays in this event.
     fn collect_relays(&self) -> Vec<UncheckedUrl>;
@@ -285,10 +322,6 @@ impl EventExt for Event {
 
     fn as_pretty_json(&self) -> String {
         serde_json::to_string_pretty(self).expect("Could not serialize Event?")
-    }
-
-    fn prepare_content(&self) -> DynamicContent {
-        parse::parse_content(self)
     }
 
     fn collect_relays(&self) -> Vec<UncheckedUrl> {
