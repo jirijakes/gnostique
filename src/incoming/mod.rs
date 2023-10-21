@@ -17,7 +17,7 @@ use crate::gnostique::Gnostique;
 use crate::nostr::content::{DynamicContent, Reference};
 use crate::nostr::gnevent::GnEvent;
 use crate::nostr::preview::Preview;
-use crate::nostr::{EventExt, Persona, Repost, TextNote};
+use crate::nostr::{EventExt, Persona, ReceivedEvent, Repost, TextNote};
 
 // Note: Clone is required by broadcast::channel.
 #[derive(Clone, Debug)]
@@ -52,18 +52,26 @@ pub fn incoming_stream(gnostique: &Gnostique) -> impl Stream<Item = Incoming> + 
 
     let nostream = BroadcastStream::new(gnostique.client().notifications())
         .filter_map(|r| async {
-            if let Ok(RelayPoolNotification::Event(relay, event)) = r {
-                Some((relay, event))
-            } else {
-                // println!("\n{r:?}\n");
-                None
+            match r {
+                // We listen to events in messages as opposed to events themselves
+                // because nostr-sdk's events are deduplicated. Some of Gnostique's
+                // features rely on not having events deduplicated, such as
+                // opening a new Thread lane and subscribing to a just-received event.
+                // With deduplication enabled, this event would not be received again.
+                Ok(RelayPoolNotification::Message(relay, RelayMessage::Event { event, .. })) => {
+                    Some(ReceivedEvent {
+                        relay,
+                        event: event.as_ref().clone(),
+                    })
+                }
+                _ => None,
             }
         })
-        .then(|(relay, event)| async {
-            offer_relays(gnostique, &relay, &event).await;
-            (relay, event)
+        .then(|event| async {
+            offer_relays(gnostique, &event).await;
+            event
         })
-        .map(move |(relay, event)| received_event(gnostique, feedback.clone(), relay, event))
+        .map(move |event| received_event(gnostique, feedback.clone(), event))
         .buffer_unordered(64)
         .filter_map(future::ready);
 
@@ -78,19 +86,29 @@ pub fn incoming_stream(gnostique: &Gnostique) -> impl Stream<Item = Incoming> + 
 async fn received_event(
     gnostique: &Gnostique,
     feedback: mpsc::Sender<Feedback>,
-    relay: Url,
-    event: Event,
+    event: ReceivedEvent,
 ) -> Option<Incoming> {
-    match event.kind {
-        Kind::TextNote => Some(received_text_note(gnostique, feedback, relay, event, None).await),
-        Kind::Metadata => Some(received_metadata(gnostique, event).await),
-        Kind::Reaction => event.reacts_to().map(|to| Incoming::Reaction {
+    match event.event.kind {
+        Kind::TextNote => Some(received_text_note(gnostique, feedback, event, None).await),
+        Kind::Metadata => Some(received_metadata(gnostique, event.event).await),
+        Kind::Reaction => event.event.reacts_to().map(|to| Incoming::Reaction {
             event_id: to,
-            content: event.content,
+            content: event.event.content,
         }),
         Kind::Repost => {
-            if let Ok(inner) = Event::from_json(&event.content) {
-                Some(received_text_note(gnostique, feedback, relay, inner, Some(event)).await)
+            if let Ok(inner) = Event::from_json(&event.event.content) {
+                Some(
+                    received_text_note(
+                        gnostique,
+                        feedback,
+                        ReceivedEvent {
+                            relay: event.relay,
+                            event: inner,
+                        },
+                        Some(event.event),
+                    )
+                    .await,
+                )
             } else {
                 None
             }
@@ -218,11 +236,10 @@ async fn get_note_or_demand(
 async fn received_text_note(
     gnostique: &Gnostique,
     feedback: mpsc::Sender<Feedback>,
-    relay: Url,
-    event: Event,
+    event: ReceivedEvent,
     repost: Option<Event>,
 ) -> Incoming {
-    gnostique.store_event(&relay, &event).await;
+    gnostique.store_event(&event).await;
 
     // if let Some((root, root_relay)) = event.thread_root() {
     //     feedback
@@ -235,6 +252,8 @@ async fn received_text_note(
     // };
 
     let content = event.prepare_content();
+
+    let ReceivedEvent { event, relay } = event;
 
     let mut referenced_notes: HashSet<TextNote> = Default::default();
     let mut referenced_profiles: HashSet<Persona> = Default::default();
@@ -303,10 +322,10 @@ async fn received_text_note(
     }
 }
 
-async fn offer_relays(gnostique: &Gnostique, relay: &Url, event: &Event) {
-    offer_relay_url(gnostique, &UncheckedUrl::new(relay.to_string())).await;
+async fn offer_relays(gnostique: &Gnostique, event: &ReceivedEvent) {
+    offer_relay_url(gnostique, &UncheckedUrl::new(event.relay.to_string())).await;
 
-    for r in event.collect_relays() {
+    for r in event.event.collect_relays() {
         offer_relay_url(gnostique, &r).await
     }
 }

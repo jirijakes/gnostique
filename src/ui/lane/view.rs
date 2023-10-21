@@ -14,7 +14,7 @@ use crate::ui::profilebox::model::Profilebox;
 
 #[relm4::factory(pub async)]
 impl AsyncFactoryComponent for Lane {
-    type Init = LaneKind;
+    type Init = LaneInit;
     type Input = LaneMsg;
     type Output = LaneOutput;
     type CommandOutput = ();
@@ -45,29 +45,40 @@ impl AsyncFactoryComponent for Lane {
     }
 
     async fn init_model(
-        kind: LaneKind,
+        init: LaneInit,
         index: &DynamicIndex,
         sender: AsyncFactorySender<Self>,
     ) -> Self {
-        let profile_box =
-            if let LaneKind::Subscription(Subscription::Profile(pubkey, relays)) = &kind {
-                // Since persona does not include avatar bitmap, it has to be obtained
-                // from outside. Once #0464b5d7fa3bbbad is solved, this should not be
-                // needed anymore.
-                sender.output(LaneOutput::DemandProfile(*pubkey, relays.clone()));
-                Some(Profilebox::builder().launch(*pubkey).detach())
-            } else {
-                None
-            };
+        let LaneInit {
+            subscription,
+            focused,
+        } = init;
+        let profile_box = if let Subscription::Profile(pubkey, relays) = &subscription {
+            // Since persona does not include avatar bitmap, it has to be obtained
+            // from outside. Once #0464b5d7fa3bbbad is solved, this should not be
+            // needed anymore.
+            sender.output(LaneOutput::DemandProfile(*pubkey, relays.clone()));
+            Some(Profilebox::builder().launch(*pubkey).detach())
+        } else {
+            None
+        };
 
+        // Each lane has a header.
         let header = {
             let index = index.clone();
-            LaneHeader::builder()
-                .launch(kind.clone())
-                .forward(sender.output_sender(), move |out| match out {
+            LaneHeader::builder().launch(subscription.clone()).forward(
+                sender.output_sender(),
+                move |out| match out {
                     LaneHeaderOutput::CloseLane => LaneOutput::CloseLane(index.clone()),
-                })
+                },
+            )
         };
+
+        // // If this lane is to display a thread, we only have event ID at the moment.
+        // // Therefore, we first need to obtain the full text note.
+        // if let Subscription::Event(event) = &subscription {
+        //     sender.output(LaneOutput::DemandTextNote(event.clone()));
+        // }
 
         let text_notes = FactoryVecDeque::builder(
             gtk::ListBox::builder()
@@ -81,7 +92,8 @@ impl AsyncFactoryComponent for Lane {
         });
 
         Self {
-            kind,
+            subscription,
+            focused,
             profile_box,
             index: index.clone(),
             header,
@@ -99,9 +111,8 @@ impl AsyncFactoryComponent for Lane {
     ) -> Self::Widgets {
         let widgets = view_output!();
 
-        match self.kind {
-            LaneKind::Subscription(Subscription::Profile(..)) => root.add_css_class("profile"),
-            LaneKind::Thread(_) => {}
+        match self.subscription {
+            Subscription::Profile(..) => root.add_css_class("profile"),
             _ => {}
         };
 
@@ -136,7 +147,7 @@ impl AsyncFactoryComponent for Lane {
             }
 
             LaneMsg::UpdatedProfile { author } => {
-                if self.kind.is_profile(&author.pubkey) {
+                if self.subscription.pubkeys().contains(&author.pubkey) {
                     if let Some(p) = &self.profile_box {
                         p.emit(profilebox::Input::UpdatedProfile {
                             author: author.clone(),
@@ -156,7 +167,7 @@ impl AsyncFactoryComponent for Lane {
                 url,
                 bitmap,
             } => {
-                if self.kind.is_profile(&pubkey) {
+                if self.subscription.pubkeys().contains(&pubkey) {
                     if let Some(p) = &self.profile_box {
                         p.emit(profilebox::Input::MetadataBitmap {
                             url: url.clone(),
@@ -188,6 +199,8 @@ impl AsyncFactoryComponent for Lane {
                 referenced_notes,
                 referenced_profiles,
             } => {
+                tracing::trace!("Text note received: {}", note.event().id);
+
                 self.text_notes.broadcast(NoteInput::TextNote {
                     note: note.clone(),
                     content: content.clone(),
@@ -197,10 +210,10 @@ impl AsyncFactoryComponent for Lane {
                     referenced_profiles: referenced_profiles.clone(),
                 });
 
-                if self.kind.accepts(note.event())
+                if self.subscription().accepts(note.event())
                     || repost
                         .as_ref()
-                        .map(|r| self.kind.accepts(r.event()))
+                        .map(|r| self.subscription().accepts(r.event()))
                         .unwrap_or_default()
                 {
                     self.text_note_received(

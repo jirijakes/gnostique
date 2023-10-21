@@ -6,7 +6,7 @@ use age::Decryptor;
 use directories::ProjectDirs;
 use gtk::{gdk, glib};
 use nostr_sdk::prelude::{Event, EventId, Metadata, XOnlyPublicKey};
-use nostr_sdk::{Client, Filter, Timestamp, Url};
+use nostr_sdk::{Client, Filter, Options, Relay, RelayPoolOptions, Timestamp, Url};
 use secrecy::SecretString;
 use sqlx::{query, SqlitePool};
 use tokio::io::AsyncReadExt;
@@ -17,7 +17,7 @@ use crate::download::Download;
 use crate::identity::Identity;
 use crate::incoming::Incoming;
 use crate::nostr::preview::Preview;
-use crate::nostr::Persona;
+use crate::nostr::{Persona, ReceivedEvent};
 
 /// Gnostique session. In order to use Gnostique, an instance of this
 /// has to exist.
@@ -81,7 +81,8 @@ impl Gnostique {
 
     /// Stores event and relay from which it arrives into database,
     /// does nothing when already exist.
-    pub async fn store_event(&self, relay: &Url, event: &Event) {
+    pub async fn store_event(&self, event: &ReceivedEvent) {
+        let ReceivedEvent { event, relay } = event;
         let id = event.id.as_bytes().to_vec();
         let json = serde_json::to_string(event).unwrap();
 

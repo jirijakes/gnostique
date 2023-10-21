@@ -4,6 +4,7 @@ use nostr_sdk::prelude::*;
 use regex::Regex;
 
 use super::content::DynamicContent;
+use super::ReceivedEvent;
 
 lazy_static! {
     pub(super) static ref NIP21: Regex = Regex::new(
@@ -15,7 +16,8 @@ lazy_static! {
     pub(super) static ref MENTION: Regex = Regex::new("#\\[(?P<idx>\\d+)\\]").unwrap();
 }
 
-pub fn parse_content(event: &Event) -> DynamicContent {
+pub fn parse_content(event: &ReceivedEvent) -> DynamicContent {
+    let ReceivedEvent { event, relay } = event;
     let mut dcontent = DynamicContent::new();
 
     // About trimming of content.
@@ -56,12 +58,22 @@ pub fn parse_content(event: &Event) -> DynamicContent {
             },
             Some("nevent") => {
                 let what = Nip19Event::from_bech32(nip19).unwrap();
-                let with = format!(r#"<a href="nostr:{}">{}…</a>"#, nip19, &nip19[..24]);
+                // TODO: add relays to link
+                let with = format!(
+                    r#"<a href="gnostique:search?event={}&relay=&relay=">{}…</a>"#,
+                    nip19,
+                    &nip19[..24]
+                );
                 dcontent.add(range, with, what);
             }
             Some("note") => {
                 let what = EventId::from_bech32(nip19).unwrap();
-                let with = format!(r#"<a href="nostr:{}">{}…</a>"#, nip19, &nip19[..24]);
+                let with = format!(
+                    r#"<a href="gnostique:search?event={}&relay={}">{}…</a>"#,
+                    nip19,
+                    relay,
+                    &nip19[..24]
+                );
                 dcontent.add(range, with, (Kind::TextNote, what));
             }
             _ => (),
