@@ -112,6 +112,7 @@ pub enum LaneOutput {
     // DemandTextNote(EventRef),
     CloseLane(DynamicIndex),
     LinkClicked(InternalLink),
+    SubscriptionsChanged,
 }
 
 impl Lane {

@@ -74,11 +74,11 @@ impl AsyncFactoryComponent for Lane {
             )
         };
 
-        // // If this lane is to display a thread, we only have event ID at the moment.
-        // // Therefore, we first need to obtain the full text note.
-        // if let Subscription::Event(event) = &subscription {
-        //     sender.output(LaneOutput::DemandTextNote(event.clone()));
-        // }
+        // If this lane is to display a thread, we only have one event at the moment.
+        // Therefore, we need to subscribe to the root, if it exists.
+        if let Subscription::Event(event) = &subscription {
+            // sender.output(LaneOutput::DemandTextNote(event.clone()));
+        }
 
         let text_notes = FactoryVecDeque::builder(
             gtk::ListBox::builder()
@@ -90,6 +90,11 @@ impl AsyncFactoryComponent for Lane {
             NoteOutput::ShowDetails(details) => LaneMsg::ShowDetails(details),
             NoteOutput::LinkClicked(link) => LaneMsg::LinkClicked(link),
         });
+
+        // When a new lane is opened, it is passed a subscription, however Nostr client
+        // is not yet subscribed to it. It is lane's responsibility to prepare subscription
+        // and then notify parent about when it's done.
+        sender.output(LaneOutput::SubscriptionsChanged);
 
         Self {
             subscription,
@@ -133,6 +138,7 @@ impl AsyncFactoryComponent for Lane {
             }
             LaneOutput::CloseLane(id) => Some(MainInput::CloseLane(id)),
             LaneOutput::LinkClicked(link) => Some(MainInput::LinkClicked(link)),
+            LaneOutput::SubscriptionsChanged => Some(MainInput::RefreshSubscriptions),
         }
     }
 

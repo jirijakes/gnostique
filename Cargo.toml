@@ -29,7 +29,7 @@ serde_json = "1.0.107"
 sqlx = { version = "0.7.2", features = ["sqlite", "runtime-tokio-native-tls", "chrono"] }
 tokio = { version = "1.33.0" }
 tokio-stream = { version = "0.1.14", features = ["sync"] }
-tracing = "0.1.39"
+tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 toml = "0.8.2"
 lazy_static = "1.4.0"
